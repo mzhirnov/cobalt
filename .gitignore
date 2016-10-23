@@ -1,27 +1,61 @@
+# macOS files
+.DS_Store
+
+# Xcode files
+*.xcuserstate
+*.pbxuser
+*.xccheckout
+*.build
+xcuserdata
+build
+DerivedData
+
+# Visual Studio files
+*_i.c
+*_p.c
+*_i.h
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
+*.sdf
+*.opensdf
+*.ncb
+*.suo
+*.ilk
+*.pdb
+*.idb
+*.VC.opendb
+*.VC.db
+*.user
+*.log
+*.tlog*
+x64
+Debug
+Release
+ipch
+obj
+
+# Python files
+*.pyc
+
 # Compiled Object files
 *.slo
 *.lo
 *.o
 *.obj
 
-# Precompiled Headers
-*.gch
-*.pch
-
 # Compiled Dynamic libraries
 *.so
 *.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
+#*.dll
 
 # Compiled Static libraries
 *.lai
 *.la
 *.a
-*.lib
+#*.lib
 
 # Executables
 *.exe
