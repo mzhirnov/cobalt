@@ -341,6 +341,104 @@ void stream::copy(input_stream* istream, output_stream* ostream) {
 	ostream->flush();
 }
 
+// binary_writer
+//
+
+binary_writer::binary_writer(output_stream* stream)
+	: _stream(stream)
+{
+	BOOST_ASSERT(stream);
+}
+
+void binary_writer::write_uint8(uint8_t i) {
+	if (_stream->write(&i, sizeof(uint8_t)) != sizeof(uint8_t)) {
+		BOOST_THROW_EXCEPTION(std::runtime_error("failed to write stream"));
+	}
+}
+
+void binary_writer::write_uint16(uint16_t i) {
+	write_uint8(static_cast<uint8_t>(i & 0xff));
+	write_uint8(static_cast<uint8_t>((i >> 8) & 0xff));
+}
+
+void binary_writer::write_uint32(uint32_t i) {
+	write_uint16(static_cast<uint16_t>(i & 0xffff));
+	write_uint16(static_cast<uint16_t>((i >> 16) & 0xffff));
+}
+
+void binary_writer::write_uint64(uint64_t i) {
+	write_uint32(static_cast<uint32_t>(i & 0xffffffff));
+	write_uint32(static_cast<uint32_t>((i >> 32) & 0xffffffff));
+}
+
+void binary_writer::write_int8(int8_t i) {
+	write_uint8(static_cast<uint8_t>(i));
+}
+
+void binary_writer::write_int16(int16_t i) {
+	write_uint16(static_cast<uint16_t>(i));
+}
+
+void binary_writer::write_int32(int32_t i) {
+	write_uint32(static_cast<uint32_t>(i));
+}
+
+void binary_writer::write_int64(int64_t i) {
+	write_uint64(static_cast<uint64_t>(i));
+}
+
+void binary_writer::write_float(float f) {
+	write_uint32(*reinterpret_cast<uint32_t*>(&f));
+}
+
+void binary_writer::write_double(double f) {
+	write_uint64(*reinterpret_cast<uint64_t*>(&f));
+}
+
+void binary_writer::write_boolean(bool b) {
+	write_uint8(b ? 1 : 0);
+}
+
+void binary_writer::write_7bit_encoded_uint32(uint32_t i) {
+	while (i >= 0x80) {
+		write_uint8(static_cast<uint8_t>(i | 0x80));
+		i >>= 7;
+	}
+
+	write_uint8(static_cast<uint8_t>(i));
+}
+
+void binary_writer::write_unicode_char(uint32_t c) {
+	if (c <= 0x7F) {
+		write_uint8(static_cast<uint8_t>(c));
+	}
+	else if (c <= 0x7FF) {
+		write_uint8(static_cast<uint8_t>(0xC0 | (c >> 6)));
+		write_uint8(static_cast<uint8_t>(0x80 | (c & 0x3F)));
+	}
+	else {
+		write_uint8(static_cast<uint8_t>(0xE0 | (c >> 12)));
+		write_uint8(static_cast<uint8_t>(0x80 | ((c >> 6) & 0x3F)));
+		write_uint8(static_cast<uint8_t>(0x80 | (c & 0x3F)));
+	}
+}
+
+void binary_writer::write_zero_string(const std::string& str) {
+	for (std::string::const_iterator it = str.begin(); it != str.end(); ++it) {
+		write_uint8(*it);
+	}
+
+	write_uint8(0);
+}
+
+void binary_writer::write_pascal_string(const std::string& str) {
+	write_uint32(str.size());
+
+	for (std::string::const_iterator it = str.begin(); it != str.end(); ++it) {
+		write_uint8(*it);
+	}
+}
+
 // binary_reader
 //
 
@@ -463,101 +561,61 @@ std::string binary_reader::read_pascal_string() {
 	return ss.str();
 }
 
-// binary_writer
+// bitpack_writer
 //
 
-binary_writer::binary_writer(output_stream* stream)
-	: _stream(stream)
+bitpack_writer::bitpack_writer(output_stream* stream)
+	: _writer(stream)
 {
 	BOOST_ASSERT(stream);
 }
 
-void binary_writer::write_uint8(uint8_t i) {
-	if (_stream->write(&i, sizeof(uint8_t)) != sizeof(uint8_t)) {
-		BOOST_THROW_EXCEPTION(std::runtime_error("failed to write stream"));
+void bitpack_writer::write_bits(uint32_t value, size_t bits) {
+	BOOST_ASSERT(bits <= 32);
+
+	_scratch |= uint64_t(value & ((1 << bits) - 1)) << _scratch_bits;
+	_scratch_bits += bits;
+
+	if (_scratch_bits > 32) {
+		_writer.write_uint32(_scratch & 0xffffffff);
+
+		_scratch >>= 32;
+		_scratch_bits -= 32;
 	}
 }
 
-void binary_writer::write_uint16(uint16_t i) {
-	write_uint8(static_cast<uint8_t>(i & 0xff));
-	write_uint8(static_cast<uint8_t>((i >> 8) & 0xff));
-}
-
-void binary_writer::write_uint32(uint32_t i) {
-	write_uint16(static_cast<uint16_t>(i & 0xffff));
-	write_uint16(static_cast<uint16_t>((i >> 16) & 0xffff));
-}
-
-void binary_writer::write_uint64(uint64_t i) {
-	write_uint32(static_cast<uint32_t>(i & 0xffffffff));
-	write_uint32(static_cast<uint32_t>((i >> 32) & 0xffffffff));
-}
-
-void binary_writer::write_int8(int8_t i) {
-	write_uint8(static_cast<uint8_t>(i));
-}
-
-void binary_writer::write_int16(int16_t i) {
-	write_uint16(static_cast<uint16_t>(i));
-}
-
-void binary_writer::write_int32(int32_t i) {
-	write_uint32(static_cast<uint32_t>(i));
-}
-
-void binary_writer::write_int64(int64_t i) {
-	write_uint64(static_cast<uint64_t>(i));
-}
-
-void binary_writer::write_float(float f) {
-	write_uint32(*reinterpret_cast<uint32_t*>(&f));
-}
-
-void binary_writer::write_double(double f) {
-	write_uint64(*reinterpret_cast<uint64_t*>(&f));
-}
-
-void binary_writer::write_boolean(bool b) {
-	write_uint8(b ? 1 : 0);
-}
-
-void binary_writer::write_7bit_encoded_uint32(uint32_t i) {
-	while (i >= 0x80) {
-		write_uint8(static_cast<uint8_t>(i | 0x80));
-		i >>= 7;
-	}
-	
-	write_uint8(static_cast<uint8_t>(i));
-}
-
-void binary_writer::write_unicode_char(uint32_t c) {
-	if (c <= 0x7F) {
-		write_uint8(static_cast<uint8_t>(c));
-	} else if (c <= 0x7FF) {
-		write_uint8(static_cast<uint8_t>(0xC0 | (c >> 6)));
-		write_uint8(static_cast<uint8_t>(0x80 | (c & 0x3F)));
-	} else {
-		write_uint8(static_cast<uint8_t>(0xE0 | (c >> 12)));
-		write_uint8(static_cast<uint8_t>(0x80 | ((c >> 6) & 0x3F)));
-		write_uint8(static_cast<uint8_t>(0x80 | (c & 0x3F)));
+void bitpack_writer::flush() {
+	if (_scratch_bits > 0) {
+		_writer.write_uint32(_scratch & 0xffffffff);
+		_scratch = 0;
+		_scratch_bits = 0;
 	}
 }
 
-void binary_writer::write_zero_string(const std::string& str) {
-	for (std::string::const_iterator it = str.begin(); it != str.end(); ++it) {
-		write_uint8(*it);
-	}
-	
-	write_uint8(0);
+// bitpack-reader
+//
+
+bitpack_reader::bitpack_reader(input_stream* stream)
+	: _reader(stream)
+{
+	BOOST_ASSERT(stream);
 }
 
-void binary_writer::write_pascal_string(const std::string& str) {
-	write_uint32(str.size());
+uint32_t bitpack_reader::read_bits(size_t bits) {
+	BOOST_ASSERT(bits <= 32);
 
-	for (std::string::const_iterator it = str.begin(); it != str.end(); ++it) {
-		write_uint8(*it);
+	if (_scratch_bits < bits) {
+		uint32_t value = _reader.read_uint32();
+		_scratch |= value << _scratch_bits;
+		_scratch_bits += 32;
 	}
-}
 
+	uint32_t value = _scratch & ((1 << bits) - 1);
+
+	_scratch >>= bits;
+	_scratch_bits -= bits;
+
+	return value;
+}
 
 } // namespace io
