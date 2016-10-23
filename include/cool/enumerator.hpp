@@ -1,11 +1,18 @@
+#ifndef COOL_ENUMERATOR_HPP_INCLUDED
+#define COOL_ENUMERATOR_HPP_INCLUDED
+
 #pragma once
+
+#include <type_traits>
+
+namespace cool {
 
 template <typename Iterator>
 class enumerator {
 public:
 	typedef Iterator iterator;
 
-	explicit enumerator(iterator begin, iterator end)
+	enumerator(iterator begin, iterator end)
 		: _begin(begin)
 		, _end(end)
 	{
@@ -21,20 +28,24 @@ private:
 
 template <typename Container>
 enumerator<typename Container::iterator> make_enumerator(Container& container) {
-	return enumerator<typename Container::iterator>(container.begin(), container.end());
+	return { std::begin(container), std::end(container) };
 }
 
 template <typename Container>
 enumerator<typename Container::const_iterator> make_enumerator(const Container& container) {
-	return enumerator<typename Container::const_iterator>(container.cbegin(), container.cend());
+	return { std::cbegin(container), std::cend(container) };
 }
 
 template <typename T, size_t N>
 enumerator<T*> make_enumerator(T(&array)[N]) {
-	return enumerator<T*>(&array[0], &array[N]);
+	return { &array[0], &array[N] };
 }
 
-template <typename T>
-enumerator<T*> make_enumerator(T* begin, T* end) {
-	return enumerator<T*>(begin, end);
+template <typename T, typename = std::enable_if_t<std::is_pointer<T>::value>>
+enumerator<T> make_enumerator(T begin, T end) {
+	return { begin, end };
 }
+
+} // namespace cool
+	
+#endif // COOL_ENUMERATOR_HPP_INCLUDED
