@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		179632B71DBD216A00384195 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 179632B61DBD216A00384195 /* main.cpp */; };
 		179632BA1DBD246E00384195 /* enumerator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 179632B91DBD246E00384195 /* enumerator.cpp */; };
+		17ED00C31DBE754000D56D3C /* hash.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 17ED00C21DBE754000D56D3C /* hash.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -28,6 +29,7 @@
 		179632B61DBD216A00384195 /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = ../../../../unittests/main.cpp; sourceTree = "<group>"; };
 		179632B81DBD218D00384195 /* cool */ = {isa = PBXFileReference; lastKnownFileType = folder; name = cool; path = ../../../include/cool; sourceTree = "<group>"; };
 		179632B91DBD246E00384195 /* enumerator.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = enumerator.cpp; path = ../../../../unittests/enumerator.cpp; sourceTree = "<group>"; };
+		17ED00C21DBE754000D56D3C /* hash.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = hash.cpp; path = ../../../../unittests/hash.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -61,6 +63,7 @@
 		179632AE1DBD20F100384195 /* unittests */ = {
 			isa = PBXGroup;
 			children = (
+				17ED00C21DBE754000D56D3C /* hash.cpp */,
 				179632B91DBD246E00384195 /* enumerator.cpp */,
 				179632B61DBD216A00384195 /* main.cpp */,
 			);
@@ -126,6 +129,7 @@
 			files = (
 				179632B71DBD216A00384195 /* main.cpp in Sources */,
 				179632BA1DBD246E00384195 /* enumerator.cpp in Sources */,
+				17ED00C31DBE754000D56D3C /* hash.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -256,6 +260,7 @@
 				179632B51DBD20F100384195 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

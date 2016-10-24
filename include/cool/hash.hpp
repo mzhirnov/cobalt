@@ -1,3 +1,6 @@
+#ifndef COOL_HASH_HPP_INCLUDED
+#define COOL_HASH_HPP_INCLUDED
+
 #pragma once
 
 #include <cstdint>
@@ -5,8 +8,7 @@
 
 // http://www.elbeno.com/blog/?p=1254
 
-namespace hash {
-namespace detail {
+namespace cool { namespace detail {
 
 constexpr uint32_t murmur3_32_k(uint32_t k)
 {
@@ -162,15 +164,15 @@ constexpr uint64_t fnv1a_64(const char* s)
 	return detail::fnv1a_64(0xcbf29ce484222325, s);
 }
 
-} // namespace hash
+} // namespace cool
 
 constexpr uint32_t operator ""_hash(const char* str, size_t len)
 {
-	return hash::murmur3_32(str, len, 0);
+	return cool::murmur3_32(str, static_cast<uint32_t>(len), 0);
 }
 
 template <typename T>
-struct already_hash {
+struct dont_hash {
 	typedef T argument_type;
 	typedef size_t result_type;
 
@@ -178,3 +180,5 @@ struct already_hash {
 		return v;
 	}
 };
+
+#endif // COOL_HASH_HPP_INCLUDED
