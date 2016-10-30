@@ -17,7 +17,7 @@ inline void test_enumerator(Enumerator&& e, size_t count) {
 
 } // namespace
 
-TEST_CASE("enumerator", "") {
+TEST_CASE("enumerator") {
 	char array[5] = { 1, 2, 3, 4, 5 };
 	constexpr size_t count = sizeof(array)/sizeof(array[0]);
 	
