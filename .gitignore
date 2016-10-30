@@ -9,6 +9,7 @@
 xcuserdata
 build
 DerivedData
+frameworks
 
 # Visual Studio files
 *_i.c
