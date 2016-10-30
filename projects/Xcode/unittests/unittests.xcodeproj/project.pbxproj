@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		179632B71DBD216A00384195 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 179632B61DBD216A00384195 /* main.cpp */; };
 		179632BA1DBD246E00384195 /* enumerator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 179632B91DBD246E00384195 /* enumerator.cpp */; };
+		17CD215F1DBFD3810046201F /* enum_traits.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 17CD215E1DBFD3810046201F /* enum_traits.cpp */; };
+		17CD21631DBFD8C40046201F /* boost.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 17CD21621DBFD8C40046201F /* boost.framework */; };
 		17ED00C31DBE754000D56D3C /* hash.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 17ED00C21DBE754000D56D3C /* hash.cpp */; };
 /* End PBXBuildFile section */
 
@@ -16,7 +18,7 @@
 		179632AA1DBD20F100384195 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = /usr/share/man/man1/;
+			dstPath = /usr/share/man/man1;
 			dstSubfolderSpec = 0;
 			files = (
 			);
@@ -29,6 +31,8 @@
 		179632B61DBD216A00384195 /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = ../../../../unittests/main.cpp; sourceTree = "<group>"; };
 		179632B81DBD218D00384195 /* cool */ = {isa = PBXFileReference; lastKnownFileType = folder; name = cool; path = ../../../include/cool; sourceTree = "<group>"; };
 		179632B91DBD246E00384195 /* enumerator.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = enumerator.cpp; path = ../../../../unittests/enumerator.cpp; sourceTree = "<group>"; };
+		17CD215E1DBFD3810046201F /* enum_traits.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = enum_traits.cpp; path = ../../../../unittests/enum_traits.cpp; sourceTree = "<group>"; };
+		17CD21621DBFD8C40046201F /* boost.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = boost.framework; path = ../frameworks/boost.framework; sourceTree = "<group>"; };
 		17ED00C21DBE754000D56D3C /* hash.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = hash.cpp; path = ../../../../unittests/hash.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -37,6 +41,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				17CD21631DBFD8C40046201F /* boost.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -49,6 +54,7 @@
 				179632B81DBD218D00384195 /* cool */,
 				179632AE1DBD20F100384195 /* unittests */,
 				179632AD1DBD20F100384195 /* Products */,
+				17CD215B1DBFD1F00046201F /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -63,11 +69,20 @@
 		179632AE1DBD20F100384195 /* unittests */ = {
 			isa = PBXGroup;
 			children = (
+				17CD215E1DBFD3810046201F /* enum_traits.cpp */,
 				17ED00C21DBE754000D56D3C /* hash.cpp */,
 				179632B91DBD246E00384195 /* enumerator.cpp */,
 				179632B61DBD216A00384195 /* main.cpp */,
 			);
 			path = unittests;
+			sourceTree = "<group>";
+		};
+		17CD215B1DBFD1F00046201F /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				17CD21621DBFD8C40046201F /* boost.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -96,7 +111,7 @@
 		179632A41DBD20F100384195 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0800;
+				LastUpgradeCheck = 0810;
 				ORGANIZATIONNAME = "Maksim Zhirnov";
 				TargetAttributes = {
 					179632AB1DBD20F100384195 = {
@@ -130,6 +145,7 @@
 				179632B71DBD216A00384195 /* main.cpp in Sources */,
 				179632BA1DBD246E00384195 /* enumerator.cpp in Sources */,
 				17ED00C31DBE754000D56D3C /* hash.cpp in Sources */,
+				17CD215F1DBFD3810046201F /* enum_traits.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -154,6 +170,7 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
@@ -162,6 +179,7 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/../frameworks";
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -202,6 +220,7 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
@@ -210,6 +229,7 @@
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/../frameworks";
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
