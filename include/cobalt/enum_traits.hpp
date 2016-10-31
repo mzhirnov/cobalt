@@ -1,5 +1,5 @@
-#ifndef COOL_ENUM_TRAITS_HPP_INCLUDED
-#define COOL_ENUM_TRAITS_HPP_INCLUDED
+#ifndef COBALT_ENUM_TRAITS_HPP_INCLUDED
+#define COBALT_ENUM_TRAITS_HPP_INCLUDED
 
 #pragma once
 
@@ -13,7 +13,7 @@
 #include <boost/preprocessor/variadic/size.hpp>
 #include <boost/assert.hpp>
 
-namespace cool {
+namespace cobalt {
 
 template <typename Enum>
 struct enum_traits {
@@ -164,59 +164,59 @@ std::string type_name() {
 	return detail::type_name_helper<T>::name();
 }
 
-} // namespace cool
+} // namespace cobalt
 
-#define COOL_DEFINE_ENUM_STRUCT(struct_name, enum_name, enum_type, ...)                                   \
+#define CO_DEFINE_ENUM_STRUCT(struct_name, enum_name, enum_type, ...)                                     \
 	struct struct_name {                                                                                  \
 		enum enum_name : enum_type {                                                                      \
 			__VA_ARGS__                                                                                   \
 		};                                                                                                \
 	};                                                                                                    \
-	namespace cool {                                                                                      \
-		COOL_DEFINE_ENUM_STRUCT_TRAITS(struct_name, enum_name, __VA_ARGS__)                               \
+	namespace cobalt {                                                                                      \
+		CO_DEFINE_ENUM_STRUCT_TRAITS(struct_name, enum_name, __VA_ARGS__)                                 \
 	}                                                                                                     \
 
 
-#define COOL_DEFINE_ENUM_FLAGS_STRUCT(struct_name, enum_name, enum_type, ...)                             \
+#define CO_DEFINE_ENUM_FLAGS_STRUCT(struct_name, enum_name, enum_type, ...)                               \
 	struct struct_name {                                                                                  \
 		enum enum_name : enum_type {                                                                      \
 			__VA_ARGS__                                                                                   \
 		};                                                                                                \
 	};                                                                                                    \
-	namespace cool {                                                                                      \
-		COOL_DEFINE_ENUM_STRUCT_FLAGS_TRAITS(struct_name, enum_name, __VA_ARGS__)                         \
+	namespace cobalt {                                                                                      \
+		CO_DEFINE_ENUM_STRUCT_FLAGS_TRAITS(struct_name, enum_name, __VA_ARGS__)                           \
 	}                                                                                                     \
-	COOL_DEFINE_ENUM_FLAGS_OPERATORS(struct_name::enum_name)                                              \
+	CO_DEFINE_ENUM_FLAGS_OPERATORS(struct_name::enum_name)                                                \
 
 
-#define COOL_DEFINE_ENUM_CLASS(enum_name, enum_type, ...)                                                 \
+#define CO_DEFINE_ENUM_CLASS(enum_name, enum_type, ...)                                                   \
 	enum class enum_name : enum_type {                                                                    \
 		__VA_ARGS__                                                                                       \
 	};                                                                                                    \
-	namespace cool {                                                                                      \
-		COOL_DEFINE_ENUM_CLASS_TRAITS(enum_name, __VA_ARGS__)                                             \
+	namespace cobalt {                                                                                      \
+		CO_DEFINE_ENUM_CLASS_TRAITS(enum_name, __VA_ARGS__)                                               \
 	}                                                                                                     \
 	inline std::ostream& operator<<(std::ostream& os, enum_name e) {                                      \
-		os << cool::enum_traits<enum_name>::to_string(e);                                                 \
+		os << cobalt::enum_traits<enum_name>::to_string(e);                                                 \
 		return os;                                                                                        \
 	}
 
 
-#define COOL_DEFINE_ENUM_FLAGS_CLASS(enum_name, enum_type, ...)                                           \
+#define CO_DEFINE_ENUM_FLAGS_CLASS(enum_name, enum_type, ...)                                             \
 	enum class enum_name : enum_type {                                                                    \
 		__VA_ARGS__                                                                                       \
 	};                                                                                                    \
-	namespace cool {                                                                                      \
-		COOL_DEFINE_ENUM_CLASS_FLAGS_TRAITS(enum_name, __VA_ARGS__)                                       \
+	namespace cobalt {                                                                                      \
+		CO_DEFINE_ENUM_CLASS_FLAGS_TRAITS(enum_name, __VA_ARGS__)                                         \
 	}                                                                                                     \
 	inline std::ostream& operator<<(std::ostream& os, enum_name e) {                                      \
-		os << cool::enum_traits<enum_name>::to_string(e);                                                 \
+		os << cobalt::enum_traits<enum_name>::to_string(e);                                                 \
 		return os;                                                                                        \
 	}                                                                                                     \
-	COOL_DEFINE_ENUM_FLAGS_OPERATORS(enum_name)                                                           \
+	CO_DEFINE_ENUM_FLAGS_OPERATORS(enum_name)                                                             \
 
 
-#define COOL_DEFINE_ENUM_CLASS_TRAITS(enum_name, ...)                                                     \
+#define CO_DEFINE_ENUM_CLASS_TRAITS(enum_name, ...)                                                       \
 	template<> struct enum_traits<enum_name> {                                                            \
 		static constexpr bool is_enum = true;                                                             \
 		static constexpr bool is_flags = false;                                                           \
@@ -236,7 +236,7 @@ std::string type_name() {
 			{ return static_cast<enum_name>(detail::helper<>::from_string(items(), str, length)); }       \
 	};                                                                                                    \
 
-#define COOL_DEFINE_ENUM_STRUCT_TRAITS(struct_name, enum_name, ...)                                       \
+#define CO_DEFINE_ENUM_STRUCT_TRAITS(struct_name, enum_name, ...)                                         \
 	template<> struct enum_traits<struct_name> {                                                          \
 		static constexpr bool is_enum = true;                                                             \
 		static constexpr bool is_flags = false;                                                           \
@@ -256,7 +256,7 @@ std::string type_name() {
 			{ return static_cast<struct_name::enum_name>(detail::helper<>::from_string(items(), str, length)); } \
 	};                                                                                                    \
 
-#define COOL_DEFINE_ENUM_CLASS_FLAGS_TRAITS(enum_name, ...)                                               \
+#define CO_DEFINE_ENUM_CLASS_FLAGS_TRAITS(enum_name, ...)                                                 \
 	template<> struct enum_traits<enum_name> {                                                            \
 		static constexpr bool is_enum = true;                                                             \
 		static constexpr bool is_flags = true;                                                            \
@@ -276,7 +276,7 @@ std::string type_name() {
 			{ return static_cast<enum_name>(detail::helper<>::from_flags_string(items(), str, length)); } \
 	};                                                                                                    \
 
-#define COOL_DEFINE_ENUM_STRUCT_FLAGS_TRAITS(struct_name, enum_name, ...)                                 \
+#define CO_DEFINE_ENUM_STRUCT_FLAGS_TRAITS(struct_name, enum_name, ...)                                   \
 	template<> struct enum_traits<struct_name> {                                                          \
 		static constexpr bool is_enum = true;                                                             \
 		static constexpr bool is_flags = true;                                                            \
@@ -296,23 +296,23 @@ std::string type_name() {
 			{ return static_cast<struct_name::enum_name>(detail::helper<>::from_flags_string(items(), str, length)); } \
 	};                                                                                                    \
 
-#define COOL_ENUM_TO_VAL(enum_name, value) static_cast<std::underlying_type_t<enum_name>>(value)
-#define COOL_ENUM_TO_REF(enum_name, value) reinterpret_cast<std::underlying_type_t<enum_name>&>(value)
+#define CO_ENUM_TO_VAL(enum_name, value) static_cast<std::underlying_type_t<enum_name>>(value)
+#define CO_ENUM_TO_REF(enum_name, value) reinterpret_cast<std::underlying_type_t<enum_name>&>(value)
 
-#define COOL_DEFINE_ENUM_FLAGS_OPERATORS(enum_name)                                                                    \
-	constexpr enum_name operator~(enum_name elem) noexcept                                                             \
-		{ return static_cast<enum_name>(~COOL_ENUM_TO_VAL(enum_name, elem)); }                                         \
-	constexpr enum_name operator|(enum_name lhs, enum_name rhs) noexcept                                               \
-		{ return static_cast<enum_name>(COOL_ENUM_TO_VAL(enum_name, lhs) | COOL_ENUM_TO_VAL(enum_name, rhs)); }        \
-	constexpr enum_name operator&(enum_name lhs, enum_name rhs) noexcept                                               \
-		{ return static_cast<enum_name>(COOL_ENUM_TO_VAL(enum_name, lhs) & COOL_ENUM_TO_VAL(enum_name, rhs)); }        \
-	constexpr enum_name operator^(enum_name lhs, enum_name rhs) noexcept                                               \
-		{ return static_cast<enum_name>(COOL_ENUM_TO_VAL(enum_name, lhs) ^ COOL_ENUM_TO_VAL(enum_name, rhs)); }        \
-	inline enum_name& operator|=(enum_name& lhs, enum_name rhs) noexcept                                               \
-		{ return reinterpret_cast<enum_name&>(COOL_ENUM_TO_REF(enum_name, lhs) |= COOL_ENUM_TO_VAL(enum_name, rhs)); } \
-	inline enum_name& operator&=(enum_name& lhs, enum_name rhs) noexcept                                               \
-		{ return reinterpret_cast<enum_name&>(COOL_ENUM_TO_REF(enum_name, lhs) &= COOL_ENUM_TO_VAL(enum_name, rhs)); } \
-	inline enum_name& operator^=(enum_name& lhs, enum_name rhs) noexcept                                               \
-		{ return reinterpret_cast<enum_name&>(COOL_ENUM_TO_REF(enum_name, lhs) ^= COOL_ENUM_TO_VAL(enum_name, rhs)); } \
+#define CO_DEFINE_ENUM_FLAGS_OPERATORS(enum_name)                                                                  \
+	constexpr enum_name operator~(enum_name elem) noexcept                                                         \
+		{ return static_cast<enum_name>(~CO_ENUM_TO_VAL(enum_name, elem)); }                                       \
+	constexpr enum_name operator|(enum_name lhs, enum_name rhs) noexcept                                           \
+		{ return static_cast<enum_name>(CO_ENUM_TO_VAL(enum_name, lhs) | CO_ENUM_TO_VAL(enum_name, rhs)); }        \
+	constexpr enum_name operator&(enum_name lhs, enum_name rhs) noexcept                                           \
+		{ return static_cast<enum_name>(CO_ENUM_TO_VAL(enum_name, lhs) & CO_ENUM_TO_VAL(enum_name, rhs)); }        \
+	constexpr enum_name operator^(enum_name lhs, enum_name rhs) noexcept                                           \
+		{ return static_cast<enum_name>(CO_ENUM_TO_VAL(enum_name, lhs) ^ CO_ENUM_TO_VAL(enum_name, rhs)); }        \
+	inline enum_name& operator|=(enum_name& lhs, enum_name rhs) noexcept                                           \
+		{ return reinterpret_cast<enum_name&>(CO_ENUM_TO_REF(enum_name, lhs) |= CO_ENUM_TO_VAL(enum_name, rhs)); } \
+	inline enum_name& operator&=(enum_name& lhs, enum_name rhs) noexcept                                           \
+		{ return reinterpret_cast<enum_name&>(CO_ENUM_TO_REF(enum_name, lhs) &= CO_ENUM_TO_VAL(enum_name, rhs)); } \
+	inline enum_name& operator^=(enum_name& lhs, enum_name rhs) noexcept                                           \
+		{ return reinterpret_cast<enum_name&>(CO_ENUM_TO_REF(enum_name, lhs) ^= CO_ENUM_TO_VAL(enum_name, rhs)); } \
 
-#endif // COOL_ENUM_TRAITS_HPP_INCLUDED
+#endif // COBALT_ENUM_TRAITS_HPP_INCLUDED

@@ -29,8 +29,8 @@
 /* Begin PBXFileReference section */
 		179632AC1DBD20F100384195 /* unittests */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = unittests; sourceTree = BUILT_PRODUCTS_DIR; };
 		179632B61DBD216A00384195 /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = ../../../../unittests/main.cpp; sourceTree = "<group>"; };
-		179632B81DBD218D00384195 /* cool */ = {isa = PBXFileReference; lastKnownFileType = folder; name = cool; path = ../../../include/cool; sourceTree = "<group>"; };
 		179632B91DBD246E00384195 /* enumerator.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = enumerator.cpp; path = ../../../../unittests/enumerator.cpp; sourceTree = "<group>"; };
+		179BBB661DC7BA59005DF931 /* include */ = {isa = PBXFileReference; lastKnownFileType = folder; name = include; path = ../../../include; sourceTree = "<group>"; };
 		17CD215E1DBFD3810046201F /* enum_traits.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = enum_traits.cpp; path = ../../../../unittests/enum_traits.cpp; sourceTree = "<group>"; };
 		17CD21621DBFD8C40046201F /* boost.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = boost.framework; path = ../frameworks/boost.framework; sourceTree = "<group>"; };
 		17ED00C21DBE754000D56D3C /* hash.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = hash.cpp; path = ../../../../unittests/hash.cpp; sourceTree = "<group>"; };
@@ -51,7 +51,7 @@
 		179632A31DBD20F100384195 = {
 			isa = PBXGroup;
 			children = (
-				179632B81DBD218D00384195 /* cool */,
+				179BBB661DC7BA59005DF931 /* include */,
 				179632AE1DBD20F100384195 /* unittests */,
 				179632AD1DBD20F100384195 /* Products */,
 				17CD215B1DBFD1F00046201F /* Frameworks */,

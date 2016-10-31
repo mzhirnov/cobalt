@@ -1,11 +1,11 @@
-#ifndef COOL_ENUMERATOR_HPP_INCLUDED
-#define COOL_ENUMERATOR_HPP_INCLUDED
+#ifndef COBALT_ENUMERATOR_HPP_INCLUDED
+#define COBALT_ENUMERATOR_HPP_INCLUDED
 
 #pragma once
 
 #include <type_traits>
 
-namespace cool {
+namespace cobalt {
 
 template <typename Iterator>
 class enumerator {
@@ -46,6 +46,6 @@ enumerator<T> make_enumerator(T begin, T end) {
 	return { begin, end };
 }
 
-} // namespace cool
+} // namespace cobalt
 	
-#endif // COOL_ENUMERATOR_HPP_INCLUDED
+#endif // COBALT_ENUMERATOR_HPP_INCLUDED

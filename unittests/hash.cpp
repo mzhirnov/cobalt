@@ -1,9 +1,7 @@
 #include "catch.hpp"
-#include <cool/hash.hpp>
-
-using namespace cool;
+#include <cobalt/hash.hpp>
 
 TEST_CASE("hash") {
-	REQUIRE(murmur3_32("Hello, world!", 0) == 3224780355);
+	REQUIRE(cobalt::murmur3_32("Hello, world!", 0) == 3224780355);
 	REQUIRE("Hello, world!"_hash == 3224780355);
 }

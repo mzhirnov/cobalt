@@ -1,14 +1,14 @@
-#ifndef COOL_HASH_HPP_INCLUDED
-#define COOL_HASH_HPP_INCLUDED
+#ifndef COBALT_HASH_HPP_INCLUDED
+#define COBALT_HASH_HPP_INCLUDED
 
 #pragma once
 
 #include <cstdint>
 #include <stdexcept>
 
+namespace cobalt { namespace detail {
+	
 // http://www.elbeno.com/blog/?p=1254
-
-namespace cool { namespace detail {
 
 constexpr uint32_t murmur3_32_k(uint32_t k)
 {
@@ -164,11 +164,11 @@ constexpr uint64_t fnv1a_64(const char* s)
 	return detail::fnv1a_64(0xcbf29ce484222325, s);
 }
 
-} // namespace cool
+} // namespace cobalt
 
 constexpr uint32_t operator ""_hash(const char* str, size_t len)
 {
-	return cool::murmur3_32(str, static_cast<uint32_t>(len), 0);
+	return cobalt::murmur3_32(str, static_cast<uint32_t>(len), 0);
 }
 
 template <typename T>
@@ -181,4 +181,4 @@ struct dont_hash {
 	}
 };
 
-#endif // COOL_HASH_HPP_INCLUDED
+#endif // COBALT_HASH_HPP_INCLUDED
