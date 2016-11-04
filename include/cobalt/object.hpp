@@ -1,150 +1,208 @@
-#pragma once
+#ifndef COBALT_OBJECT_FWD_HPP_INCLUDED
+#define COBALT_OBJECT_FWD_HPP_INCLUDED
 
-// Classes in this file:
-//     component
-//     transform
-//     object
+#include <cobalt/object_fwd.hpp>
 
-#include "cool/common.hpp"
+namespace cobalt {
 
-class component;
-class object;
+inline bool object::active_in_hierarchy() const {
+	if (!_active)
+		return false;
 
-using component_ptr = boost::intrusive_ptr<component>;
-using object_ptr = boost::intrusive_ptr<object>;
+	for (auto parent = _parent; parent; parent = parent->parent()) {
+		if (!parent->active())
+			return false;
+	}
 
-// Base for all components
-class component : public ref_counter<component> {
-public:
-	virtual ~component() = default;
+	return true;
+}
 
-	virtual const char* name() const = 0;
+inline object* object::add_child(const ref_ptr<object>& o) {
+	BOOST_ASSERT(std::find(_children.begin(), _children.end(), o) == _children.end());
+	_children.push_back(o);
+	o->parent(this);
+	return boost::get_pointer(_children.back());
+}
 
-	object* get_object() const { return _object; }
-	void set_object(object* object) { _object = object; }
+inline ref_ptr<object> object::remove_child(object* o) {
+	auto it = std::remove(_children.begin(), _children.end(), o);
+	if (it != _children.end()) {
+		ref_ptr<object> ret = std::move(*it);
+		_children.erase(it, _children.end());
+		ret->parent(nullptr);
+		return ret;
+	}
+	return nullptr;
+}
 
-private:
-	object* _object;
-};
 
-// Transform component
-class transform : public component {
-public:
-	explicit transform(object* o) { set_object(o); }
+inline void object::remove_from_parent() {
+	if (_parent)
+		_parent->remove_child(this);
+}
 
-	virtual const char* name() const override { return "transform"; }
+inline object* object::find_root_object() const {
+	for (auto parent = _parent; parent; parent = parent->parent()) {
+		if (!parent->parent())
+			return parent;
+	}
+	return nullptr;
+}
 
-	float x() const { return _x; }
-	float y() const { return _y; }
-	float z() const { return _z; }
-
-	void x(float value) { _x = value; }
-	void y(float value) { _y = value; }
-	void z(float value) { _z = value; }
-
-private:
-	float _x = 0;
-	float _y = 0;
-	float _z = 0;
-};
-
-class object : public ref_counter<object> {
-public:
-	object() : _transform(this) {}
-	explicit object(const char* name) : _transform(this), _name(name) {}
-
-	virtual ~object() = default;
-
-	// Name
-	const char* name() const { return _name.c_str(); }
-	void name(const char* name) { _name = name; }
-
-	// Active
-	bool active_self() const { return _active; }
-	void active_self(bool active) { _active = active; }
-	bool active_in_hierarchy() const;
-
-	// Parent
-	object* parent() const { return _parent; }
-	void parent(object* parent) { _parent = parent; }
-
-	// Manage components
-	template<typename T, typename = typename std::enable_if<std::is_base_of<component, T>::value>::type>
-	T* add_component(const component_ptr& c)
-		{ return static_cast<T*>(add_component(boost::typeindex::type_id<T>(), c)); }
-
-	template<typename T, typename = typename std::enable_if<std::is_base_of<component, T>::value>::type>
-	void remove_components()
-		{ remove_components(boost::typeindex::type_id<T>()); }
-
-	bool remove_component(component* c);
-
-	// Get components
-	template<typename T, typename = typename std::enable_if<std::is_base_of<component, T>::value>::type>
-	T* get_component()
-		{ return static_cast<T*>(get_component(boost::typeindex::type_id<T>())); }
-
-	template<>
-	transform* get_component<transform>() { return get_transform(); }
+inline object* object::find_object(const char* name) {
+	if (!name)
+		return nullptr;
 	
-	template<typename T, typename = typename std::enable_if<std::is_base_of<component, T>::value>::type>
-	T* get_component_in_parent() const
-		{ return static_cast<T*>(get_component_in_parent(boost::typeindex::type_id<T>())); }
+	const char* b = name;
+	const char* e = b;
 	
-	template<typename T, typename = typename std::enable_if<std::is_base_of<component, T>::value>::type>
-	T* get_component_in_children() const
-		{ return static_cast<T*>(get_component_in_children(boost::typeindex::type_id<T>())); }
+	while (*e == '/')
+		b = ++e;
+	
+	auto o = this;
+	
+	// Iterate through names in the path
+	while (*e++) {
+		if (*e == '/' || *e == '\0') {
+			bool found = false;
+			for (auto&& c : o->_children) {
+				if (std::equal(b, e, c->_name.c_str(), c->_name.c_str() + c->_name.size())) {
+					o = c.get();
+					found = true;
+					break;
+				}
+			}
+			if (!found)
+				return nullptr;
+			
+			while (*e == '/')
+				b = ++e;
+		}
+	}
+	
+	return o;
+}
 
-	template<typename T, typename = typename std::enable_if<std::is_base_of<component, T>::value>::type>
-	void get_components(std::vector<component_ptr>& components) const
-		{ get_components(boost::typeindex::type_id<T>(), components); }
+inline object* object::find_object_in_parent(const char* name) const {
+	for (auto parent = _parent; parent; parent = parent->parent()) {
+		auto o = parent->find_object(name);
+		if (o)
+			return o;
+	}
+	
+	return nullptr;
+}
 
-	template<typename T, typename = typename std::enable_if<std::is_base_of<component, T>::value>::type>
-	void get_components_in_parent(std::vector<component_ptr>& components) const
-		{ get_components_in_parent(boost::typeindex::type_id<T>(), components); }
+inline object* object::find_object_in_children(const char* name) const {
+	// Breadth-first search
+	for (auto&& child : _children) {
+		auto o = child->find_object(name);
+		if (o)
+			return o;
+		
+	}
+	
+	for (auto&& child : _children) {
+		auto o = child->find_object_in_children(name);
+		if (o)
+			return o;
+	}
+	
+	return nullptr;
+}
 
-	template<typename T, typename = typename std::enable_if<std::is_base_of<component, T>::value>::type>
-	void get_components_in_children(std::vector<component_ptr>& components) const
-		{ get_components_in_children(boost::typeindex::type_id<T>(), components); }
+inline component* object::add_component(const type_index& type, const ref_ptr<component>& c) {
+	_components.emplace_back(type, c);
+	c->set_object(this);
+	return boost::get_pointer(_components.back().second);
+}
 
-	// Manage children objects
-	object* add_child_object(const object_ptr& o);
-	bool remove_child_object(const object_ptr& o);
+inline bool object::remove_component(component* c) {
+	auto it = std::remove_if(_components.begin(), _components.end(), [&c](const Components::value_type& value) {
+		if (boost::get_pointer(value.second) == c) {
+			c->set_object(nullptr);
+			return true;
+		}
+		return false;
+	});
 
-	// Find objects
-	object* find_root_object() const;
-	object* find_object(const char* name);
-	object* find_object_in_parent(const char* name);
-	object* find_object_in_children(const char* name);
+	if (it != _components.end()) {
+		_components.erase(it, _components.end());
+		return true;
+	}
 
-private:
-	// Manage components
-	component* add_component(const boost::typeindex::type_index& type, const component_ptr& c);
-	void remove_components(const boost::typeindex::type_index& type);
+	return false;
+}
 
-	// Get components
-	transform* get_transform() { return &_transform; }
+inline void object::remove_components(const type_index& type) {
+	auto it = std::remove_if(_components.begin(), _components.end(), [&type](const Components::value_type& value) {
+		if (value.first == type) {
+			value.second->set_object(nullptr);
+			return true;
+		}
+		return false;
+	});
 
-	component* get_component(const boost::typeindex::type_index& type) const;
-	component* get_component_in_parent(const boost::typeindex::type_index& type) const;
-	component* get_component_in_children(const boost::typeindex::type_index& type) const;
+	_components.erase(it, _components.end());
+}
 
-	void get_components(const boost::typeindex::type_index& type, std::vector<component_ptr>& components) const;
-	void get_components_in_parent(const boost::typeindex::type_index& type, std::vector<component_ptr>& components) const;
-	void get_components_in_children(const boost::typeindex::type_index& type, std::vector<component_ptr>& components) const;
+inline component* object::get_component(const type_index& type) const {
+	for (auto&& pair : _components) {
+		if (pair.first == type)
+			return boost::get_pointer(pair.second);
+	}
 
-private:
-	transform _transform;
+	return nullptr;
+}
 
-	using Components = std::vector<std::pair<boost::typeindex::type_index, component_ptr>>;
-	Components _components;
+inline component* object::get_component_in_parent(const type_index& type) const {
+	for (auto parent = _parent; parent; parent = parent->parent()) {
+		auto c = parent->get_component(type);
+		if (c)
+			return c;
+	}
 
-	object* _parent = nullptr;
+	// No parent or no components in parent found
+	return nullptr;
+}
 
-	using Children = std::vector<object_ptr>;
-	Children _children;
+inline component* object::get_component_in_children(const type_index& type) const {
+	// Use recursion here
+	for (auto&& child : _children) {
+		// Look in children first
+		auto c = child->get_component_in_children(type);
+		if (!c)
+			c = child->get_component(type);
+		// Return if something found in the child
+		if (c)
+			return c;
+	}
 
-	std::string _name;
+	// No children or no components in children found
+	return nullptr;
+}
 
-	bool _active = true;
-};
+inline void object::get_components(const type_index& type, std::vector<ref_ptr<component>>& components) const {
+	for (auto&& pair : _components) {
+		if (pair.first == type)
+			components.push_back(pair.second);
+	}
+}
+
+inline void object::get_components_in_parent(const type_index& type, std::vector<ref_ptr<component>>& components) const {
+	for (auto parent = _parent; parent; parent = parent->parent())
+		parent->get_components(type, components);
+}
+
+inline void object::get_components_in_children(const type_index& type, std::vector<ref_ptr<component>>& components) const {
+	// Use recursion here
+	for (auto&& child : _children) {
+		// Look in children first
+		child->get_components_in_children(type, components);
+		child->get_components(type, components);
+	}
+}
+
+} // namespace cobalt
+
+#endif // COBALT_OBJECT_FWD_HPP_INCLUDED

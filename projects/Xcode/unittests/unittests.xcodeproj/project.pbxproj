@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		173473521DCC7E0800A9D616 /* object.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 173473511DCC7E0800A9D616 /* object.cpp */; };
 		179632B71DBD216A00384195 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 179632B61DBD216A00384195 /* main.cpp */; };
 		179632BA1DBD246E00384195 /* enumerator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 179632B91DBD246E00384195 /* enumerator.cpp */; };
 		17CD215F1DBFD3810046201F /* enum_traits.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 17CD215E1DBFD3810046201F /* enum_traits.cpp */; };
@@ -27,6 +28,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		173473511DCC7E0800A9D616 /* object.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = object.cpp; path = ../../../../unittests/object.cpp; sourceTree = "<group>"; };
 		179632AC1DBD20F100384195 /* unittests */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = unittests; sourceTree = BUILT_PRODUCTS_DIR; };
 		179632B61DBD216A00384195 /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = ../../../../unittests/main.cpp; sourceTree = "<group>"; };
 		179632B91DBD246E00384195 /* enumerator.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = enumerator.cpp; path = ../../../../unittests/enumerator.cpp; sourceTree = "<group>"; };
@@ -69,6 +71,7 @@
 		179632AE1DBD20F100384195 /* unittests */ = {
 			isa = PBXGroup;
 			children = (
+				173473511DCC7E0800A9D616 /* object.cpp */,
 				17CD215E1DBFD3810046201F /* enum_traits.cpp */,
 				17ED00C21DBE754000D56D3C /* hash.cpp */,
 				179632B91DBD246E00384195 /* enumerator.cpp */,
@@ -146,6 +149,7 @@
 				179632BA1DBD246E00384195 /* enumerator.cpp in Sources */,
 				17ED00C31DBE754000D56D3C /* hash.cpp in Sources */,
 				17CD215F1DBFD3810046201F /* enum_traits.cpp in Sources */,
+				173473521DCC7E0800A9D616 /* object.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
