@@ -8,37 +8,43 @@
 //     object
 
 #include <cobalt/utility/ref_ptr.hpp>
-
-#include <boost/type_index.hpp>
+#include <cobalt/hash.hpp>
 
 #include <type_traits>
 #include <vector>
 #include <string>
 
 namespace cobalt {
-	
-using boost::typeindex::type_info;
-using boost::typeindex::type_index;
-using boost::typeindex::type_id;
 
 class object;
 
-/// Base class for all components
+/// Component
 class component : public ref_counter<component> {
 public:
 	virtual ~component() = default;
 
-	virtual const char* name() const = 0;
+	virtual hash_type type() const noexcept = 0;
 
-	object* get_object() const { return _object; }
+	class object* object() const noexcept { return _object; }
+	
+	void remove_from_parent();
 	
 private:
 	friend class object;
 	
-	void set_object(object* object) { _object = object; }
+	void object(class object* object) noexcept { _object = object; }
 
 private:
-	object* _object = nullptr;
+	class object* _object = nullptr;
+};
+
+/// Base helper for component
+template <hash_type ComponentType>
+class basic_component : public component {
+public:
+	static constexpr hash_type component_type = ComponentType;
+	
+	virtual hash_type type() const noexcept override { return ComponentType; }
 };
 
 /// Object is a container for components
@@ -47,74 +53,58 @@ public:
 	object() = default;
 	explicit object(const char* name) : _name(name) {}
 
-	const char* name() const { return _name.c_str(); }
+	const char* name() const noexcept { return _name.c_str(); }
 	void name(const char* name) { _name = name; }
 
-	bool active() const { return _active; }
-	void active(bool active) { _active = active; }
-	bool active_in_hierarchy() const;
+	bool active() const noexcept { return _active; }
+	void active(bool active) noexcept { _active = active; }
+	bool active_in_hierarchy() const noexcept;
 
-	object* parent() const { return _parent; }
+	object* parent() const noexcept { return _parent; }
 	
 	object* add_child(const ref_ptr<object>& o);
+	object* add_child(ref_ptr<object>&& o);
 	ref_ptr<object> remove_child(object* o);
 	
 	void remove_from_parent();
 	
-	object* find_root_object() const;
-	object* find_object(const char* name);
-	object* find_object_in_parent(const char* name) const;
-	object* find_object_in_children(const char* name) const;
+	object* find_root() const noexcept;
+	object* find_child(const char* name) const noexcept;
+	object* find_ancestor(const char* name) const noexcept;
+	object* find_descendant(const char* name) const noexcept;
 
-	template<typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-	T* add_component(const ref_ptr<component>& c)
-		{ return static_cast<T*>(add_component(type_id<T>(), c)); }
-
-	template<typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-	void remove_components()
-		{ remove_components(type_id<T>()); }
-
-	bool remove_component(component* c);
-
-	template<typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-	T* get_component() const
-		{ return static_cast<T*>(get_component(type_id<T>())); }
+	component* add_component(const ref_ptr<component>& c);
+	component* add_component(ref_ptr<component>&& c);
+	ref_ptr<component> remove_component(component* c);
+	size_t remove_components(hash_type component_type);
 	
-	template<typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-	T* get_component_in_parent() const
-		{ return static_cast<T*>(get_component_in_parent(type_id<T>())); }
+	component* find_component(hash_type component_type) const noexcept;
+	component* find_component_in_parent(hash_type component_type) const noexcept;
+	component* find_component_in_children(hash_type component_type) const;
 	
-	template<typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-	T* get_component_in_children() const
-		{ return static_cast<T*>(get_component_in_children(type_id<T>())); }
-
-	template<typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-	void get_components(std::vector<ref_ptr<component>>& components) const
-		{ get_components(type_id<T>(), components); }
-
-	template<typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-	void get_components_in_parent(std::vector<ref_ptr<component>>& components) const
-		{ get_components_in_parent(type_id<T>(), components); }
-
-	template<typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-	void get_components_in_children(std::vector<ref_ptr<component>>& components) const
-		{ get_components_in_children(type_id<T>(), components); }
+	template <typename T, typename = typename std::enable_if_t<std::is_base_of<basic_component<T::component_type>, T>::value>>
+	T* find_component() const { return static_cast<T*>(find_component(T::component_type)); }
+	template <typename T, typename = typename std::enable_if_t<std::is_base_of<basic_component<T::component_type>, T>::value>>
+	T* find_component_in_parent() const { return static_cast<T*>(find_component_in_parent(T::component_type)); }
+	template <typename T, typename = typename std::enable_if_t<std::is_base_of<basic_component<T::component_type>, T>::value>>
+	T* find_component_in_children() const { return static_cast<T*>(find_component_in_children(T::component_type)); }
+	
+	template <typename OutputIterator>
+	void find_components(hash_type component_type, OutputIterator result) const;
+	template <typename OutputIterator>
+	void find_components_in_parent(hash_type component_type, OutputIterator result) const;
+	template <typename OutputIterator>
+	void find_components_in_children(hash_type component_type, OutputIterator result) const;
+	
+	template <typename T, typename OutputIterator, typename = typename std::enable_if_t<std::is_base_of<basic_component<T::component_type>, T>::value>>
+	void find_components(OutputIterator result) const;
+	template <typename T, typename OutputIterator, typename = typename std::enable_if_t<std::is_base_of<basic_component<T::component_type>, T>::value>>
+	void find_components_in_parent(OutputIterator result) const;
+	template <typename T, typename OutputIterator, typename = typename std::enable_if_t<std::is_base_of<basic_component<T::component_type>, T>::value>>
+	void find_components_in_children(OutputIterator result) const;
 
 private:
 	void parent(object* parent) { _parent = parent; }
-	
-	// Components management
-	//
-	component* add_component(const type_index& type, const ref_ptr<component>& c);
-	void remove_components(const type_index& type);
-
-	component* get_component(const type_index& type) const;
-	component* get_component_in_parent(const type_index& type) const;
-	component* get_component_in_children(const type_index& type) const;
-
-	void get_components(const type_index& type, std::vector<ref_ptr<component>>& components) const;
-	void get_components_in_parent(const type_index& type, std::vector<ref_ptr<component>>& components) const;
-	void get_components_in_children(const type_index& type, std::vector<ref_ptr<component>>& components) const;
 
 private:
 	std::string _name;
@@ -125,7 +115,7 @@ private:
 	using Children = std::vector<ref_ptr<object>>;
 	Children _children;
 	
-	using Components = std::vector<std::pair<type_index, ref_ptr<component>>>;
+	using Components = std::vector<std::pair<hash_type, ref_ptr<component>>>;
 	Components _components;
 };
 
