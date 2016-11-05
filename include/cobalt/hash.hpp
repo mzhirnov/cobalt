@@ -166,7 +166,9 @@ constexpr uint64_t fnv1a_64(const char* s)
 
 } // namespace cobalt
 
-constexpr uint32_t operator ""_hash(const char* str, size_t len)
+typedef uint32_t hash_type;
+
+constexpr hash_type operator ""_hash(const char* str, size_t len)
 {
 	return cobalt::murmur3_32(str, static_cast<uint32_t>(len), 0);
 }
@@ -174,9 +176,9 @@ constexpr uint32_t operator ""_hash(const char* str, size_t len)
 template <typename T>
 struct dont_hash {
 	typedef T argument_type;
-	typedef size_t result_type;
+	typedef T result_type;
 
-	result_type operator()(argument_type v) const {
+	constexpr result_type operator()(argument_type v) const noexcept {
 		return v;
 	}
 };
