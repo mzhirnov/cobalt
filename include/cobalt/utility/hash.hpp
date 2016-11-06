@@ -1,10 +1,9 @@
-#ifndef COBALT_HASH_HPP_INCLUDED
-#define COBALT_HASH_HPP_INCLUDED
+#ifndef COBALT_UTILITY_HASH_HPP_INCLUDED
+#define COBALT_UTILITY_HASH_HPP_INCLUDED
 
 #pragma once
 
 #include <cstdint>
-#include <stdexcept>
 
 namespace cobalt {
 namespace compiletime {
@@ -276,4 +275,4 @@ struct dont_hash {
 	
 } // namespace cobalt
 
-#endif // COBALT_HASH_HPP_INCLUDED
+#endif // COBALT_UTILITY_HASH_HPP_INCLUDED
