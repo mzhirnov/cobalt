@@ -24,32 +24,33 @@ inline bool object::active_in_hierarchy() const noexcept {
 inline object* object::add_child(const ref_ptr<object>& o) {
 	BOOST_ASSERT(std::find(_children.begin(), _children.end(), o) == _children.end());
 	
-	_children.push_back(o);
-	_children.back()->parent(this);
+	_children.push_front(o);
+	_children.front()->parent(this);
 	
-	return _children.back().get();
+	return _children.front().get();
 }
 	
 object* object::add_child(ref_ptr<object>&& o) {
 	BOOST_ASSERT(std::find(_children.begin(), _children.end(), o) == _children.end());
 	
-	_children.push_back(std::move(o));
-	_children.back()->parent(this);
+	_children.push_front(std::move(o));
+	_children.front()->parent(this);
 	
-	return _children.back().get();
+	return _children.front().get();
 }
 
 inline ref_ptr<object> object::remove_child(object* o) {
-	auto it = std::remove(_children.begin(), _children.end(), o);
+	ref_ptr<object> ret;
 	
-	if (it != _children.end()) {
-		ref_ptr<object> ret = std::move(*it);
-		_children.erase(it, _children.end());
-		ret->parent(nullptr);
-		return ret;
-	}
+	_children.remove_if([&](auto&& value) {
+		if (value.get() == o) {
+			ret = std::move(value);
+			return true;
+		}
+		return false;
+	});
 	
-	return nullptr;
+	return ret;
 }
 
 inline void object::remove_from_parent() {
@@ -169,48 +170,43 @@ inline object* object::find_object_in_children(hash_type name) const noexcept {
 }
 
 inline component* object::add_component(const ref_ptr<component>& c) {
-	_components.push_back(c);
-	_components.back()->object(this);
-	return _components.back().get();
+	_components.push_front(c);
+	_components.front()->object(this);
+	return _components.front().get();
 }
 	
 inline component* object::add_component(ref_ptr<component>&& c) {
-	_components.push_back(std::move(c));
-	_components.back()->object(this);
-	return _components.back().get();
+	_components.push_front(std::move(c));
+	_components.front()->object(this);
+	return _components.front().get();
 }
 
 inline ref_ptr<component> object::remove_component(component* c) {
-	auto it = std::remove_if(_components.begin(), _components.end(), [&](auto&& value) {
+	ref_ptr<component> ret;
+	
+	_components.remove_if([&](auto&& value) {
 		if (value.get() == c) {
 			value->object(nullptr);
+			ret = value;
 			return true;
 		}
 		return false;
 	});
 
-	if (it != _components.end()) {
-		ref_ptr<component> ret = std::move(*it);
-		_components.erase(it, _components.end());
-		return ret;
-	}
-
-	return nullptr;
+	return ret;
 }
 
 inline size_t object::remove_components(hash_type component_type) {
-	auto it = std::remove_if(_components.begin(), _components.end(), [&](auto&& value) {
+	size_t count = 0;
+	
+	_components.remove_if([&](auto&& value) {
 		if (value->type() == component_type) {
 			value->object(nullptr);
+			++count;
 			return true;
 		}
 		return false;
 	});
-	
-	size_t count = std::distance(it, _components.end());
-
-	if (it != _components.end())
-		_components.erase(it, _components.end());
 	
 	return count;
 }

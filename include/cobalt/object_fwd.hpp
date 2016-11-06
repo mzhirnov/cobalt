@@ -11,8 +11,7 @@
 #include <cobalt/hash.hpp>
 
 #include <type_traits>
-#include <vector>
-#include <string>
+#include <forward_list>
 
 namespace cobalt {
 
@@ -116,10 +115,10 @@ private:
 private:
 	mutable object* _parent = nullptr;
 
-	using Children = std::vector<ref_ptr<object>>;
+	using Children = std::forward_list<ref_ptr<object>>;
 	Children _children;
 	
-	using Components = std::vector<ref_ptr<component>>;
+	using Components = std::forward_list<ref_ptr<component>>;
 	Components _components;
 	
 	hash_type _name = 0;

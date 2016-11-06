@@ -24,9 +24,11 @@ public:
 };
 
 TEST_CASE("information") {
+	printf("sizeof(void*) := %zu\n", sizeof(void*));
 	printf("sizeof(std::string) := %zu\n", sizeof(std::string));
 	printf("sizeof(std::vector<object>) := %zu\n", sizeof(std::vector<object>));
 	printf("sizeof(std::deque<object>) := %zu\n", sizeof(std::deque<object>));
+	printf("sizeof(std::forward_list<object>) := %zu\n", sizeof(std::forward_list<object>));
 	printf("sizeof(object) := %zu\n", sizeof(object));
 	printf("sizeof(component) := %zu\n", sizeof(component));
 	printf("sizeof(renderer) := %zu\n", sizeof(renderer));
