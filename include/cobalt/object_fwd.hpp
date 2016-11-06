@@ -8,7 +8,7 @@
 //     object
 
 #include <cobalt/utility/ref_ptr.hpp>
-#include <cobalt/hash.hpp>
+#include <cobalt/utility/hash.hpp>
 
 #include <type_traits>
 #include <forward_list>

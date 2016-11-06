@@ -1,5 +1,5 @@
 #include "catch.hpp"
-#include <cobalt/hash.hpp>
+#include <cobalt/utility/hash.hpp>
 
 using namespace cobalt;
 
