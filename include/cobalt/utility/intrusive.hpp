@@ -1,10 +1,12 @@
-#ifndef COBALT_UTILITY_REF_PTR_HPP_INCLUDED
-#define COBALT_UTILITY_REF_PTR_HPP_INCLUDED
+#ifndef COBALT_UTILITY_INTRUSIVE_HPP_INCLUDED
+#define COBALT_UTILITY_INTRUSIVE_HPP_INCLUDED
 
 #pragma once
 
 #include <boost/smart_ptr/intrusive_ref_counter.hpp>
 #include <boost/smart_ptr/intrusive_ptr.hpp>
+
+#include <boost/intrusive/list.hpp>
 
 #include <type_traits>
 
@@ -26,6 +28,17 @@ inline void release(T* p) {
 	intrusive_ptr_release(p);
 }
 
+template <typename T, typename... Args>
+inline boost::intrusive_ptr<T> make_intrusive(Args&&... args) {
+	return new T(std::forward<Args>(args)...);
+}
+
+template <typename Tag>
+using intrusive_list_base = boost::intrusive::list_base_hook<boost::intrusive::tag<Tag>>;
+
+template <typename T, typename Tag = T>
+using intrusive_list = boost::intrusive::list<T, boost::intrusive::base_hook<intrusive_list_base<Tag>>>;
+
 } // namespace cobalt
 
-#endif // COBALT_UTILITY_REF_PTR_HPP_INCLUDED
+#endif // COBALT_UTILITY_INTRUSIVE_HPP_INCLUDED

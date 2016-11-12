@@ -8,7 +8,7 @@
 //     object
 //     scene
 
-#include <cobalt/utility/ref_ptr.hpp>
+#include <cobalt/utility/intrusive.hpp>
 #include <cobalt/utility/hash.hpp>
 
 #include <type_traits>
