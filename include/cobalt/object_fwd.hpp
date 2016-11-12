@@ -6,6 +6,7 @@
 // Classes in this file:
 //     component
 //     object
+//     scene
 
 #include <cobalt/utility/ref_ptr.hpp>
 #include <cobalt/utility/hash.hpp>
@@ -123,6 +124,17 @@ private:
 	
 	hash_type _name = 0;
 	bool _active = true;
+};
+	
+/// Scene
+class scene : public object {
+public:
+	scene() = default;
+	
+	scene(const scene&) = delete;
+	scene& operator=(const scene&) = delete;
+	
+private:
 };
 
 } // namespace cobalt
