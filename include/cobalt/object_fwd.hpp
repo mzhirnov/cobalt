@@ -27,7 +27,7 @@ public:
 
 	class object* object() const noexcept { return _object; }
 	
-	void remove_from_parent();
+	void detach();
 	
 private:
 	friend class object;
@@ -53,6 +53,9 @@ public:
 	object() noexcept = default;
 	explicit object(hash_type name) noexcept : _name(name) {}
 	explicit object(const char* name) noexcept : _name(murmur3(name, 0)) {}
+	
+	object(const object&) = delete;
+	object& operator=(const object&) = delete;
 
 	hash_type name() const noexcept { return _name; }
 	void name(hash_type name) noexcept { _name = name; }
@@ -64,11 +67,11 @@ public:
 
 	object* parent() const noexcept { return _parent; }
 	
-	object* add_child(const ref_ptr<object>& o);
-	object* add_child(ref_ptr<object>&& o);
-	ref_ptr<object> remove_child(object* o);
+	object* attach(const ref_ptr<object>& o);
+	object* attach(ref_ptr<object>&& o);
+	ref_ptr<object> detach(object* o);
 	
-	void remove_from_parent();
+	void detach();
 	
 	object* find_root() const noexcept;
 	object* find_child(hash_type name) const noexcept;
@@ -79,10 +82,10 @@ public:
 	object* find_object_in_parent(const char* name) const noexcept { return find_object_in_parent(murmur3(name, 0)); }
 	object* find_object_in_children(const char* name) const noexcept { return find_object_in_children(murmur3(name, 0)); }
 
-	component* add_component(const ref_ptr<component>& c);
-	component* add_component(ref_ptr<component>&& c);
+	component* attach(const ref_ptr<component>& c);
+	component* attach(ref_ptr<component>&& c);
+	ref_ptr<component> detach(component* c);
 	
-	ref_ptr<component> remove_component(component* c);
 	size_t remove_components(hash_type component_type);
 	
 	component* find_component(hash_type component_type) const noexcept;

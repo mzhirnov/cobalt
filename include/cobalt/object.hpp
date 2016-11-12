@@ -7,9 +7,9 @@
 
 namespace cobalt {
 	
-void component::remove_from_parent() {
+void component::detach() {
 	if (_object)
-		_object->remove_component(this);
+		_object->detach(this);
 }
 
 inline bool object::active_in_hierarchy() const noexcept {
@@ -21,7 +21,7 @@ inline bool object::active_in_hierarchy() const noexcept {
 	return true;
 }
 
-inline object* object::add_child(const ref_ptr<object>& o) {
+inline object* object::attach(const ref_ptr<object>& o) {
 	BOOST_ASSERT(std::find(_children.begin(), _children.end(), o) == _children.end());
 	
 	_children.push_front(o);
@@ -30,7 +30,7 @@ inline object* object::add_child(const ref_ptr<object>& o) {
 	return _children.front().get();
 }
 	
-object* object::add_child(ref_ptr<object>&& o) {
+object* object::attach(ref_ptr<object>&& o) {
 	BOOST_ASSERT(std::find(_children.begin(), _children.end(), o) == _children.end());
 	
 	_children.push_front(std::move(o));
@@ -39,7 +39,7 @@ object* object::add_child(ref_ptr<object>&& o) {
 	return _children.front().get();
 }
 
-inline ref_ptr<object> object::remove_child(object* o) {
+inline ref_ptr<object> object::detach(object* o) {
 	ref_ptr<object> ret;
 	
 	_children.remove_if([&](auto&& value) {
@@ -53,9 +53,9 @@ inline ref_ptr<object> object::remove_child(object* o) {
 	return ret;
 }
 
-inline void object::remove_from_parent() {
+inline void object::detach() {
 	if (_parent)
-		_parent->remove_child(this);
+		_parent->detach(this);
 }
 
 inline object* object::find_root() const noexcept {
@@ -169,19 +169,19 @@ inline object* object::find_object_in_children(hash_type name) const noexcept {
 	return nullptr;
 }
 
-inline component* object::add_component(const ref_ptr<component>& c) {
+inline component* object::attach(const ref_ptr<component>& c) {
 	_components.push_front(c);
 	_components.front()->object(this);
 	return _components.front().get();
 }
 	
-inline component* object::add_component(ref_ptr<component>&& c) {
+inline component* object::attach(ref_ptr<component>&& c) {
 	_components.push_front(std::move(c));
 	_components.front()->object(this);
 	return _components.front().get();
 }
 
-inline ref_ptr<component> object::remove_component(component* c) {
+inline ref_ptr<component> object::detach(component* c) {
 	ref_ptr<component> ret;
 	
 	_components.remove_if([&](auto&& value) {

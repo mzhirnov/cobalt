@@ -39,20 +39,20 @@ TEST_CASE("object") {
 	ref_ptr<object> o = new object();
 	
 	SECTION("add child") {
-		auto child = o->add_child(new object());
+		auto child = o->attach(new object());
 	
 		REQUIRE(child->parent() == o.get());
 		
 		SECTION("remove child") {
-			auto removed = o->remove_child(child);
+			auto removed = o->detach(child);
 			
 			REQUIRE(removed.get() == child);
 		}
 		
 		SECTION("self remove child") {
-			child->remove_from_parent();
+			child->detach();
 			
-			REQUIRE(o->remove_child(child) == nullptr);
+			REQUIRE(o->detach(child) == nullptr);
 		}
 	}
 	
@@ -60,9 +60,9 @@ TEST_CASE("object") {
 		bool renderer_destroyed = false;
 		auto r = new renderer(renderer_destroyed);
 		
-		auto c = o->add_component(r);
+		auto c = o->attach(r);
 		
-		o->add_component(new transform());
+		o->attach(new transform());
 		
 		SECTION("check preconditions") {
 			REQUIRE(c == r);
@@ -116,7 +116,7 @@ TEST_CASE("object") {
 		}
 		
 		SECTION("remove component") {
-			r->remove_from_parent();
+			r->detach();
 			
 			REQUIRE(renderer_destroyed == true);
 		}
