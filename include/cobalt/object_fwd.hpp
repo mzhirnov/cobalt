@@ -49,7 +49,7 @@ public:
 };
 
 /// Object is a container for components
-class object : public ref_counter<object>, public intrusive_list_base<object> {
+class object : public ref_counter<object>, public intrusive_slist_base<object> {
 public:
 	object() = default;
 	explicit object(hash_type name) noexcept : _name(name) {}
@@ -70,23 +70,22 @@ public:
 
 	object* parent() const noexcept { return _parent; }
 	
-	enumerator<std::forward_list<ref_ptr<object>>::const_iterator> children() const { return make_enumerator(_children); }
+	enumerator<intrusive_slist<object>::const_iterator> children() const { return make_enumerator(_children); }
 	enumerator<intrusive_slist<component>::const_iterator> components() const { return make_enumerator(_components); }
 	
-	object* attach(const ref_ptr<object>& o);
-	object* attach(ref_ptr<object>&& o);
+	object* attach(object* o) noexcept;
 	ref_ptr<object> detach(object* o);
 	
 	void detach();
 	
-	object* find_root() const noexcept;
-	object* find_child(hash_type name) const noexcept;
-	object* find_object_in_parent(hash_type name) const noexcept;
-	object* find_object_in_children(hash_type name) const noexcept;
+	const object* find_root() const noexcept;
+	const object* find_child(hash_type name) const noexcept;
+	const object* find_object_in_parent(hash_type name) const noexcept;
+	const object* find_object_in_children(hash_type name) const noexcept;
 	
-	object* find_child(const char* name) const noexcept;
-	object* find_object_in_parent(const char* name) const noexcept { return find_object_in_parent(murmur3(name, 0)); }
-	object* find_object_in_children(const char* name) const noexcept { return find_object_in_children(murmur3(name, 0)); }
+	const object* find_child(const char* name) const noexcept;
+	const object* find_object_in_parent(const char* name) const noexcept { return find_object_in_parent(murmur3(name, 0)); }
+	const object* find_object_in_children(const char* name) const noexcept { return find_object_in_children(murmur3(name, 0)); }
 
 	component* attach(component* c) noexcept;
 	ref_ptr<component> detach(component* c);
@@ -123,10 +122,7 @@ private:
 
 private:
 	mutable object* _parent = nullptr;
-
-	using Children = std::forward_list<ref_ptr<object>>;
-	Children _children;
-	
+	intrusive_slist<object> _children;
 	intrusive_slist<component> _components;
 	
 	hash_type _name = 0;

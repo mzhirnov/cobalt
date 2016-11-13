@@ -75,7 +75,7 @@ TEST_CASE("object") {
 		}
 		
 		SECTION("find component by type") {
-			auto f1 = (renderer*)o->find_component(renderer::component_type);
+			auto f1 = (const renderer*)o->find_component(renderer::component_type);
 			
 			REQUIRE(f1 == r);
 			REQUIRE_FALSE(o->find_component(transform::component_type) == nullptr);
@@ -84,7 +84,7 @@ TEST_CASE("object") {
 		}
 		
 		SECTION("find component by name") {
-			auto f1 = (renderer*)o->find_component("renderer"_hash);
+			auto f1 = (const renderer*)o->find_component("renderer"_hash);
 			
 			REQUIRE(f1 == r);
 			REQUIRE_FALSE(o->find_component("transform"_hash) == nullptr);

@@ -13,7 +13,8 @@ inline void component::detach() {
 }
 
 inline object::~object() {
-	_components.clear_and_dispose([](auto&& c) { release(c); });
+	_components.clear_and_dispose([](auto&& c) { c->object(nullptr); release(c); });
+	_children.clear_and_dispose([](auto&& o) { o->parent(nullptr); release(o); });
 }
 
 inline bool object::active_in_hierarchy() const noexcept {
@@ -25,36 +26,31 @@ inline bool object::active_in_hierarchy() const noexcept {
 	return true;
 }
 
-inline object* object::attach(const ref_ptr<object>& o) {
-	BOOST_ASSERT(std::find(_children.begin(), _children.end(), o) == _children.end());
+inline object* object::attach(object* o) noexcept {
+	// constructor will do add_ref
+	ref_ptr<object> sp = o;
 	
-	_children.push_front(o);
-	_children.front()->parent(this);
+	o->parent(this);
+	_children.push_front(*o);
 	
-	return _children.front().get();
-}
-	
-inline object* object::attach(ref_ptr<object>&& o) {
-	BOOST_ASSERT(std::find(_children.begin(), _children.end(), o) == _children.end());
-	
-	_children.push_front(std::move(o));
-	_children.front()->parent(this);
-	
-	return _children.front().get();
+	return sp.detach();
 }
 
 inline ref_ptr<object> object::detach(object* o) {
-	ref_ptr<object> ret;
+	ref_ptr<object> sp;
 	
-	_children.remove_if([&](auto&& value) {
-		if (value.get() == o) {
-			ret = std::move(value);
-			return true;
+	if (!o)
+		return sp;
+	
+	for (auto it = _children.before_begin(), next = std::next(it); next != _children.end(); ++it, ++next) {
+		if (&*next == o) {
+			_children.erase_after_and_dispose(it, [&](auto&& o) { sp.reset(o, false); sp->parent(nullptr); });
+			break;
 		}
-		return false;
-	});
-	
-	return ret;
+	}
+
+	return sp;
+	// destructor will do release
 }
 
 inline void object::detach() {
@@ -62,8 +58,8 @@ inline void object::detach() {
 		_parent->detach(this);
 }
 
-inline object* object::find_root() const noexcept {
-	auto o = const_cast<object*>(this);
+inline const object* object::find_root() const noexcept {
+	auto o = this;
 	
 	while (o->parent())
 		o = o->parent();
@@ -71,7 +67,7 @@ inline object* object::find_root() const noexcept {
 	return o;
 }
 
-inline object* object::find_child(const char* name) const noexcept {
+inline const object* object::find_child(const char* name) const noexcept {
 	if (!name)
 		return nullptr;
 	
@@ -81,7 +77,7 @@ inline object* object::find_child(const char* name) const noexcept {
 	while (*e == '/')
 		b = ++e;
 	
-	auto current = const_cast<object*>(this);
+	auto current = this;
 	
 	// Iterate through names in the path
 	while (*e++) {
@@ -91,11 +87,11 @@ inline object* object::find_child(const char* name) const noexcept {
 			
 			// Compare child name with current path part
 			for (auto&& child : current->_children) {
-				if (!child->active())
+				if (!child.active())
 					continue;
 				
-				if (child->name() == name_hash) {
-					current = const_cast<object*>(child.get());
+				if (child.name() == name_hash) {
+					current = &child;
 					found = true;
 					break;
 				}
@@ -112,19 +108,19 @@ inline object* object::find_child(const char* name) const noexcept {
 	return current;
 }
 	
-inline object* object::find_child(hash_type name) const noexcept {
+inline const object* object::find_child(hash_type name) const noexcept {
 	for (auto&& child : _children) {
-		if (!child->active())
+		if (!child.active())
 			continue;
 		
-		if (child->name() == name)
-			return child.get();
+		if (child.name() == name)
+			return &child;
 	}
 	
 	return nullptr;
 }
 
-inline object* object::find_object_in_parent(hash_type name) const noexcept {
+inline const object* object::find_object_in_parent(hash_type name) const noexcept {
 	for (auto o = _parent; o; o = o->parent()) {
 		if (!o->active())
 			continue;
@@ -136,37 +132,37 @@ inline object* object::find_object_in_parent(hash_type name) const noexcept {
 	return nullptr;
 }
 
-inline object* object::find_object_in_children(hash_type name) const noexcept {
+inline const object* object::find_object_in_children(hash_type name) const noexcept {
 	// Breadth-first search
 	
 	if (auto o = find_child(name))
 		return o;
 	
 	for (auto&& child : _children) {
-		if (!child->active())
+		if (!child.active())
 			continue;
 		
-		if (auto o = child->find_child(name))
+		if (auto o = child.find_child(name))
 			return o;
 	}
 	
-	std::deque<std::reference_wrapper<const ref_ptr<object>>> queue(_children.begin(), _children.end());
+	std::deque<std::reference_wrapper<const object>> queue(_children.begin(), _children.end());
 	
 	while (!queue.empty()) {
 		auto&& o = queue.front().get();
 		
-		if (!o->active())
+		if (!o.active())
 			continue;
 		
-		for (auto&& child : o->_children) {
-			if (!child->active())
+		for (auto&& child : o._children) {
+			if (!child.active())
 				continue;
 			
-			if (auto o = child->find_child(name))
+			if (auto o = child.find_child(name))
 				return o;
 		}
 		
-		queue.insert(queue.end(), o->_children.begin(), o->_children.end());
+		queue.insert(queue.end(), o._children.begin(), o._children.end());
 		queue.pop_front();
 	}
 	
@@ -174,7 +170,7 @@ inline object* object::find_object_in_children(hash_type name) const noexcept {
 }
 
 inline component* object::attach(component* c) noexcept {
-	// constructor will add_ref
+	// constructor will do add_ref
 	ref_ptr<component> sp = c;
 	c->object(this);
 	_components.push_front(*c);
@@ -185,10 +181,18 @@ inline component* object::attach(component* c) noexcept {
 inline ref_ptr<component> object::detach(component* c) {
 	ref_ptr<component> sp;
 	
-	_components.erase_and_dispose(_components.s_iterator_to(*c), [&](auto&& c) { c->object(nullptr); sp.reset(c, false); });
+	if (!c)
+		return sp;
+	
+	for (auto it = _components.before_begin(), next = std::next(it); next != _components.end(); ++it, ++next) {
+		if (&*next == c) {
+			_components.erase_after_and_dispose(it, [&](auto&& c) { sp.reset(c, false); sp->object(nullptr); });
+			break;
+		}
+	}
 	
 	return sp;
-	// destructor will release
+	// destructor will do release
 }
 
 inline size_t object::remove_components(hash_type component_type) {
@@ -228,27 +232,27 @@ inline const component* object::find_component_in_children(hash_type component_t
 		return c;
 	
 	for (auto&& child : _children) {
-		if (!child->active())
+		if (!child.active())
 			continue;
 		
-		if (auto c = child->find_component(component_type))
+		if (auto c = child.find_component(component_type))
 			return c;
 	}
 	
-	std::deque<std::reference_wrapper<const ref_ptr<object>>> queue(_children.begin(), _children.end());
+	std::deque<std::reference_wrapper<const object>> queue(_children.begin(), _children.end());
 	
 	while (!queue.empty()) {
 		auto&& o = queue.front().get();
 		
-		for (auto&& child : o->_children) {
-			if (!child->active())
+		for (auto&& child : o._children) {
+			if (!child.active())
 				continue;
 			
-			if (auto c = child->find_component(component_type))
+			if (auto c = child.find_component(component_type))
 				return c;
 		}
 		
-		queue.insert(queue.end(), o->_children.begin(), o->_children.end());
+		queue.insert(queue.end(), o._children.begin(), o._children.end());
 		queue.pop_front();
 	}
 
@@ -280,28 +284,28 @@ inline void object::find_components_in_children(hash_type component_type, Output
 	find_components(component_type, result);
 	
 	for (auto&& child : _children) {
-		if (!child->active())
+		if (!child.active())
 			continue;
 		
-		child->find_components(component_type, result);
+		child.find_components(component_type, result);
 	}
 	
-	std::deque<std::reference_wrapper<const ref_ptr<object>>> queue(_children.begin(), _children.end());
+	std::deque<std::reference_wrapper<const object>> queue(_children.begin(), _children.end());
 	
 	while (!queue.empty()) {
 		auto&& o = queue.front().get();
 		
-		if (!o->active())
+		if (!o.active())
 			continue;
 		
-		for (auto&& child : o->_children) {
-			if (!child->active())
+		for (auto&& child : o._children) {
+			if (!child.active())
 				continue;
 			
-			child->find_components(component_type, result);
+			child.find_components(component_type, result);
 		}
 		
-		queue.insert(queue.end(), o->_children.begin(), o->_children.end());
+		queue.insert(queue.end(), o._children.begin(), o._children.end());
 		queue.pop_front();
 	}
 }
@@ -331,28 +335,28 @@ inline void object::find_components_in_children(OutputIterator result) const {
 	find_components<T>(result);
 	
 	for (auto&& child : _children) {
-		if (!child->active())
+		if (!child.active())
 			continue;
 		
-		child->find_components<T>(result);
+		child.find_components<T>(result);
 	}
 	
-	std::deque<std::reference_wrapper<const ref_ptr<object>>> queue(_children.begin(), _children.end());
+	std::deque<std::reference_wrapper<const object>> queue(_children.begin(), _children.end());
 	
 	while (!queue.empty()) {
 		auto&& o = queue.front().get();
 		
-		if (!o->active())
+		if (!o.active())
 			continue;
 		
-		for (auto&& child : o->_children) {
-			if (!child->active())
+		for (auto&& child : o._children) {
+			if (!child.active())
 				continue;
 			
-			child->find_components<T>(result);
+			child.find_components<T>(result);
 		}
 		
-		queue.insert(queue.end(), o->_children.begin(), o->_children.end());
+		queue.insert(queue.end(), o._children.begin(), o._children.end());
 		queue.pop_front();
 	}
 }
