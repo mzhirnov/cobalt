@@ -10,7 +10,7 @@
 
 #include <cobalt/utility/intrusive.hpp>
 #include <cobalt/utility/hash.hpp>
-#include <cobalt/enumerator.hpp>
+#include <cobalt/utility/enumerator.hpp>
 
 #include <type_traits>
 #include <forward_list>

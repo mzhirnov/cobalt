@@ -1,5 +1,5 @@
-#ifndef COBALT_ENUMERATOR_HPP_INCLUDED
-#define COBALT_ENUMERATOR_HPP_INCLUDED
+#ifndef COBALT_UTILITY_ENUMERATOR_HPP_INCLUDED
+#define COBALT_UTILITY_ENUMERATOR_HPP_INCLUDED
 
 #pragma once
 
@@ -48,4 +48,4 @@ enumerator<T> make_enumerator(T begin, T end) {
 
 } // namespace cobalt
 	
-#endif // COBALT_ENUMERATOR_HPP_INCLUDED
+#endif // COBALT_UTILITY_ENUMERATOR_HPP_INCLUDED

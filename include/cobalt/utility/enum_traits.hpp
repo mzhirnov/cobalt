@@ -1,5 +1,5 @@
-#ifndef COBALT_ENUM_TRAITS_HPP_INCLUDED
-#define COBALT_ENUM_TRAITS_HPP_INCLUDED
+#ifndef COBALT_UTILITY_ENUM_TRAITS_HPP_INCLUDED
+#define COBALT_UTILITY_ENUM_TRAITS_HPP_INCLUDED
 
 #pragma once
 
@@ -315,4 +315,4 @@ std::string type_name() {
 	inline EnumName& operator^=(EnumName& lhs, EnumName rhs) noexcept                                           \
 		{ return reinterpret_cast<EnumName&>(CO_ENUM_TO_REF(EnumName, lhs) ^= CO_ENUM_TO_VAL(EnumName, rhs)); } \
 
-#endif // COBALT_ENUM_TRAITS_HPP_INCLUDED
+#endif // COBALT_UTILITY_ENUM_TRAITS_HPP_INCLUDED

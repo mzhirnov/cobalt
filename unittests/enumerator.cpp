@@ -1,5 +1,5 @@
 #include "catch.hpp"
-#include <cobalt/enumerator.hpp>
+#include <cobalt/utility/enumerator.hpp>
 
 #include <vector>
 #include <algorithm>

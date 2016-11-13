@@ -1,5 +1,5 @@
 #include "catch.hpp"
-#include <cobalt/enum_traits.hpp>
+#include <cobalt/utility/enum_traits.hpp>
 
 #include <sstream>
 
