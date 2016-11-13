@@ -27,7 +27,7 @@ inline bool object::active_in_hierarchy() const noexcept {
 }
 
 inline object* object::attach(object* o) noexcept {
-	// constructor will do add_ref
+	// constructor will call initial add_ref
 	ref_ptr<object> sp = o;
 	
 	o->parent(this);
@@ -50,7 +50,7 @@ inline ref_ptr<object> object::detach(object* o) {
 	}
 
 	return sp;
-	// destructor will do release
+	// destructor will call final release
 }
 
 inline void object::detach() {
@@ -170,7 +170,7 @@ inline const object* object::find_object_in_children(hash_type name) const noexc
 }
 
 inline component* object::attach(component* c) noexcept {
-	// constructor will do add_ref
+	// constructor will call initial add_ref
 	ref_ptr<component> sp = c;
 	c->object(this);
 	_components.push_front(*c);
@@ -192,7 +192,7 @@ inline ref_ptr<component> object::detach(component* c) {
 	}
 	
 	return sp;
-	// destructor will do release
+	// destructor will call final release
 }
 
 inline size_t object::remove_components(hash_type component_type) {
