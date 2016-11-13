@@ -82,7 +82,7 @@ inline const object* object::find_child(const char* name) const noexcept {
 	// Iterate through names in the path
 	while (*e++) {
 		if (*e == '/' || !*e) {
-			auto name_hash = runtime::murmur3_32(b, e - b, 0);
+			auto name_hash = murmur3(b, e - b, 0);
 			bool found = false;
 			
 			// Compare child name with current path part
@@ -172,6 +172,7 @@ inline const object* object::find_object_in_children(hash_type name) const noexc
 inline component* object::attach(component* c) noexcept {
 	// constructor will call initial add_ref
 	ref_ptr<component> sp = c;
+	
 	c->object(this);
 	_components.push_front(*c);
 	
