@@ -7,9 +7,13 @@
 
 namespace cobalt {
 	
-void component::detach() {
+inline void component::detach() {
 	if (_object)
 		_object->detach(this);
+}
+
+inline object::~object() {
+	_components.clear_and_dispose([](auto&& c) { release(c); });
 }
 
 inline bool object::active_in_hierarchy() const noexcept {
@@ -30,7 +34,7 @@ inline object* object::attach(const ref_ptr<object>& o) {
 	return _children.front().get();
 }
 	
-object* object::attach(ref_ptr<object>&& o) {
+inline object* object::attach(ref_ptr<object>&& o) {
 	BOOST_ASSERT(std::find(_children.begin(), _children.end(), o) == _children.end());
 	
 	_children.push_front(std::move(o));
@@ -169,58 +173,43 @@ inline object* object::find_object_in_children(hash_type name) const noexcept {
 	return nullptr;
 }
 
-inline component* object::attach(const ref_ptr<component>& c) {
-	_components.push_front(c);
-	_components.front()->object(this);
-	return _components.front().get();
-}
+inline component* object::attach(component* c) noexcept {
+	// constructor will add_ref
+	ref_ptr<component> sp = c;
+	c->object(this);
+	_components.push_front(*c);
 	
-inline component* object::attach(ref_ptr<component>&& c) {
-	_components.push_front(std::move(c));
-	_components.front()->object(this);
-	return _components.front().get();
+	return sp.detach();
 }
 
 inline ref_ptr<component> object::detach(component* c) {
-	ref_ptr<component> ret;
+	ref_ptr<component> sp;
 	
-	_components.remove_if([&](auto&& value) {
-		if (value.get() == c) {
-			value->object(nullptr);
-			ret = value;
-			return true;
-		}
-		return false;
-	});
-
-	return ret;
+	_components.erase_and_dispose(_components.s_iterator_to(*c), [&](auto&& c) { c->object(nullptr); sp.reset(c, false); });
+	
+	return sp;
+	// destructor will release
 }
 
 inline size_t object::remove_components(hash_type component_type) {
 	size_t count = 0;
 	
-	_components.remove_if([&](auto&& value) {
-		if (value->type() == component_type) {
-			value->object(nullptr);
-			++count;
-			return true;
-		}
-		return false;
-	});
+	_components.remove_and_dispose_if([&](auto&& c) { return c.type() == component_type; },
+									  [&](auto&& c) { c->object(nullptr); release(c); ++count; });
 	
 	return count;
 }
 
-inline component* object::find_component(hash_type component_type) const noexcept {
+inline const component* object::find_component(hash_type component_type) const noexcept {
 	for (auto&& c : _components) {
-		if (c->type() == component_type)
-			return c.get();
+		if (c.type() == component_type)
+			return &c;
 	}
 
 	return nullptr;
 }
 
-inline component* object::find_component_in_parent(hash_type component_type) const noexcept {
+inline const component* object::find_component_in_parent(hash_type component_type) const noexcept {
 	for (auto&& o = this; o; o = o->parent()) {
 		if (!o->active())
 			continue;
@@ -232,7 +221,7 @@ inline component* object::find_component_in_parent(hash_type component_type) con
 	return nullptr;
 }
 
-inline component* object::find_component_in_children(hash_type component_type) const {
+inline const component* object::find_component_in_children(hash_type component_type) const {
 	// Breadth-first search
 	
 	if (auto c = find_component(component_type))
@@ -269,8 +258,8 @@ inline component* object::find_component_in_children(hash_type component_type) c
 template <typename OutputIterator>
 inline void object::find_components(hash_type component_type, OutputIterator result) const {
 	for (auto&& c : _components) {
-		if (c->type() == component_type)
-			*result++ = c.get();
+		if (c.type() == component_type)
+			*result++ = &c;
 	}
 }
 
@@ -320,8 +309,8 @@ inline void object::find_components_in_children(hash_type component_type, Output
 template <typename T, typename OutputIterator, typename>
 inline void object::find_components(OutputIterator result) const {
 	for (auto&& c : _components) {
-		if (c->type() == T::component_type)
-			*result++ = static_cast<T*>(c.get());
+		if (c.type() == T::component_type)
+			*result++ = static_cast<const T*>(&c);
 	}
 }
 	

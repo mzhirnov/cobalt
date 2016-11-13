@@ -5,8 +5,8 @@ using namespace cobalt;
 
 class renderer : public basic_component<"renderer"_hash> {
 public:
-	renderer(bool& destroyed) : _destroyed(destroyed) {}
-	virtual ~renderer() { _destroyed = true; }
+	renderer(bool& destroyed) : _destroyed(destroyed) { printf("%s\n", "renderer.ctor"); }
+	virtual ~renderer() { _destroyed = true; printf("%s\n", "renderer.dtor"); }
 	
 	virtual void draw() const { }
 	
@@ -16,6 +16,8 @@ private:
 
 class transform : public basic_component<"transform"_hash> {
 public:
+	transform() { printf("%s\n", "transform.ctor"); }
+	~transform() { printf("%s\n", "transform.dtor"); }
 };
 
 class my_component : public component {
@@ -29,6 +31,8 @@ TEST_CASE("information") {
 	printf("sizeof(std::vector<object>) := %zu\n", sizeof(std::vector<object>));
 	printf("sizeof(std::deque<object>) := %zu\n", sizeof(std::deque<object>));
 	printf("sizeof(std::forward_list<object>) := %zu\n", sizeof(std::forward_list<object>));
+	printf("sizeof(intrusive_list<object>) := %zu\n", sizeof(intrusive_list<object>));
+	printf("sizeof(intrusive_slist<object>) := %zu\n", sizeof(intrusive_slist<object>));
 	printf("sizeof(object) := %zu\n", sizeof(object));
 	printf("sizeof(component) := %zu\n", sizeof(component));
 	printf("sizeof(renderer) := %zu\n", sizeof(renderer));
@@ -100,7 +104,7 @@ TEST_CASE("object") {
 		}
 		
 		SECTION("find components by type") {
-			std::vector<component*> vec;
+			std::vector<const component*> vec;
 			o->find_components(renderer::component_type, std::back_inserter(vec));
 			
 			REQUIRE(vec.size() == 1);
@@ -108,7 +112,7 @@ TEST_CASE("object") {
 		}
 		
 		SECTION("find components with template") {
-			std::vector<renderer*> vec;
+			std::vector<const renderer*> vec;
 			o->find_components<renderer>(std::back_inserter(vec));
 			
 			REQUIRE(vec.size() == 1);

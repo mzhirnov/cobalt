@@ -10,6 +10,7 @@
 
 #include <cobalt/utility/intrusive.hpp>
 #include <cobalt/utility/hash.hpp>
+#include <cobalt/enumerator.hpp>
 
 #include <type_traits>
 #include <forward_list>
@@ -19,7 +20,7 @@ namespace cobalt {
 class object;
 
 /// Component
-class component : public ref_counter<component> {
+class component : public ref_counter<component>, public intrusive_slist_base<component> {
 public:
 	virtual ~component() = default;
 
@@ -48,14 +49,16 @@ public:
 };
 
 /// Object is a container for components
-class object : public ref_counter<object> {
+class object : public ref_counter<object>, public intrusive_list_base<object> {
 public:
-	object() noexcept = default;
+	object() = default;
 	explicit object(hash_type name) noexcept : _name(name) {}
 	explicit object(const char* name) noexcept : _name(murmur3(name, 0)) {}
 	
 	object(const object&) = delete;
 	object& operator=(const object&) = delete;
+	
+	~object();
 
 	hash_type name() const noexcept { return _name; }
 	void name(hash_type name) noexcept { _name = name; }
@@ -66,6 +69,9 @@ public:
 	bool active_in_hierarchy() const noexcept;
 
 	object* parent() const noexcept { return _parent; }
+	
+	enumerator<std::forward_list<ref_ptr<object>>::const_iterator> children() const { return make_enumerator(_children); }
+	enumerator<intrusive_slist<component>::const_iterator> components() const { return make_enumerator(_components); }
 	
 	object* attach(const ref_ptr<object>& o);
 	object* attach(ref_ptr<object>&& o);
@@ -82,22 +88,21 @@ public:
 	object* find_object_in_parent(const char* name) const noexcept { return find_object_in_parent(murmur3(name, 0)); }
 	object* find_object_in_children(const char* name) const noexcept { return find_object_in_children(murmur3(name, 0)); }
 
-	component* attach(const ref_ptr<component>& c);
-	component* attach(ref_ptr<component>&& c);
+	component* attach(component* c) noexcept;
 	ref_ptr<component> detach(component* c);
 	
 	size_t remove_components(hash_type component_type);
 	
-	component* find_component(hash_type component_type) const noexcept;
-	component* find_component_in_parent(hash_type component_type) const noexcept;
-	component* find_component_in_children(hash_type component_type) const;
+	const component* find_component(hash_type component_type) const noexcept;
+	const component* find_component_in_parent(hash_type component_type) const noexcept;
+	const component* find_component_in_children(hash_type component_type) const;
 	
 	template <typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-	T* find_component() const { return static_cast<T*>(find_component(T::component_type)); }
+	const T* find_component() const { return static_cast<const T*>(find_component(T::component_type)); }
 	template <typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-	T* find_component_in_parent() const { return static_cast<T*>(find_component_in_parent(T::component_type)); }
+	const T* find_component_in_parent() const { return static_cast<const T*>(find_component_in_parent(T::component_type)); }
 	template <typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-	T* find_component_in_children() const { return static_cast<T*>(find_component_in_children(T::component_type)); }
+	const T* find_component_in_children() const { return static_cast<const T*>(find_component_in_children(T::component_type)); }
 	
 	template <typename OutputIterator>
 	void find_components(hash_type component_type, OutputIterator result) const;
@@ -122,8 +127,7 @@ private:
 	using Children = std::forward_list<ref_ptr<object>>;
 	Children _children;
 	
-	using Components = std::forward_list<ref_ptr<component>>;
-	Components _components;
+	intrusive_slist<component> _components;
 	
 	hash_type _name = 0;
 	bool _active = true;
