@@ -13,8 +13,8 @@ inline void component::detach() {
 }
 
 inline object::~object() {
-	_components.clear_and_dispose([](auto&& c) { c->object(nullptr); release(c); });
-	_children.clear_and_dispose([](auto&& o) { o->parent(nullptr); release(o); });
+	remove_all_components();
+	remove_all_children();
 }
 
 inline bool object::active_in_hierarchy() const noexcept {
@@ -56,6 +56,10 @@ inline ref_ptr<object> object::detach(object* o) {
 inline void object::detach() {
 	if (_parent)
 		_parent->detach(this);
+}
+	
+inline void object::remove_all_children() {
+	_children.clear_and_dispose([](auto&& o) { o->parent(nullptr); release(o); });
 }
 
 inline const object* object::find_root() const noexcept {
@@ -203,6 +207,10 @@ inline size_t object::remove_components(hash_type component_type) {
 									  [&](auto&& c) { c->object(nullptr); release(c); ++count; });
 	
 	return count;
+}
+	
+inline void object::remove_all_components() {
+	_components.clear_and_dispose([](auto&& c) { c->object(nullptr); release(c); });
 }
 
 inline const component* object::find_component(hash_type component_type) const noexcept {

@@ -78,6 +78,8 @@ public:
 	
 	void detach();
 	
+	void remove_all_children();
+	
 	const object* find_root() const noexcept;
 	const object* find_child(hash_type name) const noexcept;
 	const object* find_object_in_parent(hash_type name) const noexcept;
@@ -91,6 +93,7 @@ public:
 	ref_ptr<component> detach(component* c);
 	
 	size_t remove_components(hash_type component_type);
+	void remove_all_components();
 	
 	const component* find_component(hash_type component_type) const noexcept;
 	const component* find_component_in_parent(hash_type component_type) const noexcept;
