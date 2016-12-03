@@ -5,25 +5,29 @@ using namespace cobalt;
 
 class renderer : public basic_component<"renderer"_hash> {
 public:
-	renderer(bool& destroyed) : _destroyed(destroyed) { printf("%s\n", "renderer.ctor"); }
-	virtual ~renderer() { _destroyed = true; printf("%s\n", "renderer.dtor"); }
+	renderer(int& instances) : _instances(instances)
+		{ ++_instances; }
+	~renderer()
+		{ --_instances; }
 	
 	virtual void draw() const { }
 	
 private:
-	bool& _destroyed;
+	int& _instances;
 };
 
 class transform : public basic_component<"transform"_hash> {
 public:
-	transform() { printf("%s\n", "transform.ctor"); }
-	~transform() { printf("%s\n", "transform.dtor"); }
 };
+
+CO_DEFINE_COMPONENT_FACTORY(transform)
 
 class my_component : public component {
 public:
 	virtual hash_type type() const noexcept override { return "my_component"_hash; }
 };
+
+CO_DEFINE_COMPONENT_FACTORY(my_component)
 
 TEST_CASE("information") {
 	printf("sizeof(void*) := %zu\n", sizeof(void*));
@@ -61,17 +65,21 @@ TEST_CASE("object") {
 	}
 	
 	SECTION("add component") {
-		bool renderer_destroyed = false;
-		auto r = new renderer(renderer_destroyed);
+		int renderer_instances = 0;
+		auto r = new renderer(renderer_instances);
 		
 		auto c = o->attach(r);
 		
-		o->attach(new transform());
+		auto xform = component_factory::create("transform"_hash);
+		
+		REQUIRE(xform != nullptr);
+		
+		o->attach(xform);
 		
 		SECTION("check preconditions") {
 			REQUIRE(c == r);
 			REQUIRE(c->object() == o.get());
-			REQUIRE(renderer_destroyed == false);
+			REQUIRE(renderer_instances == 1);
 		}
 		
 		SECTION("find component by type") {
@@ -122,7 +130,7 @@ TEST_CASE("object") {
 		SECTION("remove component") {
 			r->detach();
 			
-			REQUIRE(renderer_destroyed == true);
+			REQUIRE(renderer_instances == 0);
 		}
 	}
 }
