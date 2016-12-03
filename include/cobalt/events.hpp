@@ -94,6 +94,9 @@ public:
 	typedef std::chrono::high_resolution_clock clock_type;
 
 	event_dispatcher() = default;
+	
+	event_dispatcher(const event_dispatcher&) = delete;
+	event_dispatcher& operator=(const event_dispatcher&) = delete;
 
 	// subscribe/subscribed/unsubscribe
 
@@ -307,6 +310,9 @@ public:
 			BOOST_VERIFY(_dispatcher.unsubscribe(s.first, s.second));
 		}
 	}
+	
+	event_subscriber(const event_subscriber&) = delete;
+	event_subscriber& operator=(const event_subscriber&) = delete;
 
 	template <typename E>
 	void subscribe(void(T::*mf)(E*)) {
@@ -346,21 +352,23 @@ class event_target {
 public:
 	explicit event_target(event_dispatcher& dispatcher, const char* target_name = nullptr)
 		: _dispatcher(dispatcher)
-		, _target(get_target(target_name))
+		, _target(make_target(target_name))
 	{
 		using std::placeholders::_1;
-		
-		event_dispatcher::handler_type handler = std::bind(&event_target::on_event, static_cast<T*>(this), _1);
-		_handler_hash = _dispatcher.subscribe(_target, handler);
+		_handler = _dispatcher.subscribe(_target, std::bind(&event_target::on_event, static_cast<T*>(this), _1));
 	}
 
 	virtual ~event_target() {
-		BOOST_VERIFY(_dispatcher.unsubscribe(_target, _handler_hash));
+		BOOST_VERIFY(_dispatcher.unsubscribe(_target, _handler));
 	}
+	
+	event_target(const event_target&) = delete;
+	event_target& operator=(const event_target&) = delete;
 
 	virtual void on_event(event*) = 0;
 
-	static event_dispatcher::target_type get_target(const char* target_name) {
+private:
+	static event_dispatcher::target_type make_target(const char* target_name) {
 		static_assert(std::is_same<event_dispatcher::target_type, hash_type>::value, "target_type is not hash_type");
 		
 		hash_type hash_value = 0;
@@ -379,7 +387,7 @@ public:
 private:
 	event_dispatcher& _dispatcher;
 	event_dispatcher::target_type _target = 0;
-	size_t _handler_hash = 0;
+	size_t _handler = 0;
 };
 
 } // namespace cobalt
