@@ -369,8 +369,10 @@ public:
 			hash_value = typeid(T).hash_code();
 
 		if ((Mode & subscribe_mode::name) == subscribe_mode::name && target_name != nullptr)
-				hash_value = murmur3(target_name, std::strlen(target_name), hash_value);
+			hash_value = murmur3(target_name, std::strlen(target_name), hash_value);
 
+		BOOST_ASSERT_MSG(hash_value != 0, "Cannot identify target");
+		
 		return hash_value;
 	}
 
