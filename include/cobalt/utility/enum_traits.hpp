@@ -3,15 +3,15 @@
 
 #pragma once
 
-#include <cstdint>
-#include <cstring>
+#include <boost/preprocessor/variadic/size.hpp>
+#include <boost/assert.hpp>
 
 #include <type_traits>
 #include <ostream>
 #include <sstream>
 
-#include <boost/preprocessor/variadic/size.hpp>
-#include <boost/assert.hpp>
+#include <cstdint>
+#include <cstring>
 
 namespace cobalt {
 
