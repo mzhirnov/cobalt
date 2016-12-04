@@ -30,7 +30,7 @@ inline void release(T* p) {
 }
 
 template <typename T, typename... Args>
-inline boost::intrusive_ptr<T> make_intrusive(Args&&... args) {
+inline ref_ptr<T> make_ref(Args&&... args) {
 	return new T(std::forward<Args>(args)...);
 }
 
