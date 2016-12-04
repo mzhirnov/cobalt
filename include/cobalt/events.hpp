@@ -6,7 +6,6 @@
 // Classes in this file:
 //     event
 //     basic_event
-//     rebind_event_handler
 //     event_dispatcher
 //     event_subscriber
 //     event_target
@@ -29,13 +28,6 @@ CO_DEFINE_ENUM_CLASS(
 	sinking
 )
 
-CO_DEFINE_ENUM_FLAGS_CLASS(
-	subscribe_mode, uint8_t,
-	type = 1 << 0,
-	name = 1 << 1,
-	type_and_name = type | name
-)
-
 namespace cobalt {
 
 /// event
@@ -44,52 +36,28 @@ public:
 	typedef hash_type target_type;
 
 	virtual ~event() = default;
-	virtual target_type target() const = 0;
+	virtual target_type target() const noexcept = 0;
+	
+	static target_type create_custom_target(const char* name, target_type base_target = 0) {
+		return murmur3(name, base_target);
+	}
 };
 
 /// basic_event
 template <event::target_type Target>
 class basic_event : public event {
 public:
-	static constexpr target_type type = Target;
+	enum : event::target_type { type = Target };
 
-	virtual target_type target() const override { return Target; }
+	virtual event::target_type target() const noexcept override { return Target; }
 };
 
-#define CO_DEFINE_EVENT_CLASS(event_class_name) class event_class_name : public basic_event<#event_class_name##_hash>
-
-/// rebind_event_handler
-template
-<
-	typename T,
-	typename E,
-	typename = typename std::enable_if<std::is_base_of<event, E>::value>::type
->
-class rebind_event_handler {
-public:
-	rebind_event_handler(void(T::*mf)(E*), T* obj)
-		: _obj(obj)
-		, _mf(mf)
-	{
-	}
-
-	void operator()(event* ev) {
-		(_obj->*_mf)(static_cast<E*>(ev));
-	}
-
-	friend bool operator==(const rebind_event_handler& rhs, const rebind_event_handler& lhs) {
-		return rhs._obj == lhs._obj && rhs._mf == lhs._mf;
-	}
-
-private:
-	T* _obj;
-	void(T::*_mf)(E*);
-};
+#define CO_DEFINE_EVENT_CLASS(event_class) class event_class : public basic_event<#event_class##_hash>
+#define CO_DEFINE_EVENT_CLASS_WITH_TARGET_NAME(event_class, target_name) class event_class : public basic_event<target_name##_hash>
 
 /// event_dispatcher
 class event_dispatcher {
 public:
-	typedef event::target_type target_type;
 	typedef std::function<void(event*)> handler_type;
 	typedef std::chrono::high_resolution_clock clock_type;
 
@@ -100,35 +68,39 @@ public:
 
 	// subscribe/subscribed/unsubscribe
 
-	size_t subscribe(target_type target, handler_type handler) {
+	size_t subscribe(event::target_type target, const handler_type& handler) {
+		size_t handler_hash = handler.target_type().hash_code();
+		_handlers.emplace(target, handler);
+		return handler_hash;
+	}
+	
+	size_t subscribe(event::target_type target, handler_type&& handler) {
 		size_t handler_hash = handler.target_type().hash_code();
 		_handlers.emplace(target, std::move(handler));
 		return handler_hash;
 	}
 
-	bool subscribed(target_type target, handler_type handler) const {
+	bool subscribed(event::target_type target, const handler_type& handler) const noexcept {
 		return subscribed(target, handler.target_type().hash_code());
 	}
 
-	bool subscribed(target_type target, size_t handler_hash) const {
+	bool subscribed(event::target_type target, size_t handler_hash) const noexcept {
 		auto range = _handlers.equal_range(target);
 		for (auto it = range.first; it != range.second; ++it) {
-			auto&& typeinfo = (*it).second.target_type();
-			if (typeinfo.hash_code() == handler_hash)
+			if ((*it).second.target_type().hash_code() == handler_hash)
 				return true;
 		}
 		return false;
 	}
 
-	bool unsubscribe(target_type target, handler_type handler) {
+	bool unsubscribe(event::target_type target, const handler_type& handler) noexcept {
 		return unsubscribe(target, handler.target_type().hash_code());
 	}
 
-	bool unsubscribe(target_type target, size_t handler_hash) {
+	bool unsubscribe(event::target_type target, size_t handler_hash) noexcept {
 		auto range = _handlers.equal_range(target);
 		for (auto it = range.first; it != range.second; ++it) {
-			auto&& typeinfo = (*it).second.target_type();
-			if (typeinfo.hash_code() == handler_hash) {
+			if ((*it).second.target_type().hash_code() == handler_hash) {
 				_handlers.erase(it);
 				return true;
 			}
@@ -139,28 +111,40 @@ public:
 	// subscribe/subscribed/unsubscribe templated overloads for member functions
 
 	template <typename T, typename E>
+	size_t subscribe(event::target_type target, void(T::*mf)(E*), T* obj) {
+		subscribe(target, rebind_method_event_handler<T, E>(mf, obj));
+		return typeid(rebind_method_event_handler<T, E>).hash_code();
+	}
+	
+	template <typename T, typename E>
 	size_t subscribe(void(T::*mf)(E*), T* obj) {
-		subscribe(E::type, rebind_event_handler<T, E>(mf, obj));
-		return typeid(rebind_event_handler<T, E>).hash_code();
+		return subscribe(E::type, mf, obj);
 	}
 
 	template <typename T, typename E>
-	bool subscribed(void(T::*mf)(E*), T* obj) const {
-		auto range = _handlers.equal_range(E::type);
+	bool subscribed(event::target_type target, void(T::*mf)(E*), const T* obj) const noexcept {
+		const rebind_method_event_handler<T, E> sought(mf, const_cast<T*>(obj));
+		auto range = _handlers.equal_range(target);
 		for (auto it = range.first; it != range.second; ++it) {
-			auto target = (*it).second.template target<rebind_event_handler<T, E>>();
-			if (target && *target == rebind_event_handler<T, E>(mf, obj))
+			auto&& target = (*it).second.template target<rebind_method_event_handler<T, E>>();
+			if (target && *target == sought)
 				return true;
 		}
 		return false;
 	}
+	
+	template <typename T, typename E>
+	bool subscribed(void(T::*mf)(E*), const T* obj) const noexcept {
+		return subscribed(E::type, mf, obj);
+	}
 
 	template <typename T, typename E>
-	bool unsubscribe(void(T::*mf)(E*), T* obj, size_t* handler_hash = nullptr) {
-		auto range = _handlers.equal_range(E::type);
+	bool unsubscribe(event::target_type target, void(T::*mf)(E*), T* obj, size_t* handler_hash = nullptr) noexcept {
+		const rebind_method_event_handler<T, E> sought(mf, obj);
+		auto range = _handlers.equal_range(target);
 		for (auto it = range.first; it != range.second; ++it) {
-			auto target = (*it).second.template target<rebind_event_handler<T, E>>();
-			if (target && *target == rebind_event_handler<T, E>(mf, obj)) {
+			auto&& target = (*it).second.template target<rebind_method_event_handler<T, E>>();
+			if (target && *target == sought) {
 				if (handler_hash)
 					*handler_hash = (*it).second.target_type().hash_code();
 				_handlers.erase(it);
@@ -169,10 +153,15 @@ public:
 		}
 		return false;
 	}
+	
+	template <typename T, typename E>
+	bool unsubscribe(void(T::*mf)(E*), T* obj, size_t* handler_hash = nullptr) noexcept {
+		return unsubscribe(E::type, mf, obj, handler_hash);
+	}
 
 	// post/dispatch/invoke
 
-	bool empty() const {
+	bool empty() const noexcept {
 		return _queues[0].empty();
 	}
 
@@ -184,15 +173,15 @@ public:
 		_queues[0].emplace_back(event->target(), std::move(event));
 	}
 
-	void post(target_type target, const ref_ptr<event>& event) {
+	void post(event::target_type target, const ref_ptr<event>& event) {
 		_queues[0].emplace_back(target, event);
 	}
 
-	void post(target_type target, ref_ptr<event>&& event) {
+	void post(event::target_type target, ref_ptr<event>&& event) {
 		_queues[0].emplace_back(target, std::move(event));
 	}
 
-	bool posted(target_type target) const {
+	bool posted(event::target_type target) const noexcept {
 		for (auto&& p : _queues[0]) {
 			if (p.first == target)
 				return true;
@@ -200,47 +189,33 @@ public:
 		return false;
 	}
 
-	bool abort_first(target_type target) {
-		auto it = std::find_if(_queues[0].begin(), _queues[0].end(),
-			[&](const Events::value_type& v) {
-				return v.first == target;
-			});
-
+	bool abort_first(event::target_type target) {
+		auto it = std::find_if(_queues[0].begin(), _queues[0].end(), [&](auto&& v) { return v.first == target; });
 		if (it != _queues[0].end()) {
 			_queues[0].erase(it);
 			return true;
 		}
-
 		return false;
 	}
 
-	bool abort_last(target_type target) {
-		auto it = std::find_if(_queues[0].rbegin(), _queues[0].rend(),
-			[&](const Events::value_type& v) {
-				return v.first == target;
-			});
-
+	bool abort_last(event::target_type target) {
+		auto it = std::find_if(_queues[0].rbegin(), _queues[0].rend(), [&](auto&& v) { return v.first == target; });
 		if (it != _queues[0].rend()) {
 			_queues[0].erase(--it.base());
 			return true;
 		}
-
 		return false;
 	}
 
-	void abort_all(target_type target) {
-		auto it = std::remove_if(_queues[0].begin(), _queues[0].end(),
-			[&](const Events::value_type& v) {
-				return v.first == target;
-			});
-		
+	void abort_all(event::target_type target) {
+		auto it = std::remove_if(_queues[0].begin(), _queues[0].end(), [&](auto&& v) { return v.first == target; });
 		if (it != _queues[0].end())
 			_queues[0].erase(it, _queues[0].end());
 	}
 
 	/// Dispatches events with timeout
 	/// @return Number of invoked handlers
-	size_t dispatch(clock_type::duration timeout) {
+	size_t dispatch(clock_type::duration timeout = clock_type::duration()) {
 		size_t count = 0;
 
 		std::swap(_queues[0], _queues[1]);
@@ -252,7 +227,7 @@ public:
 			count += invoke(p.first, p.second);
 			_queues[1].pop_front();
 
-			if (clock_type::now() - start >= timeout)
+			if (timeout != clock_type::duration() && clock_type::now() - start >= timeout)
 				break;
 		}
 
@@ -271,39 +246,52 @@ public:
 	/// Invokes the event immediately
 	/// @return Number of invoked handlers
 	size_t invoke(const ref_ptr<event>& event) {
-		size_t count = 0;
 		auto range = _handlers.equal_range(event->target());
-		for (auto it = range.first; it != range.second; ++it, ++count)
+		for (auto it = range.first; it != range.second; ++it)
 			(*it).second(event.get());
-		return count;
+		return std::distance(range.first, range.second);
 	}
 
-	/// Invokes the event immediately
+	/// Invokes the event for specified target immediately
 	/// @return Number of invoked handlers
-	size_t invoke(target_type target, const ref_ptr<event>& event) {
-		size_t count = 0;
+	size_t invoke(event::target_type target, const ref_ptr<event>& event) {
 		auto range = _handlers.equal_range(target);
-		for (auto it = range.first; it != range.second; ++it, ++count)
+		for (auto it = range.first; it != range.second; ++it)
 			(*it).second(event.get());
-		return count;
+		return std::distance(range.first, range.second);
 	}
 
 private:
-	typedef std::unordered_multimap<target_type, handler_type, dont_hash<target_type>> Handlers;
+	typedef std::unordered_multimap<event::target_type, handler_type, dont_hash<event::target_type>> Handlers;
 	Handlers _handlers;
 
-	typedef std::deque<std::pair<target_type, ref_ptr<event>>> Events;
+	typedef std::deque<std::pair<event::target_type, ref_ptr<event>>> Events;
 	std::array<Events, 2> _queues;
+
+	template <typename T, typename E, typename = typename std::enable_if<std::is_base_of<event, E>::value>::type>
+	struct rebind_method_event_handler {
+		typedef rebind_method_event_handler self;
+		
+		constexpr rebind_method_event_handler(void(T::*mf)(E*), T* obj) noexcept : _obj(obj), _mf(mf) { }
+		
+		void operator()(event* ev) { (_obj->*_mf)(static_cast<E*>(ev)); }
+		
+		friend bool operator==(const self& rhs, const self& lhs) noexcept {
+			return rhs._obj == lhs._obj && rhs._mf == lhs._mf;
+		}
+	private:
+		T* _obj;
+		void(T::*_mf)(E*);
+	};
 };
 
 /// Helper base class for objects to subscribe to and automatically unsubscribe from events
 template <typename T>
 class event_subscriber {
 public:
-	explicit event_subscriber(event_dispatcher& dispatcher)
+	explicit event_subscriber(event_dispatcher& dispatcher) noexcept
 		: _dispatcher(dispatcher)
-	{
-	}
+	{ }
 
 	~event_subscriber() {
 		for (auto&& s : _subscriptions) {
@@ -316,17 +304,16 @@ public:
 
 	template <typename E>
 	void subscribe(void(T::*mf)(E*)) {
-		auto handler_hash = _dispatcher.subscribe(mf, static_cast<T*>(this));
-		_subscriptions.emplace_back(E::type, handler_hash);
+		_subscriptions.emplace_back(E::type, _dispatcher.subscribe(mf, static_cast<T*>(this)));
 	}
 
 	template <typename E>
-	bool subscribed(void(T::*mf)(E*)) const {
-		return _dispatcher.subscribed(mf, static_cast<T*>(this));
+	bool subscribed(void(T::*mf)(E*)) const noexcept {
+		return _dispatcher.subscribed(mf, static_cast<const T*>(this));
 	}
 
 	template <typename E>
-	void unsubscribe(void(T::*mf)(E*)) {
+	void unsubscribe(void(T::*mf)(E*)) noexcept {
 		size_t handler_hash = 0;
 		BOOST_VERIFY(_dispatcher.unsubscribe(mf, static_cast<T*>(this), &handler_hash));
 		// Remove handler hash for event type from subscriptions
@@ -338,55 +325,45 @@ public:
 private:
 	event_dispatcher& _dispatcher;
 
-	typedef std::deque<std::pair<event_dispatcher::target_type, size_t>> Subscriptions;
+	typedef std::deque<std::pair<event::target_type, size_t>> Subscriptions;
 	Subscriptions _subscriptions;
 };
 
 /// Base class for objects to make them event targets
-template
-<
-	typename T,
-	subscribe_mode Mode = subscribe_mode::type_and_name
->
+template <typename T, typename E>
 class event_target {
 public:
-	explicit event_target(event_dispatcher& dispatcher, const char* target_name = nullptr)
+	event_target(event_dispatcher& dispatcher, event::target_type target)
 		: _dispatcher(dispatcher)
-		, _target(make_target(target_name))
+		, _target(target)
 	{
-		using std::placeholders::_1;
-		_handler = _dispatcher.subscribe(_target, std::bind(&event_target::on_event, static_cast<T*>(this), _1));
+		BOOST_ASSERT(_target != 0);
+		
+		_handler = _dispatcher.subscribe(_target, static_cast<void(T::*)(E*)>(&T::on_event), static_cast<T*>(this));
 	}
+	
+	event_target(event_dispatcher& dispatcher, const char* name)
+		: event_target(dispatcher, event::create_custom_target(name))
+	{ }
+	
+	event_target(event_dispatcher& dispatcher, const char* name, event::target_type base_target)
+		: event_target(dispatcher, event::create_custom_target(name, base_target))
+	{ }
 
-	virtual ~event_target() {
+	virtual ~event_target() noexcept {
 		BOOST_VERIFY(_dispatcher.unsubscribe(_target, _handler));
 	}
 	
 	event_target(const event_target&) = delete;
 	event_target& operator=(const event_target&) = delete;
+	
+	event_dispatcher& dispatcher() const { return _dispatcher; }
 
-	virtual void on_event(event*) = 0;
-
-private:
-	static event_dispatcher::target_type make_target(const char* target_name) {
-		static_assert(std::is_same<event_dispatcher::target_type, hash_type>::value, "target_type is not hash_type");
-		
-		hash_type hash_value = 0;
-
-		if ((Mode & subscribe_mode::type) == subscribe_mode::type)
-			hash_value = typeid(T).hash_code();
-
-		if ((Mode & subscribe_mode::name) == subscribe_mode::name && target_name != nullptr)
-			hash_value = murmur3(target_name, std::strlen(target_name), hash_value);
-
-		BOOST_ASSERT_MSG(hash_value != 0, "Cannot identify target");
-		
-		return hash_value;
-	}
+	event::target_type target() const noexcept { return _target; }
 
 private:
 	event_dispatcher& _dispatcher;
-	event_dispatcher::target_type _target = 0;
+	event::target_type _target = {};
 	size_t _handler = 0;
 };
 
