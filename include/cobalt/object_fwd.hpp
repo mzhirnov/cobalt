@@ -1,5 +1,5 @@
-#ifndef COBALT_OBJECT_HPP_INCLUDED
-#define COBALT_OBJECT_HPP_INCLUDED
+#ifndef COBALT_OBJECT_FWD_HPP_INCLUDED
+#define COBALT_OBJECT_FWD_HPP_INCLUDED
 
 #pragma once
 
@@ -180,4 +180,4 @@ private:
 
 } // namespace cobalt
 
-#endif // COBALT_OBJECT_HPP_INCLUDED
+#endif // COBALT_OBJECT_FWD_HPP_INCLUDED

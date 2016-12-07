@@ -1,5 +1,5 @@
-#ifndef COBALT_OBJECT_FWD_HPP_INCLUDED
-#define COBALT_OBJECT_FWD_HPP_INCLUDED
+#ifndef COBALT_OBJECT_HPP_INCLUDED
+#define COBALT_OBJECT_HPP_INCLUDED
 
 #include <cobalt/object_fwd.hpp>
 
@@ -414,4 +414,4 @@ inline void object::find_components_in_children(OutputIterator result) const {
 
 } // namespace cobalt
 
-#endif // COBALT_OBJECT_FWD_HPP_INCLUDED
+#endif // COBALT_OBJECT_HPP_INCLUDED
