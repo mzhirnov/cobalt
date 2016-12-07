@@ -40,9 +40,11 @@ struct my_event_target
 	: event_target<my_event_target, test_event>
 	, event_target<my_event_target, simple_event>
 {
+	typedef my_event_target self;
+	
 	my_event_target(event_dispatcher& dispatcher)
-		: event_target<my_event_target, test_event>(dispatcher, "do a test")
-		, event_target<my_event_target, simple_event>(dispatcher, "do another test")
+		: event_target<my_event_target, test_event>(dispatcher, "do a test", &self::on_event)
+		, event_target<my_event_target, simple_event>(dispatcher, "do another test", &self::on_event)
 	{ }
 	
 	void on_event(test_event* event) {
