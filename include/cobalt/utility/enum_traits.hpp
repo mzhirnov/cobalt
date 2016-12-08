@@ -52,7 +52,6 @@ struct helper {
 	// Handler(const char* name, size_t length)
 	template <typename Handler>
 	static void parse_enum_values_helper(const char* str, char separator, Handler handler) {
-		auto is_space = [](char c) { return c <= 32; };
 		auto is_identifier = [](char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'; };
 		
 		for (const char* b = str, *e = std::strchr(b, separator); b; (b = e) ? e = std::strchr(++b, separator) : (const char*)nullptr) {
