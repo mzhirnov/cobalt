@@ -173,9 +173,11 @@ inline bool event_dispatcher::abort_last(event::target_type target) {
 }
 
 inline void event_dispatcher::abort_all(event::target_type target) {
-	auto it = std::remove_if(_queues[0].begin(), _queues[0].end(), [&](auto&& v) { return v.first == target; });
-	if (it != _queues[0].end())
-		_queues[0].erase(it, _queues[0].end());
+	_queues[0].erase(std::remove_if(_queues[0].begin(), _queues[0].end(),
+		[&](auto&& v) {
+			return v.first == target;
+		}),
+		_queues[0].end());
 }
 
 inline size_t event_dispatcher::dispatch(clock_type::duration timeout) {
