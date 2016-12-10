@@ -64,16 +64,12 @@ public:
 	event_dispatcher(const event_dispatcher&) = delete;
 	event_dispatcher& operator=(const event_dispatcher&) = delete;
 
-	// subscribe/subscribed/unsubscribe
-
 	size_t subscribe(event::target_type target, const handler_type& handler);
 	size_t subscribe(event::target_type target, handler_type&& handler);
 	bool subscribed(event::target_type target, const handler_type& handler) const noexcept;
 	bool subscribed(event::target_type target, size_t handler_hash) const noexcept;
 	bool unsubscribe(event::target_type target, const handler_type& handler) noexcept;
 	bool unsubscribe(event::target_type target, size_t handler_hash) noexcept;
-
-	// subscribe/subscribed/unsubscribe templated overloads for member functions
 
 	template <typename T, typename E>
 	size_t subscribe(event::target_type target, void(T::*mf)(E*), T* obj);
@@ -93,29 +89,28 @@ public:
 	template <typename T, typename E>
 	bool unsubscribe(void(T::*mf)(E*), T* obj, size_t* handler_hash = nullptr) noexcept;
 	
-	// post/dispatch/invoke
-
 	bool empty() const noexcept;
 	
 	void post(const ref_ptr<event>& event);
 	void post(ref_ptr<event>&& event);
 	void post(event::target_type target, const ref_ptr<event>& event);
 	void post(event::target_type target, ref_ptr<event>&& event);
+	
 	bool posted(event::target_type target) const noexcept;
 	
 	bool abort_first(event::target_type target);
 	bool abort_last(event::target_type target);
 	void abort_all(event::target_type target);
 
-	/// Dispatches events with timeout
+	/// Dispatch events with timeout
 	/// @return Number of invoked handlers
 	size_t dispatch(clock_type::duration timeout = clock_type::duration());
 
-	/// Invokes the event immediately
+	/// Invoke the event immediately
 	/// @return Number of invoked handlers
 	size_t invoke(const ref_ptr<event>& event);
 
-	/// Invokes the event for specified target immediately
+	/// Invoke the event for specified target immediately
 	/// @return Number of invoked handlers
 	size_t invoke(event::target_type target, const ref_ptr<event>& event);
 
