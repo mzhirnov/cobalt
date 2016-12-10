@@ -18,8 +18,10 @@
 CO_DEFINE_ENUM_CLASS(
 	task_state, uint8_t,
 	uninitialized,
+	// alive states
 	running,
 	paused,
+	// finished states
 	succeeded,
 	failed,
 	aborted,
@@ -45,40 +47,50 @@ public:
 
 	virtual ~task();
 
-	/// Query state
+	/// Get raw state
 	task_state state() const noexcept { return _state; }
-
-	/// Query state
-	bool running() const noexcept { return _state == task_state::running; }
-	bool paused() const noexcept { return _state == task_state::paused; }
-	bool succeeded() const noexcept { return _state == task_state::succeeded; }
-	bool failed() const noexcept { return _state == task_state::failed; }
-	bool aborted() const noexcept { return _state == task_state::aborted; }
-	bool removed() const noexcept { return _state == task_state::removed; }
 	
-	/// Query state
-	bool alive() const noexcept { return running() || paused(); }
-	bool completed() const noexcept { return succeeded() || failed() || aborted() || removed(); }
+	/// Get running state
+	bool alive() const noexcept;
+	bool finished() const noexcept;
 
-	/// Pause/resume
+	/// Pause/resume in alive state
 	void pause(bool pausing = true) noexcept;
-
-	/// Attach continuation
-	/// @return Added task
-	task* then(const ref_ptr<task>& next) noexcept;
-	task* then(ref_ptr<task>&& next) noexcept;
-
-protected:
-	/// Exit task fith specified state
+	
+	/// Finish task with specified result
 	void finish(task_result result = task_result::success) noexcept;
 
-	/// @return Task for next step to make `interruption`, or nullptr to continue with this one
-	virtual task* step() = 0;
+	/// Set continuation resetting old one if any
+	/// @return Added task
+	task* next(const ref_ptr<task>& next) noexcept;
+	task* next(ref_ptr<task>&& next) noexcept;
+	
+	/// @return First continuation
+	task* next() const noexcept { return _next.get(); }
+	
+	/// Find last continuation in the list including this
+	task* last() noexcept;
+	
+	/// Create a task for waiting specified number of frames
+	static task* wait_for_frames(size_t frames);
 
-	/// @return False to immediately abort the task
+protected:
+	/// Perform one step in the task lifecycle
+	/// @return Task for the next step to make `interruption` or nullptr/this to continue
+	virtual task* step() = 0;
+	
+	/// Resets task to uninitialized state to call on_init() from scratch
+	virtual void reset() { _state = task_state::uninitialized; }
+
+	/// Called if in uninitialized state before running
+	/// @return False for immediately abort the task
+	///         True for start running
 	virtual bool on_init() { return true; }
+	/// Called if finished successfully
 	virtual void on_success() {}
+	/// Called if finished unsuccessfully
 	virtual void on_fail() {}
+	/// Called if explicitly aborted or didn't run before destruction
 	virtual void on_abort() {}
 
 private:
@@ -86,23 +98,13 @@ private:
 
 	/// Set raw state
 	void state(task_state state) noexcept { _state = state; }
-
-	/// @return Continuation
-	task* next() const noexcept { return _next.get(); }
 	
 	/// @return Detach continuation
 	ref_ptr<task> detach_next() noexcept { return std::move(_next); }
 
-	/// Append task to the continuation list
-	void append_tail(const ref_ptr<task>& next) noexcept;
-	void append_tail(ref_ptr<task>&& next) noexcept;
-
-	/// Find the last task in the continuation list
-	task* find_last() noexcept;
-
 private:
-	task_state _state = task_state::uninitialized;
 	ref_ptr<task> _next;
+	task_state _state = task_state::uninitialized;
 };
 
 /// task_scheduler
@@ -137,32 +139,14 @@ public:
 
 	/// @return True if no tasks
 	bool empty() const noexcept;
+	
+	/// Enumerates all tasks with `void handler(task*)`
+	template <typename Handler>
+	void enumerate(Handler&& handler) const;
 
 private:
 	typedef std::deque<ref_ptr<task>> Tasks;
 	std::array<Tasks, 2> _tasks;
-};
-
-/// Waits for specified amount of frames
-class wait_for_frames : public task {
-public:
-	explicit wait_for_frames(size_t frames) noexcept
-		: _count(frames)
-	{
-		if (!_count)
-			finish();
-	}
-
-protected:
-	task* step() override {
-		if (!--_count)
-			finish();
-
-		return nullptr;
-	}
-
-private:
-	size_t _count = 0;
 };
 
 /// Waits for specified amount of seconds

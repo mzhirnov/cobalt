@@ -16,22 +16,35 @@ inline task::~task() {
 		_next->on_abort();
 }
 
+inline bool task::alive() const noexcept {
+	switch (_state) {
+	case task_state::running:
+	case task_state::paused:
+		return true;
+	default:
+		return false;
+	}
+}
+
+inline bool task::finished() const noexcept {
+	switch (_state) {
+	case task_state::succeeded:
+	case task_state::failed:
+	case task_state::aborted:
+	case task_state::removed:
+		return true;
+	default:
+		return false;
+	}
+}
+
 inline void task::pause(bool pausing) noexcept {
 	BOOST_ASSERT(alive());
 	state(pausing ? task_state::paused : task_state::running);
 }
 
-inline task* task::then(const ref_ptr<task>& next) noexcept {
-	_next = next;
-	return _next.get();
-}
-
-inline task* task::then(ref_ptr<task>&& next) noexcept {
-	_next = std::move(next);
-	return _next.get();
-}
-
 inline void task::finish(task_result result) noexcept {
+	BOOST_ASSERT(!finished());
 	switch (result) {
 	case task_result::success:
 		state(task_state::succeeded);
@@ -43,24 +56,50 @@ inline void task::finish(task_result result) noexcept {
 		state(task_state::aborted);
 		break;
 	default:
-		BOOST_ASSERT_MSG(false, "Unknown exit state");
+		BOOST_ASSERT_MSG(false, "Unknown task result");
 	}
 }
 
-inline void task::append_tail(const ref_ptr<task>& next) noexcept {
-	find_last()->then(next);
+inline task* task::next(const ref_ptr<task>& next) noexcept {
+	_next = next;
+	return _next.get();
 }
 
-inline void task::append_tail(ref_ptr<task>&& next) noexcept {
-	find_last()->then(std::move(next));
+inline task* task::next(ref_ptr<task>&& next) noexcept {
+	_next = std::move(next);
+	return _next.get();
 }
 
-inline task* task::find_last() noexcept {
+inline task* task::last() noexcept {
 	// Find last node in the task list
 	auto last = this;
 	while (auto p = last->next())
 		last = p;
 	return last;
+}
+
+inline task* task::wait_for_frames(size_t frames) {
+	class wait_for_frames_task : public task {
+	public:
+		explicit wait_for_frames_task(size_t frames) noexcept
+			: _count(frames)
+		{
+			// Finish immediantely if no frames to wait
+			if (!_count)
+				finish();
+		}
+
+		task* step() override {
+			if (!--_count)
+				finish();
+			return nullptr;
+		}
+	
+	private:
+		size_t _count = 0;
+	};
+	
+	return new wait_for_frames_task(frames);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -73,13 +112,13 @@ inline task_scheduler::~task_scheduler() {
 }
 
 inline task* task_scheduler::schedule(const ref_ptr<task>& task) {
-	BOOST_ASSERT(task && !task->completed());
+	BOOST_ASSERT(task);
 	_tasks[0].push_back(task);
 	return _tasks[0].back().get();
 }
 
 inline task* task_scheduler::schedule(ref_ptr<task>&& task) {
-	BOOST_ASSERT(task && !task->completed());
+	BOOST_ASSERT(task);
 	_tasks[0].push_back(std::move(task));
 	return _tasks[0].back().get();
 }
@@ -92,25 +131,24 @@ inline void task_scheduler::run_one_step() {
 		if (curr->state() == task_state::uninitialized)
 			curr->state(curr->on_init() ? task_state::running : task_state::aborted);
 
-		if (curr->running()) {
+		if (curr->state() == task_state::running) {
 			// Interruption task
 			ref_ptr<task> intr = curr->step();
 			
 			if (intr && intr != curr) {
-				// Move current task to the end of the continuation task list
-				intr->append_tail(std::move(curr));
-				// Overwrite current task with the interrupting one
+				// Move current task to the end of the continuation list
+				intr->last()->next(std::move(curr));
 				curr = std::move(intr);
 			}
 		}
 
-		if (curr->completed()) {
+		if (curr->finished()) {
 			switch (curr->state()) {
 			case task_state::succeeded:
 				curr->on_success();
 				// Schedule continuation on success
-				if (curr->next())
-					schedule(curr->detach_next());
+				if (auto next = curr->detach_next())
+					schedule(std::move(next));
 				break;
 			case task_state::failed:
 				curr->on_fail();
@@ -127,7 +165,7 @@ inline void task_scheduler::run_one_step() {
 	// Remove completed tasks
 	_tasks[1].erase(std::remove_if(_tasks[1].begin(), _tasks[1].end(),
 		[](auto&& task) {
-			if (task->completed()) {
+			if (task->finished()) {
 				task->state(task_state::removed);
 				return true;
 			}
@@ -168,6 +206,12 @@ inline size_t task_scheduler::count(task_state state) const noexcept {
 
 inline bool task_scheduler::empty() const noexcept {
 	return _tasks[0].empty();
+}
+
+template <typename Handler>
+inline void task_scheduler::enumerate(Handler&& handler) const {
+	for (auto&& task : _tasks[0])
+		handler(task.get());
 }
 
 } // namespace cobalt
