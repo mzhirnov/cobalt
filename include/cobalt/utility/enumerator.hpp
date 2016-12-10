@@ -38,7 +38,7 @@ enumerator<typename Container::const_iterator> make_enumerator(const Container& 
 
 template <typename T, size_t N>
 enumerator<T*> make_enumerator(T(&array)[N]) {
-	return { &array[0], &array[N] };
+	return { std::begin(array), std::end(array) };
 }
 
 template <typename T, typename = std::enable_if_t<std::is_pointer<T>::value>>
