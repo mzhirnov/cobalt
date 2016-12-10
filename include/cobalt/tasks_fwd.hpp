@@ -1,7 +1,11 @@
-#ifndef COBALT_TASKS_HPP_INCLUDED
-#define COBALT_TASKS_HPP_INCLUDED
+#ifndef COBALT_TASKS_FWD_HPP_INCLUDED
+#define COBALT_TASKS_FWD_HPP_INCLUDED
 
 #pragma once
+
+// Classes in this file:
+//     task
+//     task_scheduler
 
 #include <cobalt/utility/enumerator.hpp>
 #include <cobalt/utility/intrusive.hpp>
@@ -23,7 +27,7 @@ CO_DEFINE_ENUM_CLASS(
 )
 
 CO_DEFINE_ENUM_CLASS(
-	task_exit, uint8_t,
+	task_result, uint8_t,
 	success,
 	fail,
 	abort
@@ -39,54 +43,36 @@ public:
 	task(const task&) = delete;
 	task& operator=(const task&) = delete;
 
-	virtual ~task() {
-		// Abort continuation if it hasn't been run
-		if (_next)
-			_next->on_abort();
-	}
+	virtual ~task();
 
 	/// Query state
-	task_state state() const { return _state; }
+	task_state state() const noexcept { return _state; }
 
 	/// Query state
-	bool running() const { return _state == task_state::running; }
-	bool paused() const { return _state == task_state::paused; }
-	bool succeeded() const { return _state == task_state::succeeded; }
-	bool failed() const { return _state == task_state::failed; }
-	bool aborted() const { return _state == task_state::aborted; }
-	bool removed() const { return _state == task_state::removed; }
+	bool running() const noexcept { return _state == task_state::running; }
+	bool paused() const noexcept { return _state == task_state::paused; }
+	bool succeeded() const noexcept { return _state == task_state::succeeded; }
+	bool failed() const noexcept { return _state == task_state::failed; }
+	bool aborted() const noexcept { return _state == task_state::aborted; }
+	bool removed() const noexcept { return _state == task_state::removed; }
 	
 	/// Query state
-	bool alive() const { return running() || paused(); }
-	bool completed() const { return succeeded() || failed() || aborted() || removed(); }
+	bool alive() const noexcept { return running() || paused(); }
+	bool completed() const noexcept { return succeeded() || failed() || aborted() || removed(); }
 
 	/// Pause/resume
-	void pause(bool pausing = true) { BOOST_ASSERT(alive()); state(pausing ? task_state::paused : task_state::running); }
+	void pause(bool pausing = true) noexcept;
 
 	/// Attach continuation
 	/// @return Added task
-	task* then(const ref_ptr<task>& next) { _next = next; return _next.get(); }
-	task* then(ref_ptr<task>&& next) { _next = std::move(next); return _next.get(); }
+	task* then(const ref_ptr<task>& next) noexcept;
+	task* then(ref_ptr<task>&& next) noexcept;
 
 protected:
 	/// Exit task fith specified state
-	void exit(task_exit exit_state = task_exit::success) {
-		switch (exit_state) {
-		case task_exit::success:
-			state(task_state::succeeded);
-			break;
-		case task_exit::fail:
-			state(task_state::failed);
-			break;
-		case task_exit::abort:
-			state(task_state::aborted);
-			break;
-		default:
-			BOOST_ASSERT_MSG(false, "Unknown exit state");
-		}
-	}
+	void finish(task_result result = task_result::success) noexcept;
 
-	/// @return Next step task to make `interruption`, or nullptr to continue with this one
+	/// @return Task for next step to make `interruption`, or nullptr to continue with this one
 	virtual task* step() = 0;
 
 	/// @return False to immediately abort the task
@@ -96,180 +82,81 @@ protected:
 	virtual void on_abort() {}
 
 private:
-	friend class task_manager;
+	friend class task_scheduler;
 
 	/// Set raw state
-	void state(task_state state) { _state = state; }
+	void state(task_state state) noexcept { _state = state; }
 
 	/// @return Continuation
-	task* next() const { return _next.get(); }
+	task* next() const noexcept { return _next.get(); }
 	
 	/// @return Detach continuation
-	ref_ptr<task> detach_next() { return std::move(_next); }
+	ref_ptr<task> detach_next() noexcept { return std::move(_next); }
 
 	/// Append task to the continuation list
-	void append_tail(const ref_ptr<task>& next) { find_last()->then(next); }
-	void append_tail(ref_ptr<task>&& next) { find_last()->then(std::move(next)); }
+	void append_tail(const ref_ptr<task>& next) noexcept;
+	void append_tail(ref_ptr<task>&& next) noexcept;
 
 	/// Find the last task in the continuation list
-	task* find_last() {
-		// Find last node in the task list
-		auto last = this;
-		while (auto p = last->next())
-			last = p;
-		return last;
-	}
+	task* find_last() noexcept;
 
 private:
 	task_state _state = task_state::uninitialized;
 	ref_ptr<task> _next;
 };
 
-/// task_manager
-class task_manager {
+/// task_scheduler
+class task_scheduler {
 public:
-	task_manager() = default;
+	task_scheduler() = default;
 
-	task_manager(const task_manager&) = delete;
-	task_manager& operator=(const task_manager&) = delete;
+	task_scheduler(const task_scheduler&) = delete;
+	task_scheduler& operator=(const task_scheduler&) = delete;
 
-	~task_manager() {
-		// Abort all unfinished tasks
-		for (auto&& task : _tasks[0])
-			task->on_abort();
-	}
+	~task_scheduler();
 
 	/// Schedule task to execute
-	/// @return Sdded task
-	task* schedule(const ref_ptr<task>& task) {
-		BOOST_ASSERT(task && !task->completed());
-		_tasks[0].push_back(task);
-		return _tasks[0].back().get();
-	}
+	/// @return Added task
+	task* schedule(const ref_ptr<task>& task);
 
 	/// Schedule task to execute
-	/// @return Sdded task
-	task* schedule(ref_ptr<task>&& task) {
-		BOOST_ASSERT(task && !task->completed());
-		_tasks[0].push_back(std::move(task));
-		return _tasks[0].back().get();
-	}
+	/// @return Added task
+	task* schedule(ref_ptr<task>&& task);
 
-	/// Process tasks
-	void process() {
-		// Swap queues for safe scheduling new tasks from handlers
-		std::swap(_tasks[0], _tasks[1]);
-
-		for (auto&& curr : _tasks[1]) {
-			if (curr->state() == task_state::uninitialized)
-				curr->state(curr->on_init() ? task_state::running : task_state::aborted);
-
-			// Interruption task
-			ref_ptr<task> intr;
-
-			if (curr->running())
-				intr = curr->step();
-
-			if (curr->completed()) {
-				switch (curr->state()) {
-				case task_state::succeeded:
-					curr->on_success();
-					// Schedule continuation on success
-					if (curr->next())
-						schedule(curr->detach_next());
-					break;
-				case task_state::failed:
-					curr->on_fail();
-					break;
-				case task_state::aborted:
-					curr->on_abort();
-					break;
-				default:
-					break;
-				}
-			}
-			else if (intr && intr != curr && !intr->completed()) {
-				// Move current task to the end of the continuation task list
-				intr->append_tail(std::move(curr));
-				// Overwrite current task with the interruption one
-				curr = std::move(intr);
-			}
-		}
-
-		// Remove completed tasks
-		_tasks[1].erase(std::remove_if(_tasks[1].begin(), _tasks[1].end(),
-			[](ref_ptr<task>& task) {
-				if (task->completed()) {
-					task->state(task_state::removed);
-					return true;
-				}
-				return false;
-			}),
-			_tasks[1].end()
-		);
-
-		// Append new tasks to the main queue
-		if (!_tasks[0].empty()) {
-			_tasks[1].insert(_tasks[1].end(),
-				std::make_move_iterator(_tasks[0].begin()),
-				std::make_move_iterator(_tasks[0].end()));
-			
-			_tasks[0].clear();
-		}
-
-		// Swap queues back
-		std::swap(_tasks[0], _tasks[1]);
-	}
+	/// Advance tasks with one step
+	void run_one_step();
 
 	/// Pause all tasks
-	void pause_all(bool pause = true) {
-		for (auto&& task : _tasks[0])
-			task->pause(pause);
-	}
+	void pause_all(bool pause = true) noexcept;
 
 	/// Abort all tasks
-	void abort_all() {
-		for (auto&& task : _tasks[0])
-			task->exit(task_exit::abort);
-	}
+	void abort_all() noexcept;
 
 	/// @return Number of tasks with specified state
-	size_t count(task_state state) const {
-		size_t count = 0;
-		for (auto&& task : _tasks[0])
-			count += task->state() == state ? 1 : 0;
-		return count;
-	}
+	size_t count(task_state state) const noexcept;
 
 	/// @return True if no tasks
-	bool empty() const {
-		return _tasks[0].empty();
-	}
+	bool empty() const noexcept;
 
 private:
 	typedef std::deque<ref_ptr<task>> Tasks;
 	std::array<Tasks, 2> _tasks;
-
-public:
-	enumerator<Tasks::const_iterator> tasks() const {
-		return make_enumerator(_tasks[0]);
-	}
 };
 
 /// Waits for specified amount of frames
 class wait_for_frames : public task {
 public:
-	explicit wait_for_frames(size_t frames)
+	explicit wait_for_frames(size_t frames) noexcept
 		: _count(frames)
 	{
 		if (!_count)
-			exit();
+			finish();
 	}
 
 protected:
 	task* step() override {
 		if (!--_count)
-			exit();
+			finish();
 
 		return nullptr;
 	}
@@ -302,4 +189,4 @@ private:
 	
 } // namespace cobalt
 
-#endif // COBALT_TASKS_HPP_INCLUDED
+#endif // COBALT_TASKS_FWD_HPP_INCLUDED

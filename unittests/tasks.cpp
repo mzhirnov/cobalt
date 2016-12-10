@@ -3,38 +3,42 @@
 
 using namespace cobalt;
 
-class my_task : public task {
+class test_task : public task {
 public:
-	my_task() = default;
+	explicit test_task(size_t steps) : _steps(steps) { if (!_steps) finish(); }
+	
+	size_t steps() const { return _steps; }
 	
 protected:
-	virtual task* step() override {
-		exit(task_exit::success);
-		return nullptr;
-	}
+	virtual task* step() override { if (!--_steps) finish(); return nullptr; }
+	
+private:
+	size_t _steps = 1;
 };
 
 TEST_CASE("tasks") {
-	task_manager manager;
+	task_scheduler scheduler;
 	
-	auto task = make_ref<my_task>();
-	
-	REQUIRE(manager.empty());
-	REQUIRE(manager.count(task_state::uninitialized) == 0);
-	REQUIRE(manager.count(task_state::running) == 0);
-	REQUIRE(task->use_count() == 1);
-	
-	manager.schedule(task);
-	
-	REQUIRE_FALSE(manager.empty());
-	REQUIRE(manager.count(task_state::uninitialized) == 1);
-	REQUIRE(manager.count(task_state::running) == 0);
-	REQUIRE(task->use_count() == 2);
-	
-	manager.process();
-	
-	REQUIRE(manager.empty());
-	REQUIRE(manager.count(task_state::uninitialized) == 0);
-	REQUIRE(manager.count(task_state::running) == 0);
-	REQUIRE(task->use_count() == 1);
+	SECTION("schedule one step task") {
+		auto task = make_ref<test_task>(1);
+		
+		REQUIRE(scheduler.empty());
+		REQUIRE(scheduler.count(task_state::uninitialized) == 0);
+		REQUIRE(scheduler.count(task_state::running) == 0);
+		REQUIRE(task->use_count() == 1);
+		
+		scheduler.schedule(task);
+		
+		REQUIRE_FALSE(scheduler.empty());
+		REQUIRE(scheduler.count(task_state::uninitialized) == 1);
+		REQUIRE(scheduler.count(task_state::running) == 0);
+		REQUIRE(task->use_count() == 2);
+		
+		scheduler.run_one_step();
+		
+		REQUIRE(scheduler.empty());
+		REQUIRE(scheduler.count(task_state::uninitialized) == 0);
+		REQUIRE(scheduler.count(task_state::running) == 0);
+		REQUIRE(task->use_count() == 1);
+	}
 }
