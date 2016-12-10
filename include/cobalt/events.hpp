@@ -78,18 +78,13 @@ inline bool event_dispatcher::unsubscribe(event::target_type target, size_t hand
 }
 	
 template <typename T, typename E>
-inline size_t event_dispatcher::subscribe(event::target_type target, void(T::*mf)(E*), T* obj) {
+inline size_t event_dispatcher::subscribe(void(T::*mf)(E*), T* obj, event::target_type target) {
 	subscribe(target, rebind_method_event_handler<T, E>(mf, obj));
 	return typeid(rebind_method_event_handler<T, E>).hash_code();
 }
 
 template <typename T, typename E>
-inline size_t event_dispatcher::subscribe(void(T::*mf)(E*), T* obj) {
-	return subscribe(E::type, mf, obj);
-}
-
-template <typename T, typename E>
-inline bool event_dispatcher::subscribed(event::target_type target, void(T::*mf)(E*), const T* obj) const noexcept {
+inline bool event_dispatcher::subscribed(void(T::*mf)(E*), const T* obj, event::target_type target) const noexcept {
 	const rebind_method_event_handler<T, E> sought(mf, const_cast<T*>(obj));
 	auto range = _handlers.equal_range(target);
 	for (auto it = range.first; it != range.second; ++it) {
@@ -101,12 +96,7 @@ inline bool event_dispatcher::subscribed(event::target_type target, void(T::*mf)
 }
 
 template <typename T, typename E>
-inline bool event_dispatcher::subscribed(void(T::*mf)(E*), const T* obj) const noexcept {
-	return subscribed(E::type, mf, obj);
-}
-
-template <typename T, typename E>
-inline bool event_dispatcher::unsubscribe(event::target_type target, void(T::*mf)(E*), T* obj, size_t* handler_hash) noexcept {
+inline bool event_dispatcher::unsubscribe(void(T::*mf)(E*), T* obj, event::target_type target, size_t* handler_hash) noexcept {
 	const rebind_method_event_handler<T, E> sought(mf, obj);
 	auto range = _handlers.equal_range(target);
 	for (auto it = range.first; it != range.second; ++it) {
@@ -119,11 +109,6 @@ inline bool event_dispatcher::unsubscribe(event::target_type target, void(T::*mf
 		}
 	}
 	return false;
-}
-
-template <typename T, typename E>
-inline bool event_dispatcher::unsubscribe(void(T::*mf)(E*), T* obj, size_t* handler_hash) noexcept {
-	return unsubscribe(E::type, mf, obj, handler_hash);
 }
 	
 inline bool event_dispatcher::empty() const noexcept {
@@ -253,44 +238,24 @@ inline bool event_subscriber<T>::subscribed(void(T::*mf)(E*)) const noexcept {
 
 template <typename T>
 template <typename E>
-inline void event_subscriber<T>::unsubscribe(void(T::*mf)(E*)) noexcept {
+inline void event_subscriber<T>::unsubscribe(void(T::*mf)(E*), event::target_type target) noexcept {
 	size_t handler_hash = 0;
-	BOOST_VERIFY(_dispatcher.unsubscribe(mf, static_cast<T*>(this), &handler_hash));
-	// Remove handler hash for event type from subscriptions
-	auto it = std::find(_subscriptions.begin(), _subscriptions.end(), std::make_pair(E::type, handler_hash));
+	BOOST_VERIFY(_dispatcher.unsubscribe(target, mf, static_cast<T*>(this), &handler_hash));
+	auto it = std::find(_subscriptions.begin(), _subscriptions.end(), std::make_pair(target, handler_hash));
 	if (it != _subscriptions.end())
 		_subscriptions.erase(it);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// event_target
-//
-
-template <typename T, typename E>
-inline event_target<T, E>::event_target(event_dispatcher& dispatcher, event::target_type target, void(T::*mf)(E*))
-	: _dispatcher(dispatcher)
-	, _target(target)
-{
-	BOOST_ASSERT(_target != 0);
-	
-	_handler = _dispatcher.subscribe(_target, mf, static_cast<T*>(this));
+template <typename T>
+template <typename E>
+inline void event_subscriber<T>::respond(event::target_type target, void(T::*mf)(E*)) {
+	_subscriptions.emplace_back(target, _dispatcher.subscribe(mf, static_cast<T*>(this), target));
 }
 
-template <typename T, typename E>
-inline event_target<T, E>::event_target(event_dispatcher& dispatcher, const char* name, void(T::*mf)(E*))
-	: event_target(dispatcher, event::create_custom_target(name), mf)
-{
-}
-
-template <typename T, typename E>
-inline event_target<T, E>::event_target(event_dispatcher& dispatcher, const char* name, event::target_type base_target, void(T::*mf)(E*))
-	: event_target(dispatcher, event::create_custom_target(name, base_target), mf)
-{
-}
-
-template <typename T, typename E>
-inline event_target<T, E>::~event_target() noexcept {
-	BOOST_VERIFY(_dispatcher.unsubscribe(_target, _handler));
+template <typename T>
+template <typename E>
+inline bool event_subscriber<T>::responding(event::target_type target, void(T::*mf)(E*)) const noexcept {
+	return _dispatcher.subscribed(mf, static_cast<const T*>(this), target);
 }
 
 } // namespace cobalt

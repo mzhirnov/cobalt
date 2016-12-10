@@ -8,7 +8,6 @@
 //     basic_event
 //     event_dispatcher
 //     event_subscriber
-//     event_target
 
 #include <cobalt/utility/intrusive.hpp>
 #include <cobalt/utility/hash.hpp>
@@ -34,11 +33,31 @@ namespace cobalt {
 class event : public ref_counter<event> {
 public:
 	typedef hash_type target_type;
-
-	virtual ~event() = default;
+	
+	event() noexcept = default;
+	
+	virtual ~event() noexcept = default;
+	
 	virtual target_type target() const noexcept = 0;
 	
+	event_phase phase() const noexcept { return _phase; }
+	
+	bool handled() const noexcept { return _handled; }
+	void handle() noexcept { handled(true); }
+	
 	static target_type create_custom_target(const char* name, target_type base_target = 0);
+	
+protected:
+	void handled(bool handled) noexcept { _handled = handled; }
+	
+private:
+	friend class event_dispatcher;
+	
+	void phase(event_phase phase) noexcept { _phase = phase; }
+	
+private:
+	event_phase _phase = event_phase::capture;
+	bool _handled = false;
 };
 
 /// basic_event
@@ -59,36 +78,29 @@ public:
 	typedef std::function<void(event*)> handler_type;
 	typedef std::chrono::high_resolution_clock clock_type;
 
-	event_dispatcher() = default;
+	event_dispatcher() noexcept = default;
 	
 	event_dispatcher(const event_dispatcher&) = delete;
 	event_dispatcher& operator=(const event_dispatcher&) = delete;
 
 	size_t subscribe(event::target_type target, const handler_type& handler);
 	size_t subscribe(event::target_type target, handler_type&& handler);
+	
 	bool subscribed(event::target_type target, const handler_type& handler) const noexcept;
 	bool subscribed(event::target_type target, size_t handler_hash) const noexcept;
+	
 	bool unsubscribe(event::target_type target, const handler_type& handler) noexcept;
 	bool unsubscribe(event::target_type target, size_t handler_hash) noexcept;
 
 	template <typename T, typename E>
-	size_t subscribe(event::target_type target, void(T::*mf)(E*), T* obj);
+	size_t subscribe(void(T::*mf)(E*), T* obj, event::target_type target = E::type);
 	
 	template <typename T, typename E>
-	size_t subscribe(void(T::*mf)(E*), T* obj);
+	bool subscribed(void(T::*mf)(E*), const T* obj, event::target_type target = E::type) const noexcept;
 
 	template <typename T, typename E>
-	bool subscribed(event::target_type target, void(T::*mf)(E*), const T* obj) const noexcept;
-	
-	template <typename T, typename E>
-	bool subscribed(void(T::*mf)(E*), const T* obj) const noexcept;
-	
-	template <typename T, typename E>
-	bool unsubscribe(event::target_type target, void(T::*mf)(E*), T* obj, size_t* handler_hash = nullptr) noexcept;
-	
-	template <typename T, typename E>
-	bool unsubscribe(void(T::*mf)(E*), T* obj, size_t* handler_hash = nullptr) noexcept;
-	
+	bool unsubscribe(void(T::*mf)(E*), T* obj, event::target_type target = E::type, size_t* handler_hash = nullptr) noexcept;
+
 	bool empty() const noexcept;
 	
 	void post(const ref_ptr<event>& event);
@@ -133,43 +145,18 @@ public:
 	event_subscriber(const event_subscriber&) = delete;
 	event_subscriber& operator=(const event_subscriber&) = delete;
 
-	template <typename E>
-	void subscribe(void(T::*mf)(E*));
-
-	template <typename E>
-	bool subscribed(void(T::*mf)(E*)) const noexcept;
-
-	template <typename E>
-	void unsubscribe(void(T::*mf)(E*)) noexcept;
+	template <typename E> void subscribe(void(T::*mf)(E*) = &T::on_event);
+	template <typename E> bool subscribed(void(T::*mf)(E*) = &T::on_event) const noexcept;
+	template <typename E> void unsubscribe(void(T::*mf)(E*) = &T::on_event, event::target_type target = E::type) noexcept;
+	
+	template <typename E> void respond(event::target_type target, void(T::*mf)(E*) = &T::on_target_event);
+	template <typename E> bool responding(event::target_type target, void(T::*mf)(E*) = &T::on_target_event) const noexcept;
 
 private:
 	event_dispatcher& _dispatcher;
 
 	typedef std::deque<std::pair<event::target_type, size_t>> Subscriptions;
 	Subscriptions _subscriptions;
-};
-
-/// Base class for objects to make them event targets
-template <typename T, typename E>
-class event_target {
-public:
-	event_target(event_dispatcher& dispatcher, event::target_type target, void(T::*mf)(E*));
-	event_target(event_dispatcher& dispatcher, const char* name, void(T::*mf)(E*));
-	event_target(event_dispatcher& dispatcher, const char* name, event::target_type base_target, void(T::*mf)(E*));
-
-	virtual ~event_target() noexcept;
-	
-	event_target(const event_target&) = delete;
-	event_target& operator=(const event_target&) = delete;
-	
-	event_dispatcher& dispatcher() const { return _dispatcher; }
-	
-	event::target_type target() const noexcept { return _target; }
-
-private:
-	event_dispatcher& _dispatcher;
-	event::target_type _target = {};
-	size_t _handler = 0;
 };
 
 } // namespace cobalt

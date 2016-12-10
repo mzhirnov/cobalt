@@ -36,22 +36,34 @@ struct my_subscriber : event_subscriber<my_subscriber> {
 	}
 };
 
-struct my_event_target
-	: event_target<my_event_target, test_event>
-	, event_target<my_event_target, simple_event>
-{
-	typedef my_event_target self;
-	
-	my_event_target(event_dispatcher& dispatcher)
-		: event_target<my_event_target, test_event>(dispatcher, "do a test", &self::on_event)
-		, event_target<my_event_target, simple_event>(dispatcher, "do another test", &self::on_event)
-	{ }
+struct my_subscriber2 : event_subscriber<my_subscriber2> {
+	my_subscriber2(event_dispatcher& dispatcher)
+		: event_subscriber(dispatcher)
+	{
+		subscribe<test_event>();
+	}
 	
 	void on_event(test_event* event) {
 		event->handle();
 	}
+};
+
+struct my_event_target : event_subscriber<my_event_target>
+{
+	typedef my_event_target self;
 	
-	void on_event(simple_event* event) {
+	my_event_target(event_dispatcher& dispatcher)
+		: event_subscriber(dispatcher)
+	{
+		respond<test_event>(event::create_custom_target("do a test"));
+		respond<simple_event>(event::create_custom_target("do another test"));
+	}
+	
+	void on_target_event(test_event* event) {
+		event->handle();
+	}
+	
+	void on_target_event(simple_event* event) {
 		puts(__PRETTY_FUNCTION__);
 	}
 };
@@ -83,6 +95,21 @@ TEST_CASE("event_dispatcher") {
 
 		REQUIRE(dispatcher.subscribed(&my_subscriber::on_test_event, &subscriber) == true);
 		REQUIRE(subscriber.subscribed(&my_subscriber::on_test_event) == true);
+		
+		dispatcher.post(event);
+
+		REQUIRE(event->handled() == false);
+		
+		dispatcher.dispatch();
+
+		REQUIRE(event->handled() == true);
+	}
+	
+	SECTION("post event with subscriber 2") {
+		my_subscriber2 subscriber(dispatcher);
+
+		REQUIRE((dispatcher.subscribed<my_subscriber2, test_event>(&my_subscriber2::on_event, &subscriber)) == true);
+		REQUIRE(subscriber.subscribed<test_event>() == true);
 		
 		dispatcher.post(event);
 
@@ -158,7 +185,6 @@ TEST_CASE("event_dispatcher") {
 		}
 		
 		SECTION("invoke with created custom target 2") {
-			dispatcher.invoke(target.event_target<my_event_target, simple_event>::target(), new simple_event());
 			dispatcher.invoke(event::create_custom_target("do another test"), new simple_event());
 		}
 	}
