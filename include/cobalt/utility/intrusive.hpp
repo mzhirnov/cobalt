@@ -35,16 +35,26 @@ inline ref_ptr<T> make_ref(Args&&... args) {
 }
 
 template <typename Tag>
-using intrusive_slist_base = boost::intrusive::slist_base_hook<boost::intrusive::tag<Tag>, boost::intrusive::link_mode<boost::intrusive::safe_link>>;
+using intrusive_slist_base = boost::intrusive::slist_base_hook<
+	boost::intrusive::tag<Tag>,
+	boost::intrusive::link_mode<boost::intrusive::safe_link>>;
 
 template <typename T, typename Tag = T>
-using intrusive_slist = boost::intrusive::slist<T, boost::intrusive::base_hook<intrusive_slist_base<Tag>>, boost::intrusive::constant_time_size<false>>;
+using intrusive_slist = boost::intrusive::slist<
+	T,
+	boost::intrusive::base_hook<intrusive_slist_base<Tag>>,
+	boost::intrusive::constant_time_size<false>>;
 
 template <typename Tag>
-using intrusive_list_base = boost::intrusive::list_base_hook<boost::intrusive::tag<Tag>, boost::intrusive::link_mode<boost::intrusive::safe_link>>;
+using intrusive_list_base = boost::intrusive::list_base_hook<
+	boost::intrusive::tag<Tag>,
+	boost::intrusive::link_mode<boost::intrusive::safe_link>>;
 
 template <typename T, typename Tag = T>
-using intrusive_list = boost::intrusive::list<T, boost::intrusive::base_hook<intrusive_list_base<Tag>>, boost::intrusive::constant_time_size<false>>;
+using intrusive_list = boost::intrusive::list<
+	T,
+	boost::intrusive::base_hook<intrusive_list_base<Tag>>,
+	boost::intrusive::constant_time_size<false>>;
 
 } // namespace cobalt
 
