@@ -69,8 +69,13 @@ public:
 	virtual event::target_type target() const noexcept override { return Target; }
 };
 
-#define CO_DEFINE_EVENT_CLASS(event_class) class event_class : public basic_event<#event_class##_hash>
-#define CO_DEFINE_EVENT_CLASS_WITH_TARGET_NAME(event_class, target_name) class event_class : public basic_event<target_name##_hash>
+#define CO_DEFINE_EVENT(event) using event = basic_event<#event##_hash>;
+#define CO_DEFINE_EVENT_WITH_TARGET(event, target) using event = basic_event<target>;
+#define CO_DEFINE_EVENT_WITH_TARGET_NAME(event, target_name) using event = basic_event<target_name##_hash>;
+
+#define CO_DEFINE_EVENT_CLASS(event) class event : public basic_event<#event##_hash>
+#define CO_DEFINE_EVENT_CLASS_WITH_TARGET(event, target) class event : public basic_event<target>
+#define CO_DEFINE_EVENT_CLASS_WITH_TARGET_NAME(event, target_name) class event : public basic_event<target_name##_hash>
 
 /// event_dispatcher
 class event_dispatcher {

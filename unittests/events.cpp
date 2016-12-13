@@ -3,7 +3,7 @@
 
 using namespace cobalt;
 
-CO_DEFINE_EVENT_CLASS(simple_event) {};
+CO_DEFINE_EVENT(simple_event)
 
 CO_DEFINE_EVENT_CLASS(test_event) {
 public:
