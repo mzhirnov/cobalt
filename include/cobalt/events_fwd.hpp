@@ -80,8 +80,12 @@ public:
 /// event_dispatcher
 class event_dispatcher {
 public:
-	typedef std::function<void(event*)> handler_type;
-	typedef std::chrono::high_resolution_clock clock_type;
+	template <typename E, typename = typename std::enable_if_t<std::is_same<event, E>::value || std::is_base_of<event, E>::value>>
+	using handler = std::function<void(E*)>;
+	
+	using handler_type = handler<event>;
+	
+	using clock_type = std::chrono::high_resolution_clock;
 
 	event_dispatcher() noexcept = default;
 	

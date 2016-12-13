@@ -20,7 +20,7 @@ inline event::target_type event::create_custom_target(const char* name, event::t
 //
 	
 namespace {
-	template <typename T, typename E, typename = typename std::enable_if<std::is_base_of<event, E>::value>::type>
+	template <typename T, typename E, typename = typename std::enable_if_t<std::is_base_of<event, E>::value>>
 	struct rebind_method_event_handler {
 		typedef rebind_method_event_handler self;
 		
@@ -79,12 +79,14 @@ inline bool event_dispatcher::unsubscribe(event::target_type target, size_t hand
 	
 template <typename T, typename E>
 inline size_t event_dispatcher::subscribe(void(T::*mf)(E*), T* obj, event::target_type target) {
+	static_assert(std::is_same<event, E>::value || std::is_base_of<event, E>::value, "");
 	subscribe(target, rebind_method_event_handler<T, E>(mf, obj));
 	return typeid(rebind_method_event_handler<T, E>).hash_code();
 }
 
 template <typename T, typename E>
 inline bool event_dispatcher::subscribed(void(T::*mf)(E*), const T* obj, event::target_type target) const noexcept {
+	static_assert(std::is_same<event, E>::value || std::is_base_of<event, E>::value, "");
 	const rebind_method_event_handler<T, E> sought(mf, const_cast<T*>(obj));
 	auto range = _handlers.equal_range(target);
 	for (auto it = range.first; it != range.second; ++it) {
@@ -97,6 +99,7 @@ inline bool event_dispatcher::subscribed(void(T::*mf)(E*), const T* obj, event::
 
 template <typename T, typename E>
 inline bool event_dispatcher::unsubscribe(void(T::*mf)(E*), T* obj, event::target_type target, size_t* handler_hash) noexcept {
+	static_assert(std::is_same<event, E>::value || std::is_base_of<event, E>::value, "");
 	const rebind_method_event_handler<T, E> sought(mf, obj);
 	auto range = _handlers.equal_range(target);
 	for (auto it = range.first; it != range.second; ++it) {
@@ -249,12 +252,14 @@ inline void event_subscriber<T>::unsubscribe(void(T::*mf)(E*), event::target_typ
 template <typename T>
 template <typename E>
 inline void event_subscriber<T>::respond(event::target_type target, void(T::*mf)(E*)) {
+	static_assert(std::is_same<event, E>::value || std::is_base_of<event, E>::value, "");
 	_subscriptions.emplace_back(target, _dispatcher.subscribe(mf, static_cast<T*>(this), target));
 }
 
 template <typename T>
 template <typename E>
 inline bool event_subscriber<T>::responding(event::target_type target, void(T::*mf)(E*)) const noexcept {
+	static_assert(std::is_same<event, E>::value || std::is_base_of<event, E>::value, "");
 	return _dispatcher.subscribed(mf, static_cast<const T*>(this), target);
 }
 
