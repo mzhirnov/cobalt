@@ -14,57 +14,54 @@ public:
 	
 	const char* name() const { return _name.c_str(); }
 	
-	bool handled() const { return _handled; }
-	void handle() { _handled = true; }
-	
 private:
 	std::string _name;
 	bool _handled = false;
 };
 
-struct my_subscriber : event_subscriber<my_subscriber> {
+struct my_subscriber : event_handler<my_subscriber> {
 	typedef my_subscriber self;
 	
-	my_subscriber(event_dispatcher& dispatcher)
-		: event_subscriber(dispatcher)
+	explicit my_subscriber(event_dispatcher& dispatcher)
+		: event_handler(dispatcher)
 	{
 		subscribe(&self::on_test_event);
 	}
 	
 	void on_test_event(test_event* event) {
-		event->handle();
+		event->handled(true);
 	}
 };
 
-struct my_subscriber2 : event_subscriber<my_subscriber2> {
-	my_subscriber2(event_dispatcher& dispatcher)
-		: event_subscriber(dispatcher)
+struct my_subscriber2 : event_handler<my_subscriber2> {
+	explicit my_subscriber2(event_dispatcher& dispatcher)
+		: event_handler(dispatcher)
 	{
 		subscribe<test_event>();
 	}
 	
 	void on_event(test_event* event) {
-		event->handle();
+		event->handled(true);
 	}
 };
 
-struct my_event_target : event_subscriber<my_event_target>
+struct my_event_target : event_handler<my_event_target>
 {
 	typedef my_event_target self;
 	
-	my_event_target(event_dispatcher& dispatcher)
-		: event_subscriber(dispatcher)
+	explicit my_event_target(event_dispatcher& dispatcher)
+		: event_handler(dispatcher)
 	{
 		respond<test_event>(event::create_custom_target("do a test"));
 		respond<simple_event>(event::create_custom_target("do another test"));
 	}
 	
 	void on_target_event(test_event* event) {
-		event->handle();
+		event->handled(true);
 	}
 	
 	void on_target_event(simple_event* event) {
-		puts(__PRETTY_FUNCTION__);
+		event->handled(true);
 	}
 };
 
@@ -93,8 +90,11 @@ TEST_CASE("event_dispatcher") {
 	SECTION("post event with subscriber") {
 		my_subscriber subscriber(dispatcher);
 
-		REQUIRE(dispatcher.subscribed(&my_subscriber::on_test_event, &subscriber) == true);
-		REQUIRE(subscriber.subscribed(&my_subscriber::on_test_event) == true);
+		REQUIRE(dispatcher.subscribed(&my_subscriber::on_test_event, &subscriber));
+		REQUIRE(subscriber.subscribed(&my_subscriber::on_test_event));
+		
+		REQUIRE(dispatcher.connected(&subscriber, test_event::type));
+		REQUIRE(subscriber.connected(test_event::type));
 		
 		dispatcher.post(event);
 
@@ -108,8 +108,11 @@ TEST_CASE("event_dispatcher") {
 	SECTION("post event with subscriber 2") {
 		my_subscriber2 subscriber(dispatcher);
 
-		REQUIRE((dispatcher.subscribed<my_subscriber2, test_event>(&my_subscriber2::on_event, &subscriber)) == true);
-		REQUIRE(subscriber.subscribed<test_event>() == true);
+		REQUIRE((dispatcher.subscribed<my_subscriber2, test_event>(&my_subscriber2::on_event, &subscriber)));
+		REQUIRE(subscriber.subscribed<test_event>());
+		
+		REQUIRE(dispatcher.connected(&subscriber, test_event::type));
+		REQUIRE(subscriber.connected(test_event::type));
 		
 		dispatcher.post(event);
 
@@ -120,63 +123,36 @@ TEST_CASE("event_dispatcher") {
 		REQUIRE(event->handled() == true);
 	}
 	
-	SECTION("post event with custom subscriber") {
-		auto handler = [](class event* ev) {
-			test_event* event = dynamic_cast<test_event*>(ev);
-			REQUIRE_FALSE(event == nullptr);
-			
-			event->handle();
-		};
-		
-		SECTION("post w/o subscription") {
-			REQUIRE(dispatcher.subscribed(test_event::type, handler) == false);
-			
-			dispatcher.post(event);
-
-			REQUIRE(event->handled() == false);
-			
-			dispatcher.dispatch();
-
-			REQUIRE(event->handled() == false);
-		}
-		
-		SECTION("post with subscription") {
-			dispatcher.subscribe(test_event::type, handler);
-			
-			REQUIRE(dispatcher.subscribed(test_event::type, handler) == true);
-			
-			dispatcher.post(event);
-
-			REQUIRE(event->handled() == false);
-			
-			dispatcher.dispatch();
-
-			REQUIRE(event->handled() == true);
-		}
-	}
-	
 	SECTION("invoke event w/o subscriber") {
 		REQUIRE(event->handled() == false);
+		REQUIRE(event->use_count() == 1);
 		
 		dispatcher.invoke(event);
 
 		REQUIRE(event->handled() == false);
+		REQUIRE(event->use_count() == 1);
 	}
 	
 	SECTION("invoke event with subscriber") {
 		my_subscriber subscriber(dispatcher);
 		
 		REQUIRE(event->handled() == false);
+		REQUIRE(event->use_count() == 1);
 		
 		dispatcher.invoke(event);
 
 		REQUIRE(event->handled() == true);
+		REQUIRE(event->use_count() == 1);
 	}
 	
 	SECTION("invoke event target") {
 		my_event_target target(dispatcher);
 		
 		SECTION("invoke with created custom target") {
+			REQUIRE(target.responds<test_event>(event::create_custom_target("do a test")));
+			REQUIRE_FALSE(target.responds<test_event>(event::create_custom_target("do another test")));
+			REQUIRE_FALSE(target.responds<simple_event>(event::create_custom_target("do a test")));
+		
 			REQUIRE(event->handled() == false);
 			
 			dispatcher.invoke(event::create_custom_target("do a test"), event);
@@ -184,8 +160,14 @@ TEST_CASE("event_dispatcher") {
 			REQUIRE(event->handled() == true);
 		}
 		
-		SECTION("invoke with created custom target 2") {
-			dispatcher.invoke(event::create_custom_target("do another test"), new simple_event());
+		SECTION("invoke with created custom target 2") {			
+			auto ev = make_ref<simple_event>();
+			
+			REQUIRE(ev->handled() == false);
+			
+			dispatcher.invoke(event::create_custom_target("do another test"), ev);
+			
+			REQUIRE(ev->handled() == true);
 		}
 	}
 }

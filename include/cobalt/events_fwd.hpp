@@ -7,7 +7,7 @@
 //     event
 //     basic_event
 //     event_dispatcher
-//     event_subscriber
+//     event_handler
 
 #include <cobalt/utility/intrusive.hpp>
 #include <cobalt/utility/hash.hpp>
@@ -29,7 +29,7 @@ CO_DEFINE_ENUM_CLASS(
 
 namespace cobalt {
 
-/// event
+/// Event
 class event : public ref_counter<event> {
 public:
 	typedef hash_type target_type;
@@ -43,24 +43,24 @@ public:
 	event_phase phase() const noexcept { return _phase; }
 	
 	bool handled() const noexcept { return _handled; }
-	void handle() noexcept { handled(true); }
-	
-	static target_type create_custom_target(const char* name, target_type base_target = 0);
-	
-protected:
 	void handled(bool handled) noexcept { _handled = handled; }
 	
+	static target_type create_custom_target(const char* name, target_type base_target = 0) noexcept;
+	
+protected:
+	void phase(event_phase phase) noexcept { _phase = phase; }
+	
+	/// Resets object to initial state
+	virtual void reset() noexcept;
+
 private:
 	friend class event_dispatcher;
 	
-	void phase(event_phase phase) noexcept { _phase = phase; }
-	
-private:
 	event_phase _phase = event_phase::capture;
 	bool _handled = false;
 };
 
-/// basic_event
+/// Basic event implementation
 template <event::target_type Target>
 class basic_event : public event {
 public:
@@ -77,53 +77,66 @@ public:
 #define CO_DEFINE_EVENT_CLASS_WITH_TARGET(event, target) class event : public basic_event<target>
 #define CO_DEFINE_EVENT_CLASS_WITH_TARGET_NAME(event, target_name) class event : public basic_event<target_name##_hash>
 
-/// event_dispatcher
+/// Event dispatcher
+///
+/// Manages event queue and tracks event subscribers.
 class event_dispatcher {
 public:
-	template <typename E, typename = typename std::enable_if_t<std::is_same<event, E>::value || std::is_base_of<event, E>::value>>
-	using handler = std::function<void(E*)>;
-	
-	using handler_type = handler<event>;
-	
+	using handler_type = std::function<void(event*)>;
 	using clock_type = std::chrono::high_resolution_clock;
 
 	event_dispatcher() noexcept = default;
+	~event_dispatcher() noexcept;
 	
 	event_dispatcher(const event_dispatcher&) = delete;
 	event_dispatcher& operator=(const event_dispatcher&) = delete;
 
-	size_t subscribe(event::target_type target, const handler_type& handler);
-	size_t subscribe(event::target_type target, handler_type&& handler);
+	//
+	// Subscription
+	//
 	
-	bool subscribed(event::target_type target, const handler_type& handler) const noexcept;
-	bool subscribed(event::target_type target, size_t handler_hash) const noexcept;
-	
-	bool unsubscribe(event::target_type target, const handler_type& handler) noexcept;
-	bool unsubscribe(event::target_type target, size_t handler_hash) noexcept;
-
+	/// Subscribe object's method to specified event target
 	template <typename T, typename E>
-	size_t subscribe(void(T::*mf)(E*), T* obj, event::target_type target = E::type);
-	
+	void subscribe(void(T::*mf)(E*), const T* obj, event::target_type target = E::type);
+	/// Check if specified object's method is subscribed to the event target
 	template <typename T, typename E>
 	bool subscribed(void(T::*mf)(E*), const T* obj, event::target_type target = E::type) const noexcept;
-
+	/// Unsubscribe object's method from the event target
 	template <typename T, typename E>
-	bool unsubscribe(void(T::*mf)(E*), T* obj, event::target_type target = E::type, size_t* handler_hash = nullptr) noexcept;
+	bool unsubscribe(void(T::*mf)(E*), const T* obj, event::target_type target = E::type) noexcept;
+	
+	/// Check if object is connected to at least one specified event target
+	bool connected(const void* obj, event::target_type target) const noexcept;
+	/// Disconnect object from all connections with specified event target
+	void disconnect(const void* obj, event::target_type target);
+	/// Disconnect object from all connections
+	void disconnect(const void* obj);
 
+	//
+	// Event queue
+	//
+	
+	/// Check if event queue is empty
 	bool empty() const noexcept;
 	
+	/// Post event to the event queue
 	void post(const ref_ptr<event>& event);
 	void post(ref_ptr<event>&& event);
+	
+	/// Post event with explicitly specified target to event queue
 	void post(event::target_type target, const ref_ptr<event>& event);
 	void post(event::target_type target, ref_ptr<event>&& event);
 	
+	/// Check if event queue contains event with specified target
 	bool posted(event::target_type target) const noexcept;
 	
+	/// Remove event with specified target from event queue
+	/// @return True if event was removed, false otherwise
 	bool abort_first(event::target_type target);
 	bool abort_last(event::target_type target);
-	void abort_all(event::target_type target);
+	bool abort_all(event::target_type target);
 
-	/// Dispatch events with timeout
+	/// Invoke posted events with timeout
 	/// @return Number of invoked handlers
 	size_t dispatch(clock_type::duration timeout = clock_type::duration());
 
@@ -136,36 +149,51 @@ public:
 	size_t invoke(event::target_type target, const ref_ptr<event>& event);
 
 private:
-	typedef std::unordered_multimap<event::target_type, handler_type, dont_hash<event::target_type>> Handlers;
-	Handlers _handlers;
+	using ObjectHandler = std::pair<const void*, handler_type>;
+	
+	using Subscriptions =  std::unordered_multimap<event::target_type, ObjectHandler, dont_hash<event::target_type>>;
+	Subscriptions _subscriptions;
+	
+	using Connections = std::unordered_multimap<const void*, event::target_type>;
+	Connections _connections;
 
-	typedef std::deque<std::pair<event::target_type, ref_ptr<event>>> Events;
-	std::array<Events, 2> _queues;
+	using EventQueue = std::deque<std::pair<event::target_type, ref_ptr<event>>>;
+	EventQueue _queue;
 };
 
 /// Helper base class for objects to subscribe to and automatically unsubscribe from events
 template <typename T>
-class event_subscriber {
+class event_handler {
 public:
-	explicit event_subscriber(event_dispatcher& dispatcher) noexcept;
-
-	~event_subscriber();
+	template <typename E>
+	using handler = void(T::*)(E*);
 	
-	event_subscriber(const event_subscriber&) = delete;
-	event_subscriber& operator=(const event_subscriber&) = delete;
+	explicit event_handler(event_dispatcher& dispatcher) noexcept;
 
-	template <typename E> void subscribe(void(T::*mf)(E*) = &T::on_event);
-	template <typename E> bool subscribed(void(T::*mf)(E*) = &T::on_event) const noexcept;
-	template <typename E> void unsubscribe(void(T::*mf)(E*) = &T::on_event, event::target_type target = E::type) noexcept;
+	~event_handler();
 	
-	template <typename E> void respond(event::target_type target, void(T::*mf)(E*) = &T::on_target_event);
-	template <typename E> bool responding(event::target_type target, void(T::*mf)(E*) = &T::on_target_event) const noexcept;
+	event_handler(const event_handler&) = delete;
+	event_handler& operator=(const event_handler&) = delete;
+	
+	event_dispatcher& dispatcher() { return _dispatcher; }
+
+	/// Subscribe method to specified event target
+	template <typename E> void subscribe(handler<E> = &T::on_event);
+	/// Check if method is subscribed to specified event target
+	template <typename E> bool subscribed(handler<E> = &T::on_event) const noexcept;
+	/// Unsubscribe method from specified event target
+	template <typename E> void unsubscribe(handler<E> = &T::on_event, event::target_type target = E::type) noexcept;
+	
+	/// Register method as specified unique event responder
+	template <typename E> void respond(event::target_type target, handler<E> = &T::on_target_event);
+	/// Check if method responds to specified unique event
+	template <typename E> bool responds(event::target_type target, handler<E> = &T::on_target_event) const noexcept;
+	
+	/// Check if this object connected to at least one specified event target
+	bool connected(event::target_type target) const noexcept;
 
 private:
 	event_dispatcher& _dispatcher;
-
-	typedef std::deque<std::pair<event::target_type, size_t>> Subscriptions;
-	Subscriptions _subscriptions;
 };
 
 } // namespace cobalt
