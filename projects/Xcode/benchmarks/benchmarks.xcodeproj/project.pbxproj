@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		174472BC1E04539F00A2097E /* containers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 174472BB1E04539F00A2097E /* containers.cpp */; };
 		17D56EC91DF916DD00A36AFA /* boost.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 17D56EC81DF916DD00A36AFA /* boost.framework */; };
 		17D56ECE1DF916F400A36AFA /* events.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 17D56ECB1DF916F400A36AFA /* events.cpp */; };
 		17D56ECF1DF916F400A36AFA /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 17D56ECC1DF916F400A36AFA /* main.cpp */; };
@@ -25,6 +26,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		174472BB1E04539F00A2097E /* containers.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = containers.cpp; sourceTree = "<group>"; };
 		17D56EBD1DF9164C00A36AFA /* benchmarks */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = benchmarks; sourceTree = BUILT_PRODUCTS_DIR; };
 		17D56EC81DF916DD00A36AFA /* boost.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = boost.framework; path = ../frameworks/boost.framework; sourceTree = "<group>"; };
 		17D56ECB1DF916F400A36AFA /* events.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = events.cpp; sourceTree = "<group>"; };
@@ -74,6 +76,7 @@
 		17D56ECA1DF916F400A36AFA /* benchmarks */ = {
 			isa = PBXGroup;
 			children = (
+				174472BB1E04539F00A2097E /* containers.cpp */,
 				17D56ECB1DF916F400A36AFA /* events.cpp */,
 				17D56ECC1DF916F400A36AFA /* main.cpp */,
 				17D56ECD1DF916F400A36AFA /* nonius.hpp */,
@@ -108,7 +111,7 @@
 		17D56EB51DF9164C00A36AFA /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0810;
+				LastUpgradeCheck = 0820;
 				ORGANIZATIONNAME = "Maksim Zhirnov";
 				TargetAttributes = {
 					17D56EBC1DF9164C00A36AFA = {
@@ -141,6 +144,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				17D56ECF1DF916F400A36AFA /* main.cpp in Sources */,
+				174472BC1E04539F00A2097E /* containers.cpp in Sources */,
 				17D56ECE1DF916F400A36AFA /* events.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -166,6 +170,7 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
@@ -215,6 +220,7 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
@@ -274,6 +280,7 @@
 				17D56EC61DF9164C00A36AFA /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
