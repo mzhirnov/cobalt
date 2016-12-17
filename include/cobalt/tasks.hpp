@@ -5,12 +5,14 @@
 
 #include <cobalt/tasks_fwd.hpp>
 
+#include <algorithm>
+
 namespace cobalt {
 
 ////////////////////////////////////////////////////////////////////////////////
 // task
 
-inline task::~task() {
+inline task::~task() noexcept {
 	// Abort continuation if it hasn't been run
 	if (_next)
 		_next->on_abort();
@@ -89,7 +91,7 @@ inline task* task::wait_for_frames(size_t frames) {
 				finish();
 		}
 
-		task* step() override {
+		task* step() noexcept override {
 			if (!--_count)
 				finish();
 			return nullptr;
@@ -105,29 +107,29 @@ inline task* task::wait_for_frames(size_t frames) {
 ////////////////////////////////////////////////////////////////////////////////
 // task_scheduler
 
-inline task_scheduler::~task_scheduler() {
+inline task_scheduler::~task_scheduler() noexcept {
 	// Abort all unfinished tasks
-	for (auto&& task : _tasks[0])
+	for (auto&& task : _tasks)
 		task->on_abort();
 }
 
 inline task* task_scheduler::schedule(const ref_ptr<task>& task) {
 	BOOST_ASSERT(task);
-	_tasks[0].push_back(task);
-	return _tasks[0].back().get();
+	_tasks.push_back(task);
+	return _tasks.back().get();
 }
 
 inline task* task_scheduler::schedule(ref_ptr<task>&& task) {
 	BOOST_ASSERT(task);
-	_tasks[0].push_back(std::move(task));
-	return _tasks[0].back().get();
+	_tasks.push_back(std::move(task));
+	return _tasks.back().get();
 }
 
-inline void task_scheduler::run_one_step() {
-	// Swap queues for safe scheduling new tasks from handlers
-	std::swap(_tasks[0], _tasks[1]);
+inline void task_scheduler::step() {
+	// Move out tasks collection for safe scheduling new tasks from handlers
+	Tasks tasks = std::move(_tasks);
 
-	for (auto&& curr : _tasks[1]) {
+	for (auto&& curr : tasks) {
 		if (curr->state() == task_state::uninitialized)
 			curr->state(curr->on_init() ? task_state::running : task_state::aborted);
 
@@ -163,7 +165,7 @@ inline void task_scheduler::run_one_step() {
 	}
 
 	// Remove completed tasks
-	_tasks[1].erase(std::remove_if(_tasks[1].begin(), _tasks[1].end(),
+	tasks.erase(std::remove_if(tasks.begin(), tasks.end(),
 		[](auto&& task) {
 			if (task->finished()) {
 				task->state(task_state::removed);
@@ -171,47 +173,48 @@ inline void task_scheduler::run_one_step() {
 			}
 			return false;
 		}),
-		_tasks[1].end()
+		tasks.end()
 	);
 
 	// Append new tasks added during this step to the main queue
-	if (!_tasks[0].empty()) {
-		_tasks[1].insert(_tasks[1].end(),
-			std::make_move_iterator(_tasks[0].begin()),
-			std::make_move_iterator(_tasks[0].end()));
-		
-		_tasks[0].clear();
+	if (!_tasks.empty()) {
+		tasks.insert(tasks.end(),
+			std::make_move_iterator(_tasks.begin()),
+			std::make_move_iterator(_tasks.end()));
+		_tasks.clear();
 	}
 
-	// Swap queues back
-	std::swap(_tasks[0], _tasks[1]);
+	// Move tasks collection back
+	_tasks = std::move(tasks);
 }
 
 inline void task_scheduler::pause_all(bool pause) noexcept {
-	for (auto&& task : _tasks[0])
+	for (auto&& task : _tasks)
 		task->pause(pause);
 }
 
 inline void task_scheduler::abort_all() noexcept {
-	for (auto&& task : _tasks[0])
+	for (auto&& task : _tasks)
 		task->finish(task_result::abort);
 }
 
 inline size_t task_scheduler::count(task_state state) const noexcept {
 	size_t count = 0;
-	for (auto&& task : _tasks[0])
+	for (auto&& task : _tasks)
 		count += task->state() == state ? 1 : 0;
 	return count;
 }
 
 inline bool task_scheduler::empty() const noexcept {
-	return _tasks[0].empty();
+	return _tasks.empty();
 }
 
-template <typename Handler>
-inline void task_scheduler::enumerate(Handler&& handler) const {
-	for (auto&& task : _tasks[0])
-		handler(task.get());
+inline enumerator<task_scheduler::Tasks::iterator> task_scheduler::tasks() noexcept {
+	return make_enumerator(_tasks);
+}
+
+inline enumerator<task_scheduler::Tasks::const_iterator> task_scheduler::tasks() const noexcept {
+	return make_enumerator(_tasks);
 }
 
 } // namespace cobalt

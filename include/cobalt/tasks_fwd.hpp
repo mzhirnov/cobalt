@@ -7,13 +7,11 @@
 //     task
 //     task_scheduler
 
-#include <cobalt/utility/enumerator.hpp>
-#include <cobalt/utility/intrusive.hpp>
 #include <cobalt/utility/enum_traits.hpp>
+#include <cobalt/utility/intrusive.hpp>
+#include <cobalt/utility/enumerator.hpp>
 
-#include <array>
 #include <deque>
-#include <algorithm>
 
 CO_DEFINE_ENUM_CLASS(
 	task_state, uint8_t,
@@ -41,11 +39,14 @@ namespace cobalt {
 class task : public ref_counter<task> {
 public:
 	task() = default;
+	
+	task(task&&) noexcept = default;
+	task& operator=(task&&) noexcept = default;
 
 	task(const task&) = delete;
 	task& operator=(const task&) = delete;
 
-	virtual ~task();
+	virtual ~task() noexcept;
 
 	/// Get raw state
 	task_state state() const noexcept { return _state; }
@@ -77,21 +78,20 @@ public:
 protected:
 	/// Perform one step in the task lifecycle
 	/// @return Task for the next step to make `interruption` or nullptr/this to continue
-	virtual task* step() = 0;
+	virtual task* step() noexcept = 0;
 	
-	/// Resets task to uninitialized state to call on_init() from scratch
-	virtual void reset() { _state = task_state::uninitialized; }
+	/// Resets task to uninitialized state
+	virtual void reset() noexcept { _state = task_state::uninitialized; }
 
 	/// Called if in uninitialized state before running
-	/// @return False for immediately abort the task
-	///         True for start running
-	virtual bool on_init() { return true; }
+	/// @return False to immediately abort the task, or true to start running
+	virtual bool on_init() noexcept { return true; }
 	/// Called if finished successfully
-	virtual void on_success() {}
+	virtual void on_success() noexcept {}
 	/// Called if finished unsuccessfully
-	virtual void on_fail() {}
+	virtual void on_fail() noexcept {}
 	/// Called if explicitly aborted or didn't run before destruction
-	virtual void on_abort() {}
+	virtual void on_abort() noexcept {}
 
 private:
 	friend class task_scheduler;
@@ -110,12 +110,15 @@ private:
 /// task_scheduler
 class task_scheduler {
 public:
-	task_scheduler() = default;
+	task_scheduler() noexcept = default;
+	
+	task_scheduler(task_scheduler&&) noexcept = default;
+	task_scheduler& operator=(task_scheduler&&) noexcept = default;
 
 	task_scheduler(const task_scheduler&) = delete;
 	task_scheduler& operator=(const task_scheduler&) = delete;
 
-	~task_scheduler();
+	~task_scheduler() noexcept;
 
 	/// Schedule task to execute
 	/// @return Added task
@@ -126,7 +129,7 @@ public:
 	task* schedule(ref_ptr<task>&& task);
 
 	/// Advance tasks with one step
-	void run_one_step();
+	void step();
 
 	/// Pause all tasks
 	void pause_all(bool pause = true) noexcept;
@@ -139,14 +142,15 @@ public:
 
 	/// @return True if no tasks
 	bool empty() const noexcept;
-	
-	/// Enumerates all tasks with `void handler(task*)`
-	template <typename Handler>
-	void enumerate(Handler&& handler) const;
 
 private:
-	typedef std::deque<ref_ptr<task>> Tasks;
-	std::array<Tasks, 2> _tasks;
+	using Tasks = std::deque<ref_ptr<task>>;
+	Tasks _tasks;
+	
+public:
+	/// @return Tasks enumerator
+	enumerator<Tasks::iterator> tasks() noexcept;
+	enumerator<Tasks::const_iterator> tasks() const noexcept;
 };
 
 /// Waits for specified amount of seconds
