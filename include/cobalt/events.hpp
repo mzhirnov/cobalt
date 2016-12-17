@@ -204,38 +204,32 @@ inline bool event_dispatcher::abort_all(event::target_type target) {
 	return _queue.size() != count;
 }
 
-inline size_t event_dispatcher::dispatch(clock_type::duration timeout) {
-	size_t count = 0;
-	
+inline void event_dispatcher::dispatch(clock_type::duration timeout) {
 	EventQueue queue = std::move(_queue);
 	
 	auto start = clock_type::now();
 	
 	while (!queue.empty() && !(timeout != clock_type::duration() && clock_type::now() - start >= timeout)) {
 		auto&& p = queue.front();
-		count += invoke(p.first, p.second);
+		invoke(p.first, p.second);
 		queue.pop_front();
 	}
 	
 	// Return not processed events to the queue
 	if (!queue.empty())
 		_queue.insert(_queue.begin(), std::make_move_iterator(queue.begin()), std::make_move_iterator(queue.end()));
-	
-	return count;
 }
 
-inline size_t event_dispatcher::invoke(const ref_ptr<event>& event) {
+inline void event_dispatcher::invoke(const ref_ptr<event>& event) {
 	auto range = _subscriptions.equal_range(event->target());
 	for (auto it = range.first; it != range.second; ++it)
 		(*it).second.second(event.get());
-	return std::distance(range.first, range.second);
 }
 
-inline size_t event_dispatcher::invoke(event::target_type target, const ref_ptr<event>& event) {
+inline void event_dispatcher::invoke(event::target_type target, const ref_ptr<event>& event) {
 	auto range = _subscriptions.equal_range(target);
 	for (auto it = range.first; it != range.second; ++it)
 		(*it).second.second(event.get());
-	return std::distance(range.first, range.second);
 }
 	
 ////////////////////////////////////////////////////////////////////////////////

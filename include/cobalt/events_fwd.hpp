@@ -137,16 +137,13 @@ public:
 	bool abort_all(event::target_type target);
 
 	/// Invoke posted events with timeout
-	/// @return Number of invoked handlers
-	size_t dispatch(clock_type::duration timeout = clock_type::duration());
+	void dispatch(clock_type::duration timeout = clock_type::duration());
 
 	/// Invoke the event immediately
-	/// @return Number of invoked handlers
-	size_t invoke(const ref_ptr<event>& event);
+	void invoke(const ref_ptr<event>& event);
 
 	/// Invoke the event for specified target immediately
-	/// @return Number of invoked handlers
-	size_t invoke(event::target_type target, const ref_ptr<event>& event);
+	void invoke(event::target_type target, const ref_ptr<event>& event);
 
 private:
 	using ObjectHandler = std::pair<const void*, handler_type>;
