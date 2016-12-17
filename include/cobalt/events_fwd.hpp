@@ -36,6 +36,12 @@ public:
 	
 	event() noexcept = default;
 	
+	event(event&&) noexcept = default;
+	event& operator=(event&&) noexcept = default;
+	
+	event(const event&) = delete;
+	event& operator=(const event&) = delete;
+	
 	virtual ~event() noexcept = default;
 	
 	virtual target_type target() const noexcept = 0;
@@ -86,10 +92,14 @@ public:
 	using clock_type = std::chrono::high_resolution_clock;
 
 	event_dispatcher() noexcept = default;
-	~event_dispatcher() noexcept;
+	
+	event_dispatcher(event_dispatcher&&) noexcept = default;
+	event_dispatcher& operator=(event_dispatcher&&) noexcept = default;
 	
 	event_dispatcher(const event_dispatcher&) = delete;
 	event_dispatcher& operator=(const event_dispatcher&) = delete;
+	
+	~event_dispatcher() noexcept;
 
 	//
 	// Subscription

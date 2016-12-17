@@ -22,6 +22,14 @@ class object;
 /// Component
 class component : public ref_counter<component>, public intrusive_slist_base<component> {
 public:
+	component() = default;
+	
+	component(component&&) = default;
+	component& operator=(component&&) = default;
+	
+	component(const component&) = default;
+	component& operator=(const component&) = default;
+	
 	virtual ~component() = default;
 
 	virtual hash_type type() const noexcept = 0;
@@ -51,7 +59,7 @@ public:
 /// Component factory
 class component_factory {
 public:
-	explicit component_factory(hash_type name) noexcept;
+	explicit constexpr component_factory(hash_type name) noexcept;
 	explicit component_factory(const char* name) noexcept
 		: component_factory(murmur3(name, 0)) {}
 	
@@ -76,22 +84,26 @@ private:
 #define CO_DEFINE_COMPONENT_FACTORY(component) CO_DEFINE_COMPONENT_FACTORY_WITH_NAME(component, #component)
 
 /// Defines simple component factory with specified component name
-#define CO_DEFINE_COMPONENT_FACTORY_WITH_NAME(component, component_name)           \
-	class component##_factory : public component_factory {                         \
-	public:                                                                        \
-		component##_factory() : component_factory(component_name##_hash) {}        \
-		virtual component* create_component() override { return new component(); } \
-	} static component##_factory_instance;                                         \
+#define CO_DEFINE_COMPONENT_FACTORY_WITH_NAME(component, component_name)                       \
+	class component##_factory : public component_factory {                                     \
+	public:                                                                                    \
+		constexpr component##_factory() noexcept : component_factory(component_name##_hash) {} \
+		virtual component* create_component() override { return new component(); }             \
+	} static component##_factory_instance;                                                     \
 
 /// Object is a container for components
 class object : public ref_counter<object>, public intrusive_slist_base<object> {
 public:
 	object() = default;
-	explicit object(hash_type name) noexcept : _name(name) {}
-	explicit object(const char* name) noexcept : _name(murmur3(name, 0)) {}
 	
+	object(object&&) = default;
+	object& operator=(object&&) = default;
+
 	object(const object&) = delete;
 	object& operator=(const object&) = delete;
+	
+	explicit object(hash_type name) noexcept : _name(name) {}
+	explicit object(const char* name) noexcept : _name(murmur3(name, 0)) {}
 	
 	~object();
 
@@ -160,8 +172,12 @@ private:
 
 private:
 	mutable object* _parent = nullptr;
-	intrusive_slist<object> _children;
-	intrusive_slist<component> _components;
+	
+	using Children = intrusive_slist<object>;
+	Children _children;
+	
+	using Components = intrusive_slist<component>;
+	Components _components;
 	
 	hash_type _name = 0;
 	bool _active = true;

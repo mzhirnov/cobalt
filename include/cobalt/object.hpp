@@ -20,7 +20,7 @@ inline void component::detach() {
 // component_factory
 //
 	
-inline component_factory::component_factory(hash_type name) noexcept
+inline constexpr component_factory::component_factory(hash_type name) noexcept
 	: _name(name)
 {
 	BOOST_ASSERT(check_unique_name(_name));
