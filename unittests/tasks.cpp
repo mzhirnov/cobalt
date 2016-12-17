@@ -17,7 +17,7 @@ public:
 	size_t get_steps() const noexcept { return _steps; }
 	
 protected:
-	virtual task* step() override {
+	virtual task* step() noexcept override {
 		if (!--_steps)
 			finish();
 		return nullptr;
@@ -35,7 +35,7 @@ public:
 	size_t get_state() const noexcept { return _state; }
 
 protected:
-	virtual task* step() override {
+	virtual task* step() noexcept override {
 		switch (++_state) {
 		case 1:
 			break;
@@ -73,7 +73,7 @@ TEST_CASE("tasks") {
 		REQUIRE(scheduler.count(task_state::running) == 0);
 		REQUIRE(task->use_count() == 2);
 		
-		scheduler.run_one_step();
+		scheduler.step();
 		
 		REQUIRE(scheduler.empty());
 		REQUIRE(scheduler.count(task_state::uninitialized) == 0);
@@ -86,12 +86,12 @@ TEST_CASE("tasks") {
 		
 		scheduler.schedule(task);
 		
-		scheduler.run_one_step();
+		scheduler.step();
 		
 		REQUIRE(task->state() == task_state::running);
 		REQUIRE(task->get_state() == 1);
 		
-		scheduler.run_one_step();
+		scheduler.step();
 		
 		REQUIRE(task->state() == task_state::running);
 		REQUIRE(task->get_state() == 2);
@@ -99,13 +99,13 @@ TEST_CASE("tasks") {
 		for (int i = 0; i < task->get_frames(); ++i) {
 			std::cout << i + 1 << std::endl;
 			
-			scheduler.run_one_step();
+			scheduler.step();
 
 			REQUIRE(task->state() == task_state::running);
 			REQUIRE(task->get_state() == 2);
 		}
 		
-		scheduler.run_one_step();
+		scheduler.step();
 		
 		REQUIRE(task->state() == task_state::removed);
 		REQUIRE(task->get_state() == 3);
