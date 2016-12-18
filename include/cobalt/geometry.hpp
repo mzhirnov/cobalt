@@ -1,74 +1,177 @@
+#ifndef COBALT_GEOMETRY_HPP_INCLUDED
+#define COBALT_GEOMETRY_HPP_INCLUDED
+
 #pragma once
 
+#include <type_traits>
+#include <ostream>
+
 // Classes in this file:
-//     tpoint<>
-//     tsize<>
-//     trect<>
+//     basic_point<>
+//     basic_size<>
+//     basic_rect<>
 
-template<typename T>
-struct tpoint {
-	T x, y;
+namespace cobalt {
 
-	tpoint() : x(), y() {}
-	tpoint(T x, T y) : x(x), y(y) {}
+template<typename T, typename = typename std::enable_if_t<std::is_arithmetic<T>::value>>
+struct basic_point {
+	T x{};
+	T y{};
+
+	constexpr basic_point() noexcept = default;
+	constexpr basic_point(T x, T y) noexcept
+		: x(x), y(y) {}
 	
 	template<typename U>
-	tpoint(const tpoint<U>& p)
-		: x(static_cast<T>(p.x)), y(static_cast<T>(p.y))
+	constexpr basic_point(const basic_point<U>& p) noexcept
+		: x(static_cast<T>(p.x))
+		, y(static_cast<T>(p.y))
 	{}
+	
+	friend bool operator==(const basic_point& lhs, const basic_point& rhs) noexcept {
+		return lhs.x == rhs.x && lhs.y == rhs.y;
+	}
+	
+	friend bool operator!=(const basic_point& lhs, const basic_point& rhs) noexcept {
+		return lhs.x != rhs.x || lhs.y != rhs.y;
+	}
+	
+	template <typename CharT>
+	friend std::basic_ostream<CharT>& operator<<(std::basic_ostream<CharT>& os, const basic_point& p) {
+		os << '{' << p.x << ';' << p.y << '}';
+		return os;
+	}
 };
 
-typedef tpoint<int> point;
-typedef tpoint<float> pointf;
+using point = basic_point<int>;
+using pointf = basic_point<float>;
 
-template<typename T>
-struct tsize {
-	T width, height;
+template<typename T, typename = typename std::enable_if_t<std::is_arithmetic<T>::value>>
+struct basic_size {
+	T width{};
+	T height{};
 
-	tsize() : width(), height() {}
-	tsize(T width, T height) : width(width), height(height) {}
+	constexpr basic_size() noexcept = default;
+	constexpr basic_size(T width, T height) noexcept
+		: width(width), height(height) {}
 	
 	template<typename U>
-	tsize(const tsize<U>& s)
-		: width(static_cast<T>(s.width)), height(static_cast<T>(s.height))
+	constexpr basic_size(const basic_size<U>& s) noexcept
+		: width(static_cast<T>(s.width))
+		, height(static_cast<T>(s.height))
 	{}
+	
+	friend bool operator==(const basic_size& lhs, const basic_size& rhs) noexcept {
+		return lhs.width == rhs.width && lhs.height == rhs.height;
+	}
+	
+	friend bool operator!=(const basic_size& lhs, const basic_size& rhs) noexcept {
+		return lhs.width != rhs.width || lhs.height != rhs.height;
+	}
+	
+	template <typename CharT>
+	friend std::basic_ostream<CharT>& operator<<(std::basic_ostream<CharT>& os, const basic_size& s) {
+		os << '{' << s.width << ';' << s.height << '}';
+		return os;
+	}
 };
 
-typedef tsize<int> size;
-typedef tsize<float> sizef;
+using size = basic_size<int>;
+using sizef = basic_size<float>;
 
-template<typename T>
-struct trect {
-	T x, y, width, height;
+template<typename T, typename = typename std::enable_if_t<std::is_arithmetic<T>::value>>
+struct basic_rect {
+	T x{};
+	T y{};
+	T width{};
+	T height{};
 
-	trect() : x(), y(), width(), height() {}
-	trect(T width, T height) : x(), y(), width(width), height(height) {}
-	trect(T x, T y, T width, T height) : x(x), y(y), width(width), height(height) {}
-	trect(T x, T y, const tsize<T>& s) : x(x), y(y), width(s.width), height(s.height) {}
-	trect(const tpoint<T>& p, T width, T height) : x(p.x), y(p.y), width(width), height(height) {}
-	trect(const tpoint<T>& p, const tsize<T>& s) : x(p.x), y(p.y), width(s.width), height(s.height) {}
+	constexpr basic_rect() noexcept = default;
+	constexpr basic_rect(T width, T height) noexcept
+		: width(width), height(height) {}
+	
+	constexpr basic_rect(T x, T y, T width, T height) noexcept
+		: x(x), y(y), width(width), height(height) {}
+	
+	constexpr basic_rect(T x, T y, const basic_size<T>& s) noexcept
+		: x(x), y(y), width(s.width), height(s.height) {}
+	
+	constexpr basic_rect(const basic_point<T>& p, T width, T height) noexcept
+		: x(p.x), y(p.y), width(width), height(height) {}
+	
+	constexpr basic_rect(const basic_point<T>& p, const basic_size<T>& s) noexcept
+		: x(p.x), y(p.y), width(s.width), height(s.height) {}
 
 	template<typename U>
-	trect(const trect<U>& r)
-		: x(static_cast<T>(r.x)), y(static_cast<T>(r.y)), width(static_cast<T>(r.width)), height(static_cast<T>(r.height))
+	constexpr basic_rect(const basic_rect<U>& r) noexcept
+		: x(static_cast<T>(r.x))
+		, y(static_cast<T>(r.y))
+		, width(static_cast<T>(r.width))
+		, height(static_cast<T>(r.height))
 	{}
-
-	friend trect operator + (const trect<T>& r, const tpoint<T>& p) {
-		return trect(r.x + p.x, r.y + p.y, r.width, r.height);
+	
+	basic_point<T> origin() const noexcept { return {x, y}; }
+	
+	basic_size<T> size() const noexcept { return {width, height}; }
+	
+	friend bool operator==(const basic_rect& lhs, const basic_rect& rhs) noexcept {
+		return lhs.x == rhs.x && lhs.y == rhs.y && lhs.width == rhs.width && lhs.height == rhs.height;
+	}
+	
+	friend bool operator!=(const basic_rect& lhs, const basic_rect& rhs) noexcept {
+		return lhs.x != rhs.x || lhs.y != rhs.y || lhs.width != rhs.width || lhs.height != rhs.height;
 	}
 
-	friend trect operator - (const trect<T>& r, const tpoint<T>& p) {
-		return trect(r.x - p.x, r.y - p.y, r.width, r.height);
+	friend basic_rect operator+(const basic_rect<T>& r, const basic_point<T>& p) noexcept {
+		return {r.x + p.x, r.y + p.y, r.width, r.height};
+	}
+	
+	friend basic_rect& operator+=(basic_rect<T>& r, const basic_point<T>& p) noexcept {
+		r.x += p.x;
+		r.y += p.y;
+		return r;
 	}
 
-	friend trect operator + (const trect<T>& r, const tsize<T>& s) {
-		return trect(r.x, r.y, r.width + s.width, r.height + s.height);
+	friend basic_rect operator-(const basic_rect<T>& r, const basic_point<T>& p) noexcept {
+		return {r.x - p.x, r.y - p.y, r.width, r.height};
+	}
+	
+	friend basic_rect& operator-=(basic_rect<T>& r, const basic_point<T>& p) noexcept {
+		r.x -= p.x;
+		r.y -= p.y;
+		return r;
 	}
 
-	friend trect operator - (const trect<T>& r, const tsize<T>& s) {
-		return trect(r.x, r.y, r.width - s.width, r.height - s.height);
+	friend basic_rect operator+(const basic_rect<T>& r, const basic_size<T>& s) noexcept {
+		return {r.x, r.y, r.width + s.width, r.height + s.height};
+	}
+	
+	friend basic_rect& operator+=(basic_rect<T>& r, const basic_size<T>& s) noexcept {
+		r.width += s.width;
+		r.height += s.height;
+		return r;
+	}
+
+	friend basic_rect operator-(const basic_rect<T>& r, const basic_size<T>& s) noexcept {
+		return {r.x, r.y, r.width - s.width, r.height - s.height};
+	}
+	
+	friend basic_rect& operator-=(basic_rect<T>& r, const basic_size<T>& s) noexcept {
+		r.width -= s.width;
+		r.height -= s.height;
+		return r;
+	}
+	
+	template <typename CharT>
+	friend std::basic_ostream<CharT>& operator<<(std::basic_ostream<CharT>& os, const basic_rect& r) {
+		os << '{' << r.x << ';' << r.y << ';' << r.width << ';' << r.height << '}';
+		return os;
 	}
 };
 
-typedef trect<int> rect;
-typedef trect<float> rectf;
+using rect = basic_rect<int>;
+using rectf = basic_rect<float>;
+
+} // namespace cobalt
+
+#endif // COBALT_GEOMETRY_HPP_INCLUDED
