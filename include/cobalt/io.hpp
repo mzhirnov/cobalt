@@ -1,119 +1,168 @@
+#ifndef COBALT_IO_HPP_INCLUDED
+#define COBALT_IO_HPP_INCLUDED
+
 #pragma once
 
 // Classes in this file:
-//     seekable
-//     input_stream
-//     output_stream
 //     stream
+//     static_memory_stream
+//     dynamic_memory_stream
+//     file_stream
 //     binary_writer
 //     binary_reader
 //     bitpack_writer
 //     bitpack_reader
 
-#include "cool/common.hpp"
-#include "cool/enum_traits.hpp"
+#include <cobalt/utility/enum_traits.hpp>
+#include <cobalt/utility/intrusive.hpp>
+#include <cobalt/utility/throw_error.hpp>
 
+#include <iterator>
+#include <deque>
 #include <cstdio>
 #include <cstdint>
 
-#include <vector>
-
-namespace io {
-
-DEFINE_ENUM_CLASS(
-	origin, uint32_t,
+CO_DEFINE_ENUM_CLASS(
+	seek_origin, uint8_t,
 	beginning,
 	current,
 	end
 )
 
-/// seekable base
-class seekable : public ref_counter<seekable> {
-public:
-	virtual ~seekable() {}
-
-	virtual void seek(int pos, origin origin = origin::beginning) = 0;
-	virtual size_t tell() const = 0;
-};
-
-/// input stream
-class input_stream : virtual public seekable {
-public:
-	virtual size_t read(void* buffer, size_t length) = 0;
-	virtual bool eof() const = 0;
-};
-
-typedef boost::intrusive_ptr<input_stream> input_stream_ptr;
-
-/// output stream
-class output_stream : virtual public seekable {
-public:
-	virtual size_t write(const void* buffer, size_t length) = 0;
-	virtual void flush() const = 0;
-};
-
-typedef boost::intrusive_ptr<output_stream> output_stream_ptr;
-
-DEFINE_ENUM_CLASS(
-	file_mode, uint32_t,
+CO_DEFINE_ENUM_CLASS(
+	open_mode, uint8_t,
 	create_always,
-	open_existing
+	open_existing,
+	open_or_create
 )
 
-DEFINE_ENUM_CLASS(
-	file_access, uint32_t,
+CO_DEFINE_ENUM_CLASS(
+	access_mode, uint8_t,
 	read_only,
 	read_write
 )
 
-/// input/output stream
-class stream : public input_stream, public output_stream {
-public:
-	static stream* from_memory();
-	static stream* from_memory(void* begin, void* end, file_access access = file_access::read_write);
-	static stream* from_file(const char* filename, file_mode open_mode = file_mode::open_existing, file_access access = file_access::read_only);
-	static input_stream* from_asset(const char* filename);
+namespace cobalt { namespace io {
 
-	static void read_all(input_stream* istream, std::vector<uint8_t>& data);
-	static void write_all(output_stream* ostream, const std::vector<uint8_t>& data);
-	static void copy(input_stream* istream, output_stream* ostream);
+/// Stream
+class stream : public ref_counter<stream> {
+public:
+	using value_type = uint8_t;
+	
+	virtual ~stream() noexcept = default;
+	
+	virtual size_t read(void* buffer, size_t size, std::error_code& ec) noexcept = 0;
+	virtual size_t write(const void* buffer, size_t size, std::error_code& ec) noexcept = 0;
+	virtual void flush(std::error_code& ec) const noexcept = 0;
+	virtual int64_t seek(int64_t offset, seek_origin origin, std::error_code& ec) noexcept = 0;
+	virtual int64_t tell(std::error_code& ec) const noexcept = 0;
+	
+	size_t read(void* buffer, size_t size);
+	size_t write(const void* buffer, size_t size);
+	void flush() const;
+	int64_t seek(int64_t offset, seek_origin origin);
+	int64_t tell() const;
+	
+	bool can_read() const noexcept;
+	bool can_write() const noexcept;
+	bool can_seek() const  noexcept;
 };
 
-typedef boost::intrusive_ptr<stream> stream_ptr;
-
-/// binary writer
-class binary_writer {
+class static_memory_stream : public stream {
 public:
-	explicit binary_writer(output_stream* stream);
-
-	output_stream* get_base_stream() const { return _stream.get(); }
-
-	void write_uint8(uint8_t i);
-	void write_uint16(uint16_t i);
-	void write_uint32(uint32_t i);
-	void write_uint64(uint64_t i);
-	void write_int8(int8_t i);
-	void write_int16(int16_t i);
-	void write_int32(int32_t i);
-	void write_int64(int64_t i);
-	void write_float(float f);
-	void write_double(double f);
-	void write_boolean(bool b);
-	void write_7bit_encoded_uint32(uint32_t i);
-	void write_unicode_char(uint32_t c);
-	void write_zero_string(const std::string& str); // zero ended string
-	void write_pascal_string(const std::string& str); // length prepended string
+	static_memory_stream(void* begin, size_t size);
+	static_memory_stream(void* begin, size_t size, access_mode access);
+	
+	access_mode access() const noexcept;
+	void access(access_mode access);
+	
+	virtual size_t read(void* buffer, size_t size, std::error_code& ec) noexcept override;
+	virtual size_t write(const void* buffer, size_t size, std::error_code& ec) noexcept override;
+	virtual void flush(std::error_code& ec) const noexcept override;
+	virtual int64_t seek(int64_t offset, seek_origin origin, std::error_code& ec) noexcept override;
+	virtual int64_t tell(std::error_code& ec) const noexcept override;
 
 private:
-	output_stream_ptr _stream;
+	value_type* _begin = nullptr;
+	size_t _size = 0;
+	size_t _position = 0;
+	access_mode _access = access_mode::read_only;
 };
 
-/// binary reader
+class dynamic_memory_stream : public stream {
+public:
+	dynamic_memory_stream();
+	
+	access_mode access() const noexcept;
+	void access(access_mode access);
+	
+	virtual size_t read(void* buffer, size_t size, std::error_code& ec) noexcept override;
+	virtual size_t write(const void* buffer, size_t size, std::error_code& ec) noexcept override;
+	virtual void flush(std::error_code& ec) const noexcept override;
+	virtual int64_t seek(int64_t offset, seek_origin origin, std::error_code& ec) noexcept override;
+	virtual int64_t tell(std::error_code& ec) const noexcept override;
+
+private:
+	std::deque<value_type> _data;
+	access_mode _access = access_mode::read_write;
+};
+
+class file_stream : public stream {
+public:
+	file_stream(const char* filename, open_mode open, access_mode access);
+	
+	file_stream(file_stream&&) noexcept;
+	file_stream& operator=(file_stream&&) noexcept;
+	
+	file_stream(const file_stream&) = delete;
+	file_stream& operator=(const file_stream&) = delete;
+	
+	~file_stream() noexcept;
+	
+	virtual size_t read(void* buffer, size_t size, std::error_code& ec) noexcept override;
+	virtual size_t write(const void* buffer, size_t size, std::error_code& ec) noexcept override;
+	virtual void flush(std::error_code& ec) const noexcept override;
+	virtual int64_t seek(int64_t offset, seek_origin origin, std::error_code& ec) noexcept override;
+	virtual int64_t tell(std::error_code& ec) const noexcept override;
+
+private:
+	FILE* _fp = nullptr;
+	access_mode _access = access_mode::read_only;
+};
+
+/// Binary writer
+class binary_writer {
+public:
+	explicit binary_writer(stream* stream);
+
+	stream* base_stream() const { return _stream.get(); }
+
+	void write(uint8_t i);
+	void write(uint16_t i);
+	void write(uint32_t i);
+	void write(uint64_t i);
+	void write(int8_t i);
+	void write(int16_t i);
+	void write(int32_t i);
+	void write(int64_t i);
+	void write(float f);
+	void write(double f);
+	void write(bool b);
+	void write_7bit_encoded_int(uint32_t i);
+	void write_unicode_char(uint32_t c);
+	void write_c_string(const char* str); // zero ended string
+	void write_pascal_string(const char* str); // length prepended string
+
+private:
+	counted_ptr<stream> _stream;
+};
+
+/// Binary reader
 class binary_reader {
 public:
-	explicit binary_reader(input_stream* stream);
+	explicit binary_reader(stream* stream);
 
-	input_stream* get_base_stream() const { return _stream.get(); }
+	stream* base_stream() const { return _stream.get(); }
 
 	uint8_t read_uint8();
 	uint16_t read_uint16();
@@ -128,20 +177,20 @@ public:
 	bool read_boolean();
 	uint32_t read_7bit_encoded_uint32();
 	uint32_t read_unicode_char();
-	std::string read_zero_string(); // zero ended string
+	std::string read_c_string(); // zero ended string
 	std::string read_pascal_string(); // length prepended string
 
 private:
-	input_stream_ptr _stream;
+	counted_ptr<stream> _stream;
 };
 
-/// bitpack_writer
+/// Bit packed stream writer
 class bitpack_writer {
 public:
-	explicit bitpack_writer(output_stream* stream);
+	explicit bitpack_writer(stream* stream);
 	~bitpack_writer() { flush(); }
 
-	output_stream* get_base_stream() const { return _writer.get_base_stream(); }
+	stream* base_stream() const { return _writer.base_stream(); }
 
 	void write_bits(uint32_t value, size_t bits);
 	void flush();
@@ -152,12 +201,12 @@ private:
 	size_t _scratch_bits = 0;
 };
 
-/// bitpack_reader
+/// Bit packed stream reader
 class bitpack_reader {
 public:
-	explicit bitpack_reader(input_stream* stream);
+	explicit bitpack_reader(stream* stream);
 
-	input_stream* get_base_stream() const { return _reader.get_base_stream(); }
+	stream* base_stream() const { return _reader.base_stream(); }
 
 	uint32_t read_bits(size_t bits);
 
@@ -166,6 +215,27 @@ private:
 	uint64_t _scratch = 0;
 	size_t _scratch_bits = 0;
 };
+
+template <typename OutputIterator, typename = typename std::enable_if_t<sizeof(std::iterator_traits<OutputIterator>::value_type) == 1>>
+void read_all(stream* stream, OutputIterator it);
+
+template <typename InputIterator, typename = typename std::enable_if_t<sizeof(std::iterator_traits<InputIterator>::value_type) == 1>>
+void read_all(InputIterator it, stream* stream);
+
+void read_all(stream* istream, stream* ostream);
+
+template <typename OutputIterator, typename = typename std::enable_if_t<sizeof(std::iterator_traits<OutputIterator>::value_type) == 1>>
+void read_some(stream* stream, OutputIterator it, size_t size);
+
+template <typename InputIterator, typename = typename std::enable_if_t<sizeof(std::iterator_traits<InputIterator>::value_type) == 1>>
+void read_some(InputIterator it, stream* stream, size_t size);
+
+void read_some(stream* istream, stream* ostream, size_t size);
+
+template <typename OutputIterator, typename = typename std::enable_if_t<sizeof(std::iterator_traits<OutputIterator>::value_type) == 1>>
+void copy(stream* stream, OutputIterator it);
+
+void copy(stream* istream, stream* ostream);
 
 namespace detail {
 
@@ -203,4 +273,6 @@ struct bits_required {
 	};
 };
 
-} // namespace io
+}} // namespace cobalt::io
+
+#endif // COBALT_IO_HPP_INCLUDED

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		174472BE1E06787700A2097E /* geometry.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 174472BD1E06787700A2097E /* geometry.cpp */; };
+		174472C01E06CE7C00A2097E /* io.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 174472BF1E06CE7C00A2097E /* io.cpp */; };
 		1763ED8E1DF33F9A001F279B /* enum_traits.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1763ED881DF33F9A001F279B /* enum_traits.cpp */; };
 		1763ED8F1DF33F9A001F279B /* enumerator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1763ED891DF33F9A001F279B /* enumerator.cpp */; };
 		1763ED901DF33F9A001F279B /* events.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1763ED8A1DF33F9A001F279B /* events.cpp */; };
@@ -32,6 +33,7 @@
 
 /* Begin PBXFileReference section */
 		174472BD1E06787700A2097E /* geometry.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = geometry.cpp; sourceTree = "<group>"; };
+		174472BF1E06CE7C00A2097E /* io.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = io.cpp; sourceTree = "<group>"; };
 		1763ED871DF33F9A001F279B /* catch.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = catch.hpp; sourceTree = "<group>"; };
 		1763ED881DF33F9A001F279B /* enum_traits.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = enum_traits.cpp; sourceTree = "<group>"; };
 		1763ED891DF33F9A001F279B /* enumerator.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = enumerator.cpp; sourceTree = "<group>"; };
@@ -60,6 +62,7 @@
 		1763ED861DF33F9A001F279B /* unittests */ = {
 			isa = PBXGroup;
 			children = (
+				174472BF1E06CE7C00A2097E /* io.cpp */,
 				174472BD1E06787700A2097E /* geometry.cpp */,
 				17D56ED11DFA66CF00A36AFA /* tasks.cpp */,
 				1763ED871DF33F9A001F279B /* catch.hpp */,
@@ -161,6 +164,7 @@
 				174472BE1E06787700A2097E /* geometry.cpp in Sources */,
 				1763ED911DF33F9A001F279B /* hash.cpp in Sources */,
 				1763ED8E1DF33F9A001F279B /* enum_traits.cpp in Sources */,
+				174472C01E06CE7C00A2097E /* io.cpp in Sources */,
 				17D56ED21DFA66CF00A36AFA /* tasks.cpp in Sources */,
 				1763ED921DF33F9A001F279B /* main.cpp in Sources */,
 				1763ED931DF33F9A001F279B /* object.cpp in Sources */,
