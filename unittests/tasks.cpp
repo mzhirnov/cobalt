@@ -59,7 +59,7 @@ TEST_CASE("tasks") {
 	task_scheduler scheduler;
 	
 	SECTION("schedule one step task") {
-		auto task = make_ref<test_task>(1);
+		auto task = make_counted<test_task>(1);
 		
 		REQUIRE(scheduler.empty());
 		REQUIRE(scheduler.count(task_state::uninitialized) == 0);
@@ -82,7 +82,7 @@ TEST_CASE("tasks") {
 	}
 	
 	SECTION("wait_for_frames") {
-		auto task = make_ref<wait_task>(2);
+		auto task = make_counted<wait_task>(2);
 		
 		scheduler.schedule(task);
 		

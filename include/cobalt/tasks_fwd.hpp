@@ -63,8 +63,8 @@ public:
 
 	/// Set continuation resetting old one if any
 	/// @return Added task
-	task* next(const ref_ptr<task>& next) noexcept;
-	task* next(ref_ptr<task>&& next) noexcept;
+	task* next(const counted_ptr<task>& next) noexcept;
+	task* next(counted_ptr<task>&& next) noexcept;
 	
 	/// @return First continuation
 	task* next() const noexcept { return _next.get(); }
@@ -100,10 +100,10 @@ private:
 	void state(task_state state) noexcept { _state = state; }
 	
 	/// @return Detach continuation
-	ref_ptr<task> detach_next() noexcept { return std::move(_next); }
+	counted_ptr<task> detach_next() noexcept { return std::move(_next); }
 
 private:
-	ref_ptr<task> _next;
+	counted_ptr<task> _next;
 	task_state _state = task_state::uninitialized;
 };
 
@@ -122,11 +122,11 @@ public:
 
 	/// Schedule task to execute
 	/// @return Added task
-	task* schedule(const ref_ptr<task>& task);
+	task* schedule(const counted_ptr<task>& task);
 
 	/// Schedule task to execute
 	/// @return Added task
-	task* schedule(ref_ptr<task>&& task);
+	task* schedule(counted_ptr<task>&& task);
 
 	/// Advance tasks with one step
 	void step();
@@ -144,7 +144,7 @@ public:
 	bool empty() const noexcept;
 
 private:
-	using Tasks = std::deque<ref_ptr<task>>;
+	using Tasks = std::deque<counted_ptr<task>>;
 	Tasks _tasks;
 	
 public:

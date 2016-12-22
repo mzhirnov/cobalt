@@ -130,12 +130,12 @@ public:
 	bool empty() const noexcept;
 	
 	/// Post event to the event queue
-	void post(const ref_ptr<event>& event);
-	void post(ref_ptr<event>&& event);
+	void post(const counted_ptr<event>& event);
+	void post(counted_ptr<event>&& event);
 	
 	/// Post event with explicitly specified target to event queue
-	void post(event::target_type target, const ref_ptr<event>& event);
-	void post(event::target_type target, ref_ptr<event>&& event);
+	void post(event::target_type target, const counted_ptr<event>& event);
+	void post(event::target_type target, counted_ptr<event>&& event);
 	
 	/// Check if event queue contains event with specified target
 	bool posted(event::target_type target) const noexcept;
@@ -150,10 +150,10 @@ public:
 	void dispatch(clock_type::duration timeout = clock_type::duration());
 
 	/// Invoke the event immediately
-	void invoke(const ref_ptr<event>& event);
+	void invoke(const counted_ptr<event>& event);
 
 	/// Invoke the event for specified target immediately
-	void invoke(event::target_type target, const ref_ptr<event>& event);
+	void invoke(event::target_type target, const counted_ptr<event>& event);
 
 private:
 	using ObjectHandler = std::pair<const void*, handler_type>;
@@ -164,7 +164,7 @@ private:
 	using Connections = std::unordered_multimap<const void*, event::target_type>;
 	Connections _connections;
 
-	using EventQueue = std::deque<std::pair<event::target_type, ref_ptr<event>>>;
+	using EventQueue = std::deque<std::pair<event::target_type, counted_ptr<event>>>;
 	EventQueue _queue;
 };
 

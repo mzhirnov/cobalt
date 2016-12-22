@@ -70,7 +70,7 @@ inline bool object::active_in_hierarchy() const noexcept {
 
 inline object* object::attach(object* o) noexcept {
 	// constructor will call initial add_ref
-	ref_ptr<object> sp = o;
+	counted_ptr<object> sp = o;
 	
 	o->parent(this);
 	_children.push_front(*o);
@@ -78,8 +78,8 @@ inline object* object::attach(object* o) noexcept {
 	return sp.detach();
 }
 
-inline ref_ptr<object> object::detach(object* o) {
-	ref_ptr<object> sp;
+inline counted_ptr<object> object::detach(object* o) {
+	counted_ptr<object> sp;
 	
 	if (!o)
 		return sp;
@@ -217,7 +217,7 @@ inline const object* object::find_object_in_children(hash_type name) const noexc
 
 inline component* object::attach(component* c) noexcept {
 	// constructor will call initial add_ref
-	ref_ptr<component> sp = c;
+	counted_ptr<component> sp = c;
 	
 	c->object(this);
 	_components.push_front(*c);
@@ -225,8 +225,8 @@ inline component* object::attach(component* c) noexcept {
 	return sp.detach();
 }
 
-inline ref_ptr<component> object::detach(component* c) {
-	ref_ptr<component> sp;
+inline counted_ptr<component> object::detach(component* c) {
+	counted_ptr<component> sp;
 	
 	if (!c)
 		return sp;

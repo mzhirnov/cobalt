@@ -39,7 +39,7 @@ TEST_CASE("information") {
 }
 
 TEST_CASE("object") {
-	ref_ptr<object> o = new object();
+	auto o = make_counted<object>();
 	
 	SECTION("add child") {
 		auto child = o->attach(new object());

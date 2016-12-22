@@ -68,7 +68,7 @@ struct my_event_target : event_handler<my_event_target>
 TEST_CASE("event_dispatcher") {
 	event_dispatcher dispatcher;
 	
-	auto event = make_ref<test_event>("inst1");
+	auto event = make_counted<test_event>("inst1");
 	
 	SECTION("event preconditions") {
 		REQUIRE(event->use_count() == 1);
@@ -161,7 +161,7 @@ TEST_CASE("event_dispatcher") {
 		}
 		
 		SECTION("invoke with created custom target 2") {			
-			auto ev = make_ref<simple_event>();
+			auto ev = make_counted<simple_event>();
 			
 			REQUIRE(ev->handled() == false);
 			

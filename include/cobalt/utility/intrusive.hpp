@@ -17,7 +17,7 @@ template <typename T>
 using ref_counter = boost::intrusive_ref_counter<T>;
 
 template <typename T>
-using ref_ptr = boost::intrusive_ptr<T>;
+using counted_ptr = boost::intrusive_ptr<T>;
 
 template <typename T, typename = typename std::enable_if_t<std::is_base_of<ref_counter<T>, T>::value>>
 inline void add_ref(T* p) {
@@ -30,7 +30,7 @@ inline void release(T* p) {
 }
 
 template <typename T, typename... Args>
-inline ref_ptr<T> make_ref(Args&&... args) {
+inline counted_ptr<T> make_counted(Args&&... args) {
 	return new T(std::forward<Args>(args)...);
 }
 

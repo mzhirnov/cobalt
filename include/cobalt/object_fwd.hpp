@@ -121,7 +121,7 @@ public:
 	enumerator<intrusive_slist<component>::const_iterator> components() const { return make_enumerator(_components); }
 	
 	object* attach(object* o) noexcept;
-	ref_ptr<object> detach(object* o);
+	counted_ptr<object> detach(object* o);
 	
 	void detach();
 	
@@ -137,7 +137,7 @@ public:
 	const object* find_object_in_children(const char* name) const noexcept { return find_object_in_children(murmur3(name, 0)); }
 
 	component* attach(component* c) noexcept;
-	ref_ptr<component> detach(component* c);
+	counted_ptr<component> detach(component* c);
 	
 	size_t remove_components(hash_type component_type);
 	void remove_all_components();
