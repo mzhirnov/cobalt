@@ -423,7 +423,7 @@ void binary_writer::write_unicode_char(uint32_t c) {
 	}
 }
 
-void binary_writer::write_zero_string(const std::string& str) {
+void binary_writer::write_c_string(const std::string& str) {
 	for (std::string::const_iterator it = str.begin(); it != str.end(); ++it) {
 		write_uint8(*it);
 	}
@@ -538,7 +538,7 @@ uint32_t binary_reader::read_unicode_char() {
 	return result;
 }
 
-std::string binary_reader::read_zero_string() {
+std::string binary_reader::read_c_string() {
 	std::ostringstream ss;
 	
 	int8_t result = read_int8();	
