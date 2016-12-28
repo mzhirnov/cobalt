@@ -20,6 +20,7 @@
 #include <type_traits>
 #include <iterator>
 #include <vector>
+#include <thread>
 #include <cstdio>
 #include <cstdint>
 
@@ -132,6 +133,7 @@ inline bool stream::can_seek() noexcept {
 	return !ec;
 }
 
+/// Stream view adapter
 class stream_view : public stream {
 public:
 	/// Will not increase reference count
@@ -229,14 +231,21 @@ inline int64_t stream_view::seek(int64_t offset, seek_origin origin, std::error_
 			ec = std::make_error_code(std::errc::invalid_seek);
 		else
 			return _stream->seek(_offset + offset, origin, ec) - _offset;
-	case seek_origin::current:
-		// Backdoor to seek beyond the range
-		return _stream->seek(offset, origin, ec) - _offset;
+		break;
+	case seek_origin::current: {
+		auto position = tell(ec);
+		if (position + offset < 0 || position + offset > _length)
+			ec = std::make_error_code(std::errc::invalid_seek);
+		else
+			return _stream->seek(offset, origin, ec) - _offset;
+		}
+		break;
 	case seek_origin::end:
 		if (offset > 0 || -offset > _length)
 			ec = std::make_error_code(std::errc::invalid_seek);
 		else
 			return _stream->seek(_offset + _length - offset, origin, ec) - _offset;
+		break;
 	}
 	
 	BOOST_ASSERT(false);
@@ -249,6 +258,83 @@ inline int64_t stream_view::tell(std::error_code& ec) const noexcept {
 
 inline bool stream_view::eof(std::error_code& ec) const noexcept {
 	return _stream->tell(ec) >= _offset + _length;
+}
+
+/// Synchronized stream adapter
+class synchronized_stream : public stream {
+public:
+	explicit synchronized_stream(stream& stream) noexcept;
+	explicit synchronized_stream(stream* stream);
+	
+	~synchronized_stream() noexcept;
+	
+	virtual size_t read(void* buffer, size_t size, std::error_code& ec) noexcept override;
+	virtual size_t write(const void* buffer, size_t size, std::error_code& ec) noexcept override;
+	virtual void flush(std::error_code& ec) const noexcept override;
+	virtual int64_t seek(int64_t offset, seek_origin origin, std::error_code& ec) noexcept override;
+	virtual int64_t tell(std::error_code& ec) const noexcept override;
+	virtual bool eof(std::error_code& ec) const noexcept override;
+	
+private:
+	stream* _stream = nullptr;
+	bool _owning = false;
+	
+	mutable std::mutex _mutex;
+};
+
+inline synchronized_stream::synchronized_stream(stream& stream) noexcept
+	: _stream(&stream)
+{
+}
+
+inline synchronized_stream::synchronized_stream(stream* stream)
+	: _stream(stream)
+	, _owning(true)
+{
+	counted_ptr<class stream> sp = _stream;
+	
+	BOOST_ASSERT(_stream != nullptr);
+	if (!_stream)
+		throw std::system_error(std::make_error_code(std::errc::invalid_argument), "stream");
+	
+	add_ref(_stream);
+	
+	sp.detach();
+}
+
+inline synchronized_stream::~synchronized_stream() noexcept {
+	if (_owning)
+		release(_stream);
+}
+
+inline size_t synchronized_stream::read(void* buffer, size_t size, std::error_code& ec) noexcept {
+	std::lock_guard<std::mutex> lock(_mutex);
+	return _stream->read(buffer, size, ec);
+}
+
+inline size_t synchronized_stream::write(const void* buffer, size_t size, std::error_code& ec) noexcept {
+	std::lock_guard<std::mutex> lock(_mutex);
+	return _stream->write(buffer, size, ec);
+}
+
+inline void synchronized_stream::flush(std::error_code& ec) const noexcept {
+	std::lock_guard<std::mutex> lock(_mutex);
+	_stream->flush(ec);
+}
+
+inline int64_t synchronized_stream::seek(int64_t offset, seek_origin origin, std::error_code& ec) noexcept {
+	std::lock_guard<std::mutex> lock(_mutex);
+	return _stream->seek(offset, origin, ec);
+}
+
+inline int64_t synchronized_stream::tell(std::error_code& ec) const noexcept {
+	std::lock_guard<std::mutex> lock(_mutex);
+	return _stream->tell(ec);
+}
+
+inline bool synchronized_stream::eof(std::error_code& ec) const noexcept {
+	std::lock_guard<std::mutex> lock(_mutex);
+	return _stream->eof(ec);
 }
 
 /// Memory stream
