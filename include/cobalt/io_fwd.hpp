@@ -205,101 +205,6 @@ private:
 	access_mode _access = access_mode::read_only;
 };
 
-/// Binary writer
-class binary_writer {
-public:
-	explicit binary_writer(stream& stream) noexcept;
-	explicit binary_writer(stream* stream) noexcept;
-	
-	~binary_writer();
-
-	stream* base_stream() const noexcept { return _stream; }
-
-	void write(uint8_t i);
-	void write(uint16_t i);
-	void write(uint32_t i);
-	void write(uint64_t i);
-	void write(int8_t i);
-	void write(int16_t i);
-	void write(int32_t i);
-	void write(int64_t i);
-	void write(float f);
-	void write(double f);
-	void write(bool b);
-	void write_7bit_encoded_int(uint32_t i);
-	void write_unicode_char(uint32_t c);
-	void write_c_string(const char* str); // zero ended string
-	void write_pascal_string(const char* str); // length prepended string
-
-private:
-	stream* _stream = nullptr;
-	bool _owning = false;
-};
-
-/// Binary reader
-class binary_reader {
-public:
-	explicit binary_reader(stream& stream) noexcept;
-	explicit binary_reader(stream* stream) noexcept;
-
-	stream* base_stream() const noexcept { return _stream; }
-
-	uint8_t read_uint8();
-	uint16_t read_uint16();
-	uint32_t read_uint32();
-	uint64_t read_uint64();
-	int8_t read_int8();
-	int16_t read_int16();
-	int32_t read_int32();
-	int64_t read_int64();
-	float read_float();
-	double read_double();
-	bool read_bool();
-	uint32_t read_7bit_encoded_uint32();
-	uint32_t read_unicode_char();
-	std::string read_c_string(); // zero ended string
-	std::string read_pascal_string(); // length prepended string
-
-private:
-	stream* _stream = nullptr;
-	bool _owning = false;
-};
-
-/// Bit packed stream writer
-class bitpack_writer {
-public:
-	explicit bitpack_writer(stream& stream) noexcept;
-	explicit bitpack_writer(stream* stream) noexcept;
-	
-	~bitpack_writer() { flush(); }
-
-	stream* base_stream() const noexcept { return _writer.base_stream(); }
-
-	void write_bits(uint32_t value, size_t bits);
-	void flush();
-
-private:
-	binary_writer _writer;
-	uint64_t _scratch = 0;
-	size_t _scratch_bits = 0;
-};
-
-/// Bit packed stream reader
-class bitpack_reader {
-public:
-	explicit bitpack_reader(stream& stream) noexcept;
-	explicit bitpack_reader(stream* stream) noexcept;
-
-	stream* base_stream() const noexcept { return _reader.base_stream(); }
-
-	uint32_t read_bits(size_t bits);
-
-private:
-	binary_reader _reader;
-	uint64_t _scratch = 0;
-	size_t _scratch_bits = 0;
-};
-
 /// Reads all bytes from current position to eof
 /// @return Number of bytes actually read
 template <typename OutputIterator>
@@ -323,40 +228,139 @@ template <typename OutputIterator>
 size_t copy(stream* istream, OutputIterator it, std::error_code& ec) noexcept;
 size_t copy(stream* istream, stream* ostream, std::error_code& ec) noexcept;
 
-namespace detail {
+/// Binary writer
+class binary_writer {
+public:
+	explicit binary_writer(stream& stream) noexcept;
+	explicit binary_writer(stream* stream) noexcept;
+	
+	~binary_writer();
 
-template <uint32_t x>
-struct pop_count {
-	enum {
-		a = x - ((x >> 1) & 0x55555555),
-		b = (((a >> 2) & 0x33333333) + (a & 0x33333333)),
-		c = (((b >> 4) + b) & 0x0f0f0f0f),
-		d = c + (c >> 8),
-		e = d + (d >> 16),
-		value = e & 0x0000003f
-	};
+	stream* base_stream() const noexcept { return _stream; }
+
+	void write(uint8_t value, std::error_code& ec) noexcept;
+	void write(uint16_t value, std::error_code& ec) noexcept;
+	void write(uint32_t value, std::error_code& ec) noexcept;
+	void write(uint64_t value, std::error_code& ec) noexcept;
+	void write(int8_t value, std::error_code& ec) noexcept;
+	void write(int16_t value, std::error_code& ec) noexcept;
+	void write(int32_t value, std::error_code& ec) noexcept;
+	void write(int64_t value, std::error_code& ec) noexcept;
+	void write(float value, std::error_code& ec) noexcept;
+	void write(double value, std::error_code& ec) noexcept;
+	void write(bool value, std::error_code& ec) noexcept;
+	void write_7bit_encoded_int(uint32_t value, std::error_code& ec) noexcept;
+	void write_unicode_char(uint32_t value, std::error_code& ec) noexcept;
+	void write_c_string(const char* str, std::error_code& ec) noexcept; // zero ended string
+	void write_pascal_string(const char* str, std::error_code& ec) noexcept; // length prepended string
+
+	void write(uint8_t value);
+	void write(uint16_t value);
+	void write(uint32_t value);
+	void write(uint64_t value);
+	void write(int8_t value);
+	void write(int16_t value);
+	void write(int32_t value);
+	void write(int64_t value);
+	void write(float value);
+	void write(double value);
+	void write(bool value);
+	void write_7bit_encoded_int(uint32_t value);
+	void write_unicode_char(uint32_t value);
+	void write_c_string(const char* str); // zero ended string
+	void write_pascal_string(const char* str); // length prepended string
+
+private:
+	stream* _stream = nullptr;
+	bool _owning = false;
 };
 
-template <uint32_t x>
-struct log2 {
-	enum {
-		a = x | (x >> 1),
-		b = a | (a >> 2),
-		c = b | (b >> 4),
-		d = c | (c >> 8),
-		e = d | (d >> 16),
-		f = e >> 1,
-		value = pop_count<f>::value
-	};
+/// Binary reader
+class binary_reader {
+public:
+	explicit binary_reader(stream& stream) noexcept;
+	explicit binary_reader(stream* stream) noexcept;
+	
+	~binary_reader();
+
+	stream* base_stream() const noexcept { return _stream; }
+
+	uint8_t read_uint8(std::error_code& ec) noexcept;
+	uint16_t read_uint16(std::error_code& ec) noexcept;
+	uint32_t read_uint32(std::error_code& ec) noexcept;
+	uint64_t read_uint64(std::error_code& ec) noexcept;
+	int8_t read_int8(std::error_code& ec) noexcept;
+	int16_t read_int16(std::error_code& ec) noexcept;
+	int32_t read_int32(std::error_code& ec) noexcept;
+	int64_t read_int64(std::error_code& ec) noexcept;
+	float read_float(std::error_code& ec) noexcept;
+	double read_double(std::error_code& ec) noexcept;
+	bool read_bool(std::error_code& ec) noexcept;
+	uint32_t read_7bit_encoded_int(std::error_code& ec) noexcept;
+	uint32_t read_unicode_char(std::error_code& ec) noexcept;
+	std::string read_c_string(std::error_code& ec) noexcept; // zero ended string
+	std::string read_pascal_string(std::error_code& ec) noexcept; // length prepended string
+
+	uint8_t read_uint8();
+	uint16_t read_uint16();
+	uint32_t read_uint32();
+	uint64_t read_uint64();
+	int8_t read_int8();
+	int16_t read_int16();
+	int32_t read_int32();
+	int64_t read_int64();
+	float read_float();
+	double read_double();
+	bool read_bool();
+	uint32_t read_7bit_encoded_int();
+	uint32_t read_unicode_char();
+	std::string read_c_string(); // zero ended string
+	std::string read_pascal_string(); // length prepended string
+
+private:
+	stream* _stream = nullptr;
+	bool _owning = false;
 };
 
-} // namespace detail
+/// Bit packed stream writer
+class bitpack_writer {
+public:
+	explicit bitpack_writer(stream& stream) noexcept;
+	explicit bitpack_writer(stream* stream) noexcept;
+	
+	~bitpack_writer();
 
-template <int64_t min, int64_t max>
-struct bits_required {
-	enum {
-		value = (min == max) ? 0 : (detail::log2<uint32_t(max - min)>::value + 1)
-	};
+	stream* base_stream() const noexcept { return _writer.base_stream(); }
+
+	void write_bits(uint32_t value, size_t bits, std::error_code& ec) noexcept;
+	void flush(std::error_code& ec);
+	
+	void write_bits(uint32_t value, size_t bits);
+	void flush();
+
+private:
+	binary_writer _writer;
+	uint64_t _scratch = 0;
+	size_t _scratch_bits = 0;
+};
+
+/// Bit packed stream reader
+class bitpack_reader {
+public:
+	explicit bitpack_reader(stream& stream) noexcept;
+	explicit bitpack_reader(stream* stream) noexcept;
+	
+	~bitpack_reader() noexcept;
+
+	stream* base_stream() const noexcept { return _reader.base_stream(); }
+
+	uint32_t read_bits(size_t bits, std::error_code& ec) noexcept;
+	uint32_t read_bits(size_t bits);
+
+private:
+	binary_reader _reader;
+	uint64_t _scratch = 0;
+	size_t _scratch_bits = 0;
 };
 
 }} // namespace cobalt::io

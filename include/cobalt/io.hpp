@@ -783,6 +783,663 @@ inline size_t copy(stream* istream, stream* ostream, std::error_code& ec) noexce
 	return read_all(istream, ostream, ec);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// binary_writer
+//
+
+inline binary_writer::binary_writer(stream& stream) noexcept
+	: _stream(&stream)
+{
+}
+
+inline binary_writer::binary_writer(stream* stream) noexcept
+	: _stream(stream)
+	, _owning(true)
+{
+	BOOST_ASSERT(_stream != nullptr);
+	if (!_stream)
+		throw std::system_error(std::make_error_code(std::errc::invalid_argument), "stream");
+	
+	add_ref(_stream);
+}
+
+inline binary_writer::~binary_writer() {
+	if (_owning)
+		release(_stream);
+}
+
+inline void binary_writer::write(uint8_t value, std::error_code& ec) noexcept {
+	_stream->write(&value, sizeof(uint8_t), ec);
+}
+
+inline void binary_writer::write(uint16_t value, std::error_code& ec) noexcept {
+	write(static_cast<uint8_t>( value        & 0xff), ec); if (ec) return;
+	write(static_cast<uint8_t>((value >>  8) & 0xff), ec);
+}
+
+inline void binary_writer::write(uint32_t value, std::error_code& ec) noexcept {
+	write(static_cast<uint8_t>( value        & 0xff), ec); if (ec) return;
+	write(static_cast<uint8_t>((value >>  8) & 0xff), ec); if (ec) return;
+	write(static_cast<uint8_t>((value >> 16) & 0xff), ec); if (ec) return;
+	write(static_cast<uint8_t>((value >> 24) & 0xff), ec);
+}
+
+inline void binary_writer::write(uint64_t value, std::error_code& ec) noexcept {
+	write(static_cast<uint8_t>( value        & 0xff), ec); if (ec) return;
+	write(static_cast<uint8_t>((value >>  8) & 0xff), ec); if (ec) return;
+	write(static_cast<uint8_t>((value >> 16) & 0xff), ec); if (ec) return;
+	write(static_cast<uint8_t>((value >> 24) & 0xff), ec); if (ec) return;
+	write(static_cast<uint8_t>((value >> 32) & 0xff), ec); if (ec) return;
+	write(static_cast<uint8_t>((value >> 40) & 0xff), ec); if (ec) return;
+	write(static_cast<uint8_t>((value >> 48) & 0xff), ec); if (ec) return;
+	write(static_cast<uint8_t>((value >> 56) & 0xff), ec);
+}
+
+inline void binary_writer::write(int8_t value, std::error_code& ec) noexcept {
+	write(static_cast<uint8_t>(value), ec);
+}
+
+inline void binary_writer::write(int16_t value, std::error_code& ec) noexcept {
+	write(static_cast<uint16_t>(value), ec);
+}
+
+inline void binary_writer::write(int32_t value, std::error_code& ec) noexcept {
+	write(static_cast<uint32_t>(value), ec);
+}
+
+inline void binary_writer::write(int64_t value, std::error_code& ec) noexcept {
+	write(static_cast<uint64_t>(value), ec);
+}
+
+inline void binary_writer::write(float value, std::error_code& ec) noexcept {
+	union float_to_uint32 {
+		float f;
+		uint32_t i;
+	} f2i;
+	
+	f2i.f = value;
+	
+	write(f2i.i, ec);
+}
+
+inline void binary_writer::write(double value, std::error_code& ec) noexcept {
+	union double_to_uint64 {
+		double d;
+		uint64_t i;
+	} d2i;
+	
+	d2i.d = value;
+	
+	write(d2i.i, ec);
+}
+
+inline void binary_writer::write(bool value, std::error_code& ec) noexcept {
+	uint8_t b = value ? 1 : 0;
+	write(b, ec);
+}
+
+inline void binary_writer::write_7bit_encoded_int(uint32_t value, std::error_code& ec) noexcept {
+	while (value >= 0x80) {
+		write(static_cast<uint8_t>(value | 0x80), ec);
+		if (ec)
+			return;
+		
+		value >>= 7;
+	}
+	
+	write(static_cast<uint8_t>(value), ec);
+}
+
+inline void binary_writer::write_unicode_char(uint32_t cp, std::error_code& ec) noexcept {
+	BOOST_ASSERT(cp <= 0x10FFFF);
+	if (cp > 0x10FFFF) {
+		ec = std::make_error_code(std::errc::argument_out_of_domain);
+		return;
+	}
+	
+	if (cp < 0x80) {
+		write(static_cast<uint8_t>(cp), ec);
+	} else if (cp < 0x800) {
+		write(static_cast<uint8_t>(cp >> 6)           | 0xC0, ec); if (ec) return;
+		write(static_cast<uint8_t>(cp & 0x3F)         | 0x80, ec);
+	} else if (cp < 0x10000) {
+		write(static_cast<uint8_t>(cp >> 12)          | 0xE0, ec); if (ec) return;
+		write(static_cast<uint8_t>((cp >> 6) & 0x3F)  | 0x80, ec); if (ec) return;
+		write(static_cast<uint8_t>(cp & 0x3F)         | 0x80, ec);
+	} else {
+		write(static_cast<uint8_t>(cp >> 18)          | 0xF0, ec); if (ec) return;
+		write(static_cast<uint8_t>((cp >> 12) & 0x3F) | 0x80, ec); if (ec) return;
+		write(static_cast<uint8_t>((cp >> 6) & 0x3F)  | 0x80, ec); if (ec) return;
+		write(static_cast<uint8_t>(cp & 0x3F)         | 0x80, ec);
+	}
+}
+
+inline void binary_writer::write_c_string(const char* str, std::error_code& ec) noexcept {
+	BOOST_ASSERT(str != nullptr);
+	if (!str) {
+		ec = std::make_error_code(std::errc::invalid_argument);
+		return;
+	}
+	
+	while (*str++) {
+		write(*str, ec);
+		if (ec)
+			return;
+	}
+	
+	write(*str, ec);
+}
+
+inline void binary_writer::write_pascal_string(const char* str, std::error_code& ec) noexcept {
+	BOOST_ASSERT(str != nullptr);
+	if (!str) {
+		ec = std::make_error_code(std::errc::invalid_argument);
+		return;
+	}
+	
+	write_7bit_encoded_int(static_cast<uint32_t>(std::strlen(str)), ec);
+	
+	while (*str++) {
+		write(*str, ec);
+		if (ec)
+			return;
+	}
+}
+
+inline void binary_writer::write(uint8_t value) {
+	std::error_code ec;
+	write(value, ec);
+	throw_error(ec);
+}
+
+inline void binary_writer::write(uint16_t value) {
+	std::error_code ec;
+	write(value, ec);
+	throw_error(ec);
+}
+
+inline void binary_writer::write(uint32_t value) {
+	std::error_code ec;
+	write(value, ec);
+	throw_error(ec);
+}
+
+inline void binary_writer::write(uint64_t value) {
+	std::error_code ec;
+	write(value, ec);
+	throw_error(ec);
+}
+
+inline void binary_writer::write(int8_t value) {
+	std::error_code ec;
+	write(value, ec);
+	throw_error(ec);
+}
+
+inline void binary_writer::write(int16_t value) {
+	std::error_code ec;
+	write(value, ec);
+	throw_error(ec);
+}
+
+inline void binary_writer::write(int32_t value) {
+	std::error_code ec;
+	write(value, ec);
+	throw_error(ec);
+}
+
+inline void binary_writer::write(int64_t value) {
+	std::error_code ec;
+	write(value, ec);
+	throw_error(ec);
+}
+
+inline void binary_writer::write(float value) {
+	std::error_code ec;
+	write(value, ec);
+	throw_error(ec);
+}
+
+inline void binary_writer::write(double value) {
+	std::error_code ec;
+	write(value, ec);
+	throw_error(ec);
+}
+
+inline void binary_writer::write(bool value) {
+	std::error_code ec;
+	write(value, ec);
+	throw_error(ec);
+}
+
+inline void binary_writer::write_7bit_encoded_int(uint32_t value) {
+	std::error_code ec;
+	write_7bit_encoded_int(value, ec);
+	throw_error(ec);
+}
+
+inline void binary_writer::write_unicode_char(uint32_t value) {
+	std::error_code ec;
+	write_unicode_char(value, ec);
+	throw_error(ec);
+}
+
+inline void binary_writer::write_c_string(const char* str) {
+	std::error_code ec;
+	write_c_string(str, ec);
+	throw_error(ec);
+}
+
+inline void binary_writer::write_pascal_string(const char* str) {
+	std::error_code ec;
+	write_pascal_string(str, ec);
+	throw_error(ec);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// binary_reader
+//
+
+inline binary_reader::binary_reader(stream& stream) noexcept
+	: _stream(&stream)
+{
+}
+
+inline binary_reader::binary_reader(stream* stream) noexcept
+	: _stream(stream)
+	, _owning(true)
+{
+	BOOST_ASSERT(_stream != nullptr);
+	if (!_stream)
+		throw std::system_error(std::make_error_code(std::errc::invalid_argument), "stream");
+	
+	add_ref(_stream);
+}
+
+inline binary_reader::~binary_reader() {
+	if (_owning)
+		release(_stream);
+}
+
+inline uint8_t binary_reader::read_uint8(std::error_code& ec) noexcept {
+	uint8_t result = 0;
+	_stream->read(&result, sizeof(uint8_t), ec);
+	return result;
+}
+
+inline uint16_t binary_reader::read_uint16(std::error_code& ec) noexcept {
+	uint16_t b0 = read_uint8(ec); if (ec) return 0;
+	uint16_t b1 = read_uint8(ec);
+	return (b1 << 8) | b0;
+}
+
+inline uint32_t binary_reader::read_uint32(std::error_code& ec) noexcept {
+	uint32_t w0 = read_uint16(ec); if (ec) return 0;
+	uint32_t w1 = read_uint16(ec);
+	return (w1 << 16) | w0;
+}
+
+inline uint64_t binary_reader::read_uint64(std::error_code& ec) noexcept {
+	uint64_t dw0 = read_uint32(ec); if (ec) return 0;
+	uint64_t dw1= read_uint32(ec);
+	return (dw1 << 32) | dw0;
+}
+
+inline int8_t binary_reader::read_int8(std::error_code& ec) noexcept {
+	return static_cast<int8_t>(read_uint8(ec));
+}
+
+inline int16_t binary_reader::read_int16(std::error_code& ec) noexcept {
+	return static_cast<int16_t>(read_uint16(ec));
+}
+
+inline int32_t binary_reader::read_int32(std::error_code& ec) noexcept {
+	return static_cast<int32_t>(read_uint32(ec));
+}
+
+inline int64_t binary_reader::read_int64(std::error_code& ec) noexcept {
+	return static_cast<int64_t>(read_uint64(ec));
+}
+
+inline float binary_reader::read_float(std::error_code& ec) noexcept {
+	union float_to_uint32 {
+		float f;
+		uint32_t i;
+	} f2i;
+	
+	f2i.i = read_uint32(ec);
+	
+	return f2i.f;
+}
+
+inline double binary_reader::read_double(std::error_code& ec) noexcept {
+	union double_to_uint64 {
+		double d;
+		uint64_t i;
+	} d2i;
+	
+	d2i.i = read_uint64(ec);
+	
+	return d2i.d;
+}
+
+inline bool binary_reader::read_bool(std::error_code& ec) noexcept {
+	return read_uint8(ec) != 0;
+}
+
+inline uint32_t binary_reader::read_7bit_encoded_int(std::error_code& ec) noexcept {
+	uint32_t result = 0;
+	uint32_t bits_read = 0;
+	uint32_t value = 0;
+
+	do {
+		value = read_uint8(ec);
+		if (ec)
+			return 0;
+		
+		result |= (value & 0x7f) << bits_read;
+		bits_read += 7;
+	} while (value & 0x80);
+
+	return result;
+}
+
+inline uint32_t binary_reader::read_unicode_char(std::error_code& ec) noexcept {
+	auto b0 = read_uint8(ec); if (ec) return 0;
+	
+	if (b0 < 0x80) {
+		return b0;
+	} else if ((b0 >> 5) == 0x06) {
+		auto b1 = read_uint8(ec); if (ec) return 0;
+		return ((b0 << 6) & 0x7FF) | (b1 & 0x3F);
+	} else if ((b0 >> 4) == 0x0E) {
+		auto b1 = read_uint8(ec); if (ec) return 0;
+		auto b2 = read_uint8(ec); if (ec) return 0;
+		return ((b0 << 12) & 0xFFFF) | ((b1 << 6) & 0xFFF) | (b2 & 0x3F);
+	} else if ((b0 >> 3) == 0x1e) {
+		auto b1 = read_uint8(ec); if (ec) return 0;
+		auto b2 = read_uint8(ec); if (ec) return 0;
+		auto b3 = read_uint8(ec); if (ec) return 0;
+		return ((b0 << 18) & 0x1FFFFF) | ((b1 << 12) & 0x3FFFF) | ((b2 << 6) & 0xFFF) | (b3 & 0x3F);
+	} else {
+		ec = std::make_error_code(std::errc::illegal_byte_sequence);
+		return 0;
+	}
+}
+
+inline std::string binary_reader::read_c_string(std::error_code& ec) noexcept {
+	std::string result;
+	
+	char c = read_uint8(ec);
+	while (!ec && c) {
+		result.append(1, c);
+		c = read_uint8(ec);
+	};
+	
+	return  result;
+}
+
+inline std::string binary_reader::read_pascal_string(std::error_code& ec) noexcept {
+	std::string result;
+	
+	auto size = read_7bit_encoded_int(ec);
+	result.reserve(size);
+	
+	for (int i = 0; i < size && !ec; ++i)
+		result.append(1, read_uint8(ec));
+	
+	return result;
+}
+
+inline uint8_t binary_reader::read_uint8() {
+	std::error_code ec;
+	auto ret = read_uint8(ec);
+	throw_error(ec);
+	return ret;
+}
+
+inline uint16_t binary_reader::read_uint16() {
+	std::error_code ec;
+	auto ret = read_uint16(ec);
+	throw_error(ec);
+	return ret;
+}
+
+inline uint32_t binary_reader::read_uint32() {
+	std::error_code ec;
+	auto ret = read_uint32(ec);
+	throw_error(ec);
+	return ret;
+}
+
+inline uint64_t binary_reader::read_uint64() {
+	std::error_code ec;
+	auto ret = read_uint64(ec);
+	throw_error(ec);
+	return ret;
+}
+
+inline int8_t binary_reader::read_int8() {
+	std::error_code ec;
+	auto ret = read_int8(ec);
+	throw_error(ec);
+	return ret;
+}
+
+inline int16_t binary_reader::read_int16() {
+	std::error_code ec;
+	auto ret = read_int16(ec);
+	throw_error(ec);
+	return ret;
+}
+
+inline int32_t binary_reader::read_int32() {
+	std::error_code ec;
+	auto ret = read_int32(ec);
+	throw_error(ec);
+	return ret;
+}
+
+inline int64_t binary_reader::read_int64() {
+	std::error_code ec;
+	auto ret = read_int64(ec);
+	throw_error(ec);
+	return ret;
+}
+
+inline float binary_reader::read_float() {
+	std::error_code ec;
+	auto ret = read_float(ec);
+	throw_error(ec);
+	return ret;
+}
+
+inline double binary_reader::read_double() {
+	std::error_code ec;
+	auto ret = read_double(ec);
+	throw_error(ec);
+	return ret;
+}
+
+inline bool binary_reader::read_bool() {
+	std::error_code ec;
+	auto ret = read_bool(ec);
+	throw_error(ec);
+	return ret;
+}
+
+inline uint32_t binary_reader::read_7bit_encoded_int() {
+	std::error_code ec;
+	auto ret = read_7bit_encoded_int(ec);
+	throw_error(ec);
+	return ret;
+}
+
+inline uint32_t binary_reader::read_unicode_char() {
+	std::error_code ec;
+	auto ret = read_unicode_char(ec);
+	throw_error(ec);
+	return ret;
+}
+
+inline std::string binary_reader::read_c_string() {
+	std::error_code ec;
+	auto ret = read_c_string(ec);
+	throw_error(ec);
+	return ret;
+}
+
+inline std::string binary_reader::read_pascal_string() {
+	std::error_code ec;
+	auto ret = read_pascal_string(ec);
+	throw_error(ec);
+	return ret;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// bitpack_writer
+//
+
+inline bitpack_writer::bitpack_writer(stream& stream) noexcept
+	: _writer(&stream)
+{
+}
+
+inline bitpack_writer::bitpack_writer(stream* stream) noexcept
+	: _writer(stream)
+{
+}
+
+inline bitpack_writer::~bitpack_writer() {
+	std::error_code ec;
+	flush(ec);
+	BOOST_ASSERT(!ec);
+}
+
+inline void bitpack_writer::write_bits(uint32_t value, size_t bits, std::error_code& ec) noexcept {
+	BOOST_ASSERT(bits <= 32);
+	if (bits > 32) {
+		ec = std::make_error_code(std::errc::argument_out_of_domain);
+		return;
+	}
+
+	_scratch |= static_cast<uint64_t>(value & ((1 << bits) - 1)) << _scratch_bits;
+	_scratch_bits += bits;
+
+	if (_scratch_bits > 32) {
+		_writer.write(static_cast<uint32_t>(_scratch & 0xffffffff), ec);
+		_scratch >>= 32;
+		_scratch_bits -= 32;
+	}
+}
+
+inline void bitpack_writer::flush(std::error_code& ec) {
+	if (_scratch_bits > 0) {
+		_writer.write(static_cast<uint32_t>(_scratch & 0xffffffff), ec);
+		_scratch = 0;
+		_scratch_bits = 0;
+	}
+}
+
+inline void bitpack_writer::write_bits(uint32_t value, size_t bits) {
+	std::error_code ec;
+	write_bits(value, bits, ec);
+	throw_error(ec);
+}
+
+inline void bitpack_writer::flush() {
+	std::error_code ec;
+	flush(ec);
+	throw_error(ec);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// bitpack_reader
+//
+
+inline bitpack_reader::bitpack_reader(stream& stream) noexcept
+	: _reader(stream)
+{
+}
+
+inline bitpack_reader::bitpack_reader(stream* stream) noexcept
+	: _reader(stream)
+{
+}
+
+inline bitpack_reader::~bitpack_reader() noexcept {
+	BOOST_ASSERT(_scratch == 0);
+	BOOST_ASSERT(_scratch_bits == 0);
+}
+
+inline uint32_t bitpack_reader::read_bits(size_t bits, std::error_code& ec) noexcept {
+	BOOST_ASSERT(bits <= 32);
+	if (bits > 32) {
+		ec = std::make_error_code(std::errc::argument_out_of_domain);
+		return 0;
+	}
+
+	if (_scratch_bits < bits) {
+		auto value = _reader.read_uint32(ec);
+		_scratch |= value << _scratch_bits;
+		_scratch_bits += 32;
+	}
+
+	uint32_t value = _scratch & ((1 << bits) - 1);
+
+	_scratch >>= bits;
+	_scratch_bits -= bits;
+
+	return value;
+}
+
+inline uint32_t bitpack_reader::read_bits(size_t bits) {
+	std::error_code ec;
+	auto ret = read_bits(bits, ec);
+	throw_error(ec);
+	return ret;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//
+
+namespace detail {
+
+template <uint32_t x>
+struct pop_count {
+	enum {
+		a = x - ((x >> 1) & 0x55555555),
+		b = (((a >> 2) & 0x33333333) + (a & 0x33333333)),
+		c = (((b >> 4) + b) & 0x0f0f0f0f),
+		d = c + (c >> 8),
+		e = d + (d >> 16),
+		value = e & 0x0000003f
+	};
+};
+
+template <uint32_t x>
+struct log2 {
+	enum {
+		a = x | (x >> 1),
+		b = a | (a >> 2),
+		c = b | (b >> 4),
+		d = c | (c >> 8),
+		e = d | (d >> 16),
+		f = e >> 1,
+		value = pop_count<f>::value
+	};
+};
+
+} // namespace detail
+
+template <int64_t min, int64_t max>
+struct bits_required {
+	enum {
+		value = (min == max) ? 0 : (detail::log2<uint32_t(max - min)>::value + 1)
+	};
+};
+
 }} // namespace cobalt::io
 
 #endif // COBALT_IO_HPP_INCLUDED
