@@ -146,23 +146,7 @@ struct helper {
 	}
 };
 
-template <typename T>
-struct type_name_helper {
-	static std::string name() {
-		constexpr size_t length = sizeof(__FUNCTION__) - sizeof("detail::type_name_helper<>::name");
-		constexpr size_t offset = sizeof("detail::type_name_helper<") - 1;
-		// TODO: Use constexpr substring here
-		return std::string(__FUNCTION__ + offset, length);
-	}
-};
-
 } // namespace detail
-	
-template <typename T>
-std::string type_name() {
-	return detail::type_name_helper<T>::name();
-}
-
 } // namespace cobalt
 
 #define CO_DEFINE_ENUM_STRUCT(StructName, EnumName, UnderlyingType, ...)                                  \
