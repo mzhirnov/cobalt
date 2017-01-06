@@ -15,9 +15,6 @@
 //     bitpack_reader
 //
 // Functions in this file:
-//     read_all
-//     read_some
-//     write
 //     copy
 
 #include <cobalt/utility/enum_traits.hpp>
@@ -77,6 +74,12 @@ public:
 	bool can_read() noexcept;
 	bool can_write() noexcept;
 	bool can_seek() noexcept;
+	
+	void copy_to(stream& stream, std::error_code& ec) noexcept;
+	void copy_to(stream& stream, size_t max_size, std::error_code& ec) noexcept;
+	
+	void copy_to(stream& stream);
+	void copy_to(stream& stream, size_t max_size);
 };
 
 /// Stream view adapter
@@ -205,55 +208,38 @@ private:
 	access_mode _access = access_mode::read_only;
 };
 
-/// Reads all bytes from current position to eof
+/// Copies bytes from current position to eof
 /// @return Number of bytes actually read
 template <typename OutputIterator>
-size_t read_all_iter(stream& istream, OutputIterator it, std::error_code& ec) noexcept;
-size_t read_all(stream& istream, stream& ostream, std::error_code& ec) noexcept;
+size_t copy(stream& stream, OutputIterator it, std::error_code& ec) noexcept;
 
-/// Reads no more than specified number of bytes
+/// Reads up to specified number of bytes
 /// @return Number of bytes actually read
 template <typename OutputIterator>
-size_t read_some_iter(stream& istream, size_t size, OutputIterator it, std::error_code& ec) noexcept;
-size_t read_some(stream& istream, size_t size, stream& ostream, std::error_code& ec) noexcept;
+size_t copy(stream& stream, size_t max_size, OutputIterator it, std::error_code& ec) noexcept;
 
-/// Copies stream from beginning to eof. Will seek.
-/// @return Number of bytes written
-template <typename OutputIterator>
-size_t copy_iter(stream& istream, OutputIterator it, std::error_code& ec) noexcept;
-size_t copy(stream& istream, stream& ostream, std::error_code& ec) noexcept;
-
-/// Writes bytes to stream
+/// Writes bytes range to stream
 /// @return Number of bytes actually written
 template <typename InputIterator>
-size_t write_iter(InputIterator begin, InputIterator end, stream& ostream, std::error_code& ec) noexcept;
+size_t copy(InputIterator begin, InputIterator end, stream& stream, std::error_code& ec) noexcept;
 
-/// Reads all bytes from current position to eof
-/// Throws on error
-/// @return Number of bytes actually read
-template <typename OutputIterator>
-size_t read_all_iter(stream& istream, OutputIterator it);
-size_t read_all(stream* istream, stream& ostream);
-
-/// Reads no more than specified number of bytes
-/// Throws on error
-/// @return Number of bytes actually read
-template <typename OutputIterator>
-size_t read_some_iter(stream& istream, size_t size, OutputIterator it);
-size_t read_some(stream& istream, size_t size, stream& ostream);
-
-/// Copies stream from beginning to eof. Will seek.
+/// Copies bytes from current position to eof
 /// Throws on error
 /// @return Number of bytes written
 template <typename OutputIterator>
-size_t copy_iter(stream& istream, OutputIterator it);
-size_t copy(stream& istream, stream& ostream);
+size_t copy(stream& stream, OutputIterator it);
 
-/// Writes bytes to stream
+/// Reads up to specified number of bytes
+/// Throws on error
+/// @return Number of bytes actually read
+template <typename OutputIterator>
+size_t copy(stream& stream, size_t max_size, OutputIterator it);
+
+/// Writes bytes range to stream
 /// Throws on error
 /// @return Number of bytes actually written
 template <typename InputIterator>
-size_t write_iter(InputIterator begin, InputIterator end, stream* ostream);
+size_t copy(InputIterator begin, InputIterator end, stream& stream);
 
 /// Binary writer
 class binary_writer {

@@ -43,6 +43,22 @@ static void test_read_stream(io::stream* stream) {
 	
 	REQUIRE(pos == stream->seek(1, seek_origin::end, ec));
 	REQUIRE(ec);
+	
+	io::memory_stream stream2;
+	stream->seek(0, seek_origin::begin, ec);
+	REQUIRE_FALSE(ec);
+	stream->copy_to(stream2, ec);
+	REQUIRE_FALSE(ec);
+	REQUIRE(stream2.buffer().second == buffer.size());
+	REQUIRE(std::memcmp(buffer.data(), stream2.buffer().first, buffer.size()) == 0);
+	
+	io::memory_stream stream3;
+	stream->seek(0, seek_origin::begin, ec);
+	REQUIRE_FALSE(ec);
+	stream->copy_to(stream3, 10, ec);
+	REQUIRE_FALSE(ec);
+	REQUIRE(stream3.buffer().second <= 10);
+	REQUIRE(std::memcmp(buffer.data(), stream3.buffer().first, stream3.buffer().second) == 0);
 }
 
 static void test_write_stream(io::stream* stream) {
@@ -137,68 +153,31 @@ TEST_CASE("io") {
 		std::error_code ec;
 		constexpr size_t start_pos = 5;
 		
-		SECTION("read_some_iter") {
+		SECTION("copy 1") {
 			std::vector<char> vec;
-			auto read = io::read_some_iter(stream, start_pos, std::back_inserter(vec), ec);
+			auto read = io::copy(stream, start_pos, std::back_inserter(vec), ec);
 			REQUIRE_FALSE(ec);
 			REQUIRE(read == start_pos);
 			REQUIRE(vec.size() == read);
 			REQUIRE(std::memcmp(buffer, vec.data(), read) == 0);
 			
-			SECTION("read_all_iter") {
+			SECTION("copy 2") {
 				std::vector<char> vec;
-				auto read = io::read_all_iter(stream, std::back_inserter(vec), ec);
+				auto read = io::copy(stream, std::back_inserter(vec), ec);
 				REQUIRE_FALSE(ec);
 				REQUIRE(read == sizeof(buffer) - 1 - start_pos);
 				REQUIRE(vec.size() == read);
 				REQUIRE(std::memcmp(buffer + start_pos, vec.data(), read) == 0);
 			}
-			
-			SECTION("read_all") {
-				io::memory_stream stream2;
-				auto read = io::read_all(stream, stream2, ec);
-				REQUIRE_FALSE(ec);
-				REQUIRE(read == sizeof(buffer) - 1 - start_pos);
-				REQUIRE(stream2.buffer().second == read);
-				REQUIRE(std::memcmp(buffer + start_pos, stream2.buffer().first, read) == 0);
-			}
-			
-			SECTION("copy_iter") {
-				std::vector<char> vec;
-				auto read = io::copy_iter(stream, std::back_inserter(vec), ec);
-				REQUIRE_FALSE(ec);
-				REQUIRE(read == sizeof(buffer) - 1);
-				REQUIRE(vec.size() == read);
-				REQUIRE(std::memcmp(buffer, vec.data(), read) == 0);
-			}
-			
-			SECTION("copy") {
-				io::memory_stream stream2;
-				auto read = io::copy(stream, stream2, ec);
-				REQUIRE_FALSE(ec);
-				REQUIRE(read == sizeof(buffer) - 1);
-				REQUIRE(stream2.buffer().second == read);
-				REQUIRE(std::memcmp(buffer, stream2.buffer().first, read) == 0);
-			}
 		}
 		
-		SECTION("read_some") {
-			io::memory_stream stream2;
-			auto read = io::read_some(stream, start_pos, stream2, ec);
-			REQUIRE_FALSE(ec);
-			REQUIRE(read == start_pos);
-			REQUIRE(stream2.buffer().second == read);
-			REQUIRE(std::memcmp(buffer, stream2.buffer().first, read) == 0);
-		}
-		
-		SECTION("write_iter") {
+		SECTION("copy 3") {
 			std::vector<char> vec = {'h', 'e', 'l', 'l', 'o'};
-			io::memory_stream stream2;
-			
-			auto written = io::write_iter(vec.begin(), vec.end(), stream2, ec);
+			io::memory_stream stream2;			
+			auto written = io::copy(vec.begin(), vec.end(), stream2, ec);
 			REQUIRE_FALSE(ec);
 			REQUIRE(written == vec.size());
-			REQUIRE(std::memcmp(vec.data(), stream2.buffer().first, vec.size()) == 0);
+			REQUIRE(std::memcmp(vec.data(), stream2.buffer().first, written) == 0);
 		}
 	}
 }

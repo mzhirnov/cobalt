@@ -73,6 +73,64 @@ inline bool stream::can_seek() noexcept {
 	return !ec;
 }
 
+inline void stream::copy_to(stream& stream, std::error_code& ec) noexcept {
+	ec = std::error_code();
+	
+	constexpr size_t buffer_size = 65536;
+	stream::value_type buffer[buffer_size];
+	
+	while (!eof(ec)) {
+		if (ec) break;
+		
+		auto count = read(buffer, buffer_size, ec);
+		if (ec) break;
+		
+		stream.write(buffer, count, ec);
+		if (ec) break;
+	}
+}
+
+inline void stream::copy_to(stream& stream, size_t max_size, std::error_code& ec) noexcept {
+	if (!can_read()) {
+		ec = std::make_error_code(std::errc::operation_not_supported);
+		return;
+	}
+	
+	if (!stream.can_write()) {
+		ec = std::make_error_code(std::errc::operation_not_supported);
+		return;
+	}
+	
+	ec = std::error_code();
+	
+	constexpr size_t buffer_size = 65536;
+	stream::value_type buffer[buffer_size];
+	
+	while (!eof(ec) && max_size > 0) {
+		if (ec) break;
+		
+		auto count = read(buffer, std::min(buffer_size, max_size), ec);
+		if (ec) break;
+		
+		stream.write(buffer, count, ec);
+		if (ec) break;
+		
+		max_size -= count;
+	}
+}
+
+inline void stream::copy_to(stream& stream) {
+	std::error_code ec;
+	copy_to(stream, ec);
+	throw_error(ec);
+}
+
+inline void stream::copy_to(stream& stream, size_t max_size) {
+	std::error_code ec;
+	copy_to(stream, max_size, ec);
+	throw_error(ec);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // stream_view
 //
@@ -655,17 +713,17 @@ inline bool file_stream::eof(std::error_code& ec) const noexcept {
 //
 
 template <typename OutputIterator>
-inline size_t read_all_iter(stream& istream, OutputIterator it, std::error_code& ec) noexcept {
+inline size_t copy(stream& stream, OutputIterator it, std::error_code& ec) noexcept {
 	ec = std::error_code();
 	
 	size_t count = 0;
 	constexpr size_t buffer_size = 65536;
 	stream::value_type buffer[buffer_size];
 	
-	while (!istream.eof(ec)) {
+	while (!stream.eof(ec)) {
 		if (ec) break;
 		
-		auto read = istream.read(buffer, buffer_size, ec);
+		auto read = stream.read(buffer, buffer_size, ec);
 		if (ec) break;
 		
 		for (int i = 0; i < read; ++i, ++count)
@@ -675,96 +733,37 @@ inline size_t read_all_iter(stream& istream, OutputIterator it, std::error_code&
 	return count;
 }
 
-inline size_t read_all(stream& istream, stream& ostream, std::error_code& ec) noexcept {
-	ec = std::error_code();
-	
-	size_t count = 0;
-	constexpr size_t buffer_size = 65536;
-	stream::value_type buffer[buffer_size];
-	
-	while (!istream.eof(ec)) {
-		if (ec) break;
-		
-		auto read = istream.read(buffer, buffer_size, ec);
-		if (ec) break;
-		
-		count += ostream.write(buffer, read, ec);
-		if (ec) break;
-	}
-	
-	return count;
-}
-
 template <typename OutputIterator>
-inline size_t read_some_iter(stream& istream, size_t size, OutputIterator it, std::error_code& ec) noexcept {
+inline size_t copy(stream& stream, size_t max_size, OutputIterator it, std::error_code& ec) noexcept {
 	ec = std::error_code();
 	
 	size_t count = 0;
 	constexpr size_t buffer_size = 65536;
 	stream::value_type buffer[buffer_size];
 	
-	while (size != 0 && !istream.eof(ec)) {
+	while (max_size != 0 && !stream.eof(ec)) {
 		if (ec) break;
 		
-		auto read = istream.read(buffer, std::min(size, buffer_size), ec);
+		auto read = stream.read(buffer, std::min(buffer_size, max_size), ec);
 		if (ec) break;
 		
-		for (int i = 0; i < read; ++i, ++count, --size)
+		for (int i = 0; i < read; ++i, ++count)
 			*it++ = buffer[i];
+			
+		max_size -= read;
 	}
 	
 	return count;
-}
-
-inline size_t read_some(stream& istream, size_t size, stream& ostream, std::error_code& ec) noexcept {
-	ec = std::error_code();
-	
-	size_t count = 0;
-	constexpr size_t buffer_size = 65536;
-	stream::value_type buffer[buffer_size];
-	
-	while (size != 0 && !istream.eof(ec)) {
-		if (ec) break;
-		
-		auto read = istream.read(buffer, std::min(size, buffer_size), ec);
-		if (ec) break;
-		
-		size -= read;
-		
-		count += ostream.write(buffer, read, ec);
-		if (ec) break;
-	}
-	
-	return count;
-}
-
-template <typename OutputIterator>
-inline size_t copy_iter(stream& istream, OutputIterator it, std::error_code& ec) noexcept {
-	BOOST_ASSERT(istream.can_seek());
-	istream.seek(0, seek_origin::begin, ec);
-	if (ec)
-		return 0;
-	
-	return read_all_iter(istream, it, ec);
-}
-
-inline size_t copy(stream& istream, stream& ostream, std::error_code& ec) noexcept {
-	BOOST_ASSERT(istream.can_seek());
-	istream.seek(0, seek_origin::begin, ec);
-	if (ec)
-		return 0;
-	
-	return read_all(istream, ostream, ec);
 }
 
 template <typename InputIterator>
-inline size_t write_iter(InputIterator begin, InputIterator end, stream& ostream, std::error_code& ec) noexcept {
+inline size_t copy(InputIterator begin, InputIterator end, stream& stream, std::error_code& ec) noexcept {
 	ec = std::error_code();
 	
 	size_t count = 0;
 	
 	for (auto it = begin; it != end; ++it) {
-		count += ostream.write(std::addressof(*it), sizeof(stream::value_type), ec);
+		count += stream.write(std::addressof(*it), sizeof(stream::value_type), ec);
 		if (ec) break;
 	}
 	
@@ -772,54 +771,25 @@ inline size_t write_iter(InputIterator begin, InputIterator end, stream& ostream
 }
 
 template <typename OutputIterator>
-inline size_t read_all_iter(stream& istream, OutputIterator it) {
+inline size_t copy(stream& stream, OutputIterator it) {
 	std::error_code ec;
-	auto ret = read_all_iter(istream, it, ec);
-	throw_error(ec);
-	return ret;
-}
-
-inline size_t read_all(stream& istream, stream& ostream) {
-	std::error_code ec;
-	auto ret = read_all(istream, ostream, ec);
+	auto ret = copy(stream, it, ec);
 	throw_error(ec);
 	return ret;
 }
 
 template <typename OutputIterator>
-inline size_t read_some_iter(stream& istream, size_t size, OutputIterator it) {
+inline size_t copy(stream& stream, size_t max_size, OutputIterator it) {
 	std::error_code ec;
-	auto ret = read_some_iter(istream, size, it, ec);
-	throw_error(ec);
-	return ret;
-}
-
-inline size_t read_some(stream& istream, size_t size, stream& ostream) {
-	std::error_code ec;
-	auto ret = read_some(istream, size, ostream, ec);
-	throw_error(ec);
-	return ret;
-}
-
-template <typename OutputIterator>
-inline size_t copy_iter(stream& istream, OutputIterator it) {
-	std::error_code ec;
-	auto ret = copy_iter(istream, it, ec);
-	throw_error(ec);
-	return ret;
-}
-
-inline size_t copy(stream& istream, stream& ostream) {
-	std::error_code ec;
-	auto ret = copy(istream, ostream, ec);
+	auto ret = copy(stream, max_size, it, ec);
 	throw_error(ec);
 	return ret;
 }
 
 template <typename InputIterator>
-inline size_t write_iter(InputIterator begin, InputIterator end, stream& ostream) {
+inline size_t copy(InputIterator begin, InputIterator end, stream& stream) {
 	std::error_code ec;
-	auto ret = write_iter(begin, end, ostream, ec);
+	auto ret = copy(begin, end, stream, ec);
 	throw_error(ec);
 	return ret;
 }
