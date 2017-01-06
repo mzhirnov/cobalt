@@ -104,7 +104,7 @@ struct helper {
 			}
 		}
 		
-		BOOST_ASSERT_MSG(!value, "Unknown value found");
+		BOOST_ASSERT_MSG(!value, "Unknown value");
 		
 		// append unknown values as single hex
 		if (value) {
@@ -273,9 +273,9 @@ struct helper {
 			}                                                                                             \
 			return __infos;                                                                               \
 		}                                                                                                 \
-		static std::string to_string(StructName::EnumName value)                                        \
+		static std::string to_string(StructName::EnumName value)                                          \
 			{ return detail::helper<>::to_flags_string(items(), static_cast<size_t>(value)); }            \
-		static StructName::EnumName from_string(const char* str, size_t length = 0)                     \
+		static StructName::EnumName from_string(const char* str, size_t length = 0)                       \
 			{ return static_cast<StructName::EnumName>(detail::helper<>::from_flags_string(items(), str, length)); } \
 	};                                                                                                    \
 
