@@ -21,11 +21,11 @@ struct enum_traits {
 };
 	
 struct enum_item_info {
-	std::string name() const { return std::string(_name, _name_length); }
+	std::string name() const { return std::string(_name, _length); }
 	size_t value() const { return _value; }
 	
 	const char* _name;
-	size_t _name_length;
+	size_t _length;
 	size_t _value;
 };
 
@@ -71,7 +71,7 @@ struct helper {
 		size_t i = 0;
 		parse_enum_values_helper(str, ',', [&](const char* name, size_t length) {
 			infos[i]._name = name;
-			infos[i]._name_length = length;
+			infos[i]._length = length;
 			infos[i]._value = values[i];
 			i++;
 		});
@@ -100,7 +100,7 @@ struct helper {
 				value &= ~item->_value;
 				if (item != info)
 					ss << '|';
-				ss.rdbuf()->sputn(item->_name, item->_name_length);
+				ss.rdbuf()->sputn(item->_name, item->_length);
 			}
 		}
 		
@@ -129,7 +129,7 @@ struct helper {
 			--length;
 		
 		for (auto item = info; item->_name; ++item) {
-			if (item->_name_length == length && !std::strncmp(item->_name, name, length))
+			if (item->_length == length && !std::strncmp(item->_name, name, length))
 				return item->_value;
 		}
 		
