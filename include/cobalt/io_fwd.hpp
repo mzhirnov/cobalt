@@ -24,8 +24,6 @@
 #include <cobalt/utility/intrusive.hpp>
 #include <cobalt/utility/throw_error.hpp>
 
-#include <type_traits>
-#include <iterator>
 #include <vector>
 #include <thread>
 #include <cstdio>
@@ -193,6 +191,8 @@ public:
 	
 	bool valid() const noexcept;
 	
+	access_mode access() const noexcept;
+	
 	virtual size_t read(void* buffer, size_t size, std::error_code& ec) noexcept override;
 	virtual size_t write(const void* buffer, size_t size, std::error_code& ec) noexcept override;
 	virtual void flush(std::error_code& ec) const noexcept override;
@@ -208,25 +208,52 @@ private:
 /// Reads all bytes from current position to eof
 /// @return Number of bytes actually read
 template <typename OutputIterator>
-size_t read_all(stream* istream, OutputIterator it, std::error_code& ec) noexcept;
-size_t read_all(stream* istream, stream* ostream, std::error_code& ec) noexcept;
+size_t read_all_iter(stream& istream, OutputIterator it, std::error_code& ec) noexcept;
+size_t read_all(stream& istream, stream& ostream, std::error_code& ec) noexcept;
 
 /// Reads no more than specified number of bytes
 /// @return Number of bytes actually read
 template <typename OutputIterator>
-size_t read_some(stream* istream, size_t size, OutputIterator it, std::error_code& ec) noexcept;
-size_t read_some(stream* istream, size_t size, stream* ostream, std::error_code& ec) noexcept;
-
-/// Writes bytes to stream
-/// @return Number of bytes actually written
-template <typename InputIterator>
-size_t write(InputIterator begin, InputIterator end, stream* ostream, std::error_code& ec) noexcept;
+size_t read_some_iter(stream& istream, size_t size, OutputIterator it, std::error_code& ec) noexcept;
+size_t read_some(stream& istream, size_t size, stream& ostream, std::error_code& ec) noexcept;
 
 /// Copies stream from beginning to eof. Will seek.
 /// @return Number of bytes written
 template <typename OutputIterator>
-size_t copy(stream* istream, OutputIterator it, std::error_code& ec) noexcept;
-size_t copy(stream* istream, stream* ostream, std::error_code& ec) noexcept;
+size_t copy_iter(stream& istream, OutputIterator it, std::error_code& ec) noexcept;
+size_t copy(stream& istream, stream& ostream, std::error_code& ec) noexcept;
+
+/// Writes bytes to stream
+/// @return Number of bytes actually written
+template <typename InputIterator>
+size_t write_iter(InputIterator begin, InputIterator end, stream& ostream, std::error_code& ec) noexcept;
+
+/// Reads all bytes from current position to eof
+/// Throws on error
+/// @return Number of bytes actually read
+template <typename OutputIterator>
+size_t read_all_iter(stream& istream, OutputIterator it);
+size_t read_all(stream* istream, stream& ostream);
+
+/// Reads no more than specified number of bytes
+/// Throws on error
+/// @return Number of bytes actually read
+template <typename OutputIterator>
+size_t read_some_iter(stream& istream, size_t size, OutputIterator it);
+size_t read_some(stream& istream, size_t size, stream& ostream);
+
+/// Copies stream from beginning to eof. Will seek.
+/// Throws on error
+/// @return Number of bytes written
+template <typename OutputIterator>
+size_t copy_iter(stream& istream, OutputIterator it);
+size_t copy(stream& istream, stream& ostream);
+
+/// Writes bytes to stream
+/// Throws on error
+/// @return Number of bytes actually written
+template <typename InputIterator>
+size_t write_iter(InputIterator begin, InputIterator end, stream* ostream);
 
 /// Binary writer
 class binary_writer {

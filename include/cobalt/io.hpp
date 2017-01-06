@@ -5,6 +5,9 @@
 
 #include <cobalt/io_fwd.hpp>
 
+#include <iterator>
+#include <type_traits>
+
 namespace cobalt { namespace io {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -79,10 +82,9 @@ inline stream_view::stream_view(stream& stream, int64_t offset, int64_t length)
 	, _offset(offset)
 	, _length(length)
 {
-	BOOST_ASSERT(_stream->can_seek());
-	
-	if (!_stream->can_seek())
-		throw std::system_error(std::make_error_code(std::errc::function_not_supported), "seek");
+	std::error_code ec;
+	_stream->seek(_offset, seek_origin::begin, ec);
+	throw_error(ec);
 }
 
 inline stream_view::stream_view(stream* stream, int64_t offset, int64_t length)
@@ -97,10 +99,6 @@ inline stream_view::stream_view(stream* stream, int64_t offset, int64_t length)
 	if (!_stream)
 		throw std::system_error(std::make_error_code(std::errc::invalid_argument), "stream");
 
-	BOOST_ASSERT(_stream->can_seek());
-	if (!_stream->can_seek())
-		throw std::system_error(std::make_error_code(std::errc::function_not_supported), "seek");
-	
 	BOOST_ASSERT(_offset >= 0);
 	if (_offset < 0)
 		throw std::system_error(std::make_error_code(std::errc::invalid_argument), "offset");
@@ -109,11 +107,14 @@ inline stream_view::stream_view(stream* stream, int64_t offset, int64_t length)
 	if (_length < 0)
 		throw std::system_error(std::make_error_code(std::errc::invalid_argument), "length");
 	
+	std::error_code ec;
+	_stream->seek(_offset, seek_origin::begin, ec);
+	throw_error(ec);
+	
 	sp.detach();
 }
 
-inline stream_view::~stream_view()
-{
+inline stream_view::~stream_view() {
 	if (_owning)
 		release(_stream);
 }
@@ -122,7 +123,7 @@ inline size_t stream_view::read(void* buffer, size_t size, std::error_code& ec) 
 	auto position = tell(ec);
 	if (ec)
 		return static_cast<size_t>(position);
-	auto count = std::min(static_cast<size_t>(_length - position), size);
+	auto count = std::min<size_t>(_length - position, size);
 	return _stream->read(buffer, count, ec);
 }
 
@@ -130,7 +131,7 @@ inline size_t stream_view::write(const void* buffer, size_t size, std::error_cod
 	auto position = tell(ec);
 	if (ec)
 		return static_cast<size_t>(position);
-	auto count = std::min(static_cast<size_t>(_length - position), size);
+	auto count = std::min<size_t>(_length - position, size);
 	return _stream->write(buffer, count, ec);
 }
 
@@ -139,31 +140,30 @@ inline void stream_view::flush(std::error_code& ec) const noexcept {
 }
 
 inline int64_t stream_view::seek(int64_t offset, seek_origin origin, std::error_code& ec) noexcept {
+	int64_t oldpos = tell(ec);
+	int64_t newpos = 0;
+	
+	if (ec)
+		return oldpos;
+	
 	switch (origin) {
 	case seek_origin::begin:
-		if (offset < 0 || offset > _length)
-			ec = std::make_error_code(std::errc::invalid_seek);
-		else
-			return _stream->seek(_offset + offset, origin, ec) - _offset;
+		newpos = offset;
 		break;
-	case seek_origin::current: {
-		auto position = tell(ec);
-		if (position + offset < 0 || position + offset > _length)
-			ec = std::make_error_code(std::errc::invalid_seek);
-		else
-			return _stream->seek(offset, origin, ec) - _offset;
-		}
+	case seek_origin::current:
+		newpos = oldpos + offset;
 		break;
 	case seek_origin::end:
-		if (offset > 0 || -offset > _length)
-			ec = std::make_error_code(std::errc::invalid_seek);
-		else
-			return _stream->seek(_offset + _length - offset, origin, ec) - _offset;
+		newpos = _length + offset;
 		break;
 	}
 	
-	BOOST_ASSERT(false);
-	return _stream->tell(ec) - _offset;
+	if (newpos < 0 || newpos > _length) {
+		ec = std::make_error_code(std::errc::invalid_seek);
+		return oldpos;
+	}
+	
+	return _stream->seek(newpos + _offset, seek_origin::begin, ec) - _offset;
 }
 
 inline int64_t stream_view::tell(std::error_code& ec) const noexcept {
@@ -239,6 +239,7 @@ inline bool synchronized_stream::eof(std::error_code& ec) const noexcept {
 
 inline memory_stream::memory_stream(size_t capacity)
 	: _vec(new std::vector<value_type>())
+	, _access(access_mode::read_write)
 {
 	_vec->reserve(capacity);
 }
@@ -365,9 +366,7 @@ inline size_t memory_stream::write_impl(const void* buffer, size_t size, std::er
 
 	_position += size;
 	
-	ec = (count == size) ?
-		std::error_code() :
-		std::make_error_code(std::errc::result_out_of_range);
+	ec = std::error_code();
 	
 	return size;
 }
@@ -434,6 +433,7 @@ inline file_stream::~file_stream() noexcept {
 
 inline void file_stream::open(const char* filename, open_mode mode, access_mode access, std::error_code& ec) noexcept {
 	close(ec);
+	BOOST_ASSERT(!ec);
 	
 	_access = access;
 	
@@ -458,6 +458,7 @@ inline void file_stream::open(const char* filename, open_mode mode, access_mode 
 		case open_mode::create_new:
 			if ((_fp = std::fopen(filename, "rb"))) {
 				close(ec);
+				BOOST_ASSERT(!ec);
 				ec = std::make_error_code(std::errc::file_exists);
 			} else {
 				_fp = std::fopen(filename, "w+b");
@@ -491,12 +492,11 @@ inline void file_stream::open(const char* filename, open_mode open_mode, access_
 }
 
 inline void file_stream::close(std::error_code& ec) noexcept {
-	if (!_fp) {
-		ec = std::error_code();
-	} else {
-		std::fclose(_fp);
+	ec = std::error_code();
+	if (_fp) {
+		if (std::fclose(_fp) != 0)
+			ec = std::make_error_code(std::errc::bad_file_descriptor);
 		_fp = nullptr;
-		ec = std::error_code(errno, std::generic_category());
 	}
 }
 
@@ -510,15 +510,24 @@ inline bool file_stream::valid() const noexcept {
 	return _fp != nullptr;
 }
 
+inline access_mode file_stream::access() const noexcept {
+	return _access;
+}
+
 inline size_t file_stream::read(void* buffer, size_t size, std::error_code& ec) noexcept {
 	BOOST_ASSERT(valid());
 	if (!valid()) {
 		ec = std::make_error_code(std::errc::bad_file_descriptor);
 		return 0;
 	}
-	auto ret = std::fread(buffer, 1, size, _fp);
-	ec = std::error_code(errno, std::generic_category());
-	return ret;
+	
+	ec = std::error_code();
+	
+	auto read = std::fread(buffer, 1, size, _fp);
+	if (read < size && std::ferror(_fp))
+		ec = std::make_error_code(std::errc::io_error);
+	
+	return read;
 }
 
 inline size_t file_stream::write(const void* buffer, size_t size, std::error_code& ec) noexcept {
@@ -532,9 +541,14 @@ inline size_t file_stream::write(const void* buffer, size_t size, std::error_cod
 		ec = std::make_error_code(std::errc::bad_file_descriptor);
 		return 0;
 	}
-	auto ret = std::fwrite(buffer, 1, size, _fp);
-	ec = std::error_code(errno, std::generic_category());
-	return ret;
+	
+	ec = std::error_code();
+	
+	auto written = std::fwrite(buffer, 1, size, _fp);
+	if (written < size)
+		ec = std::make_error_code(std::errc::io_error);
+	
+	return written;
 }
 
 inline void file_stream::flush(std::error_code& ec) const noexcept {
@@ -543,8 +557,11 @@ inline void file_stream::flush(std::error_code& ec) const noexcept {
 		ec = std::make_error_code(std::errc::bad_file_descriptor);
 		return;
 	}
-	std::fflush(_fp);
-	ec = std::error_code(errno, std::generic_category());
+	
+	ec = std::error_code();
+	
+	if (std::fflush(_fp) != 0)
+		ec = std::make_error_code(std::errc::io_error);
 }
 
 inline int64_t file_stream::seek(int64_t offset, seek_origin origin, std::error_code& ec) noexcept {
@@ -554,6 +571,40 @@ inline int64_t file_stream::seek(int64_t offset, seek_origin origin, std::error_
 		return 0;
 	}
 	
+	if (origin != seek_origin::begin && offset != 0) {
+		auto pos = std::ftell(_fp);
+		if (pos == -1) {
+			ec = std::error_code(errno, std::generic_category());
+			return 0;
+		}
+		
+		if (std::fseek(_fp, 0, SEEK_END) != 0) {
+			ec = std::make_error_code(std::errc::invalid_seek);
+			return pos;
+		}
+		
+		auto length = std::ftell(_fp);
+		if (length == -1) {
+			ec = std::error_code(errno, std::generic_category());
+			return length;
+		}
+		
+		if (std::fseek(_fp, pos, SEEK_SET) != 0) {
+			ec = std::make_error_code(std::errc::invalid_seek);
+			return length;
+		}
+		
+		if ((origin == seek_origin::begin && offset > length) ||
+			(origin == seek_origin::current && pos + offset > length) ||
+			(origin == seek_origin::end && offset > 0))
+		{
+			ec = std::make_error_code(std::errc::invalid_seek);
+			return pos;
+		}
+	}
+	
+	ec = std::error_code();
+	
 	// Clear error and EOF flags to make rewinding possible
 	std::clearerr(_fp);
 	
@@ -561,8 +612,8 @@ inline int64_t file_stream::seek(int64_t offset, seek_origin origin, std::error_
 		(origin == seek_origin::begin) ? SEEK_SET :
 		(origin == seek_origin::current) ? SEEK_CUR : SEEK_END;
 
-	std::fseek(_fp, static_cast<long>(offset), Origin);
-	ec = std::error_code(errno, std::generic_category());
+	if (std::fseek(_fp, static_cast<long>(offset), Origin) != 0)
+		ec = std::make_error_code(std::errc::invalid_seek);
 	
 	return std::ftell(_fp);
 }
@@ -573,9 +624,14 @@ inline int64_t file_stream::tell(std::error_code& ec) const noexcept {
 		ec = std::make_error_code(std::errc::bad_file_descriptor);
 		return 0;
 	}
-	auto ret = std::ftell(_fp);
-	ec = std::error_code(errno, std::generic_category());
-	return ret;
+	
+	ec = std::error_code();
+	
+	auto pos = std::ftell(_fp);
+	if (pos == -1)
+		ec = std::error_code(errno, std::generic_category());
+	
+	return pos;
 }
 
 inline bool file_stream::eof(std::error_code& ec) const noexcept {
@@ -584,8 +640,13 @@ inline bool file_stream::eof(std::error_code& ec) const noexcept {
 		ec = std::make_error_code(std::errc::bad_file_descriptor);
 		return 0;
 	}
+	
+	ec = std::error_code();
+	
 	auto ret = std::feof(_fp);
-	ec = std::error_code(errno, std::generic_category());
+	if (std::ferror(_fp))
+		ec = std::make_error_code(std::errc::io_error);
+	
 	return ret != 0;
 }
 
@@ -594,62 +655,40 @@ inline bool file_stream::eof(std::error_code& ec) const noexcept {
 //
 
 template <typename OutputIterator>
-inline size_t read_all(stream* istream, OutputIterator it, std::error_code& ec) noexcept {
-	static_assert(sizeof(std::iterator_traits<OutputIterator>::value_type) == sizeof(stream::value_type), "");
-	
-	BOOST_ASSERT(istream != nullptr);
-	if (!istream) {
-		ec = std::make_error_code(std::errc::invalid_argument);
-		return 0;
-	}
-	
+inline size_t read_all_iter(stream& istream, OutputIterator it, std::error_code& ec) noexcept {
 	ec = std::error_code();
 	
 	size_t count = 0;
 	constexpr size_t buffer_size = 65536;
 	stream::value_type buffer[buffer_size];
 	
-	while (!istream->eof(ec)) {
+	while (!istream.eof(ec)) {
 		if (ec) break;
 		
-		auto read = istream->read(buffer, buffer_size, ec);
+		auto read = istream.read(buffer, buffer_size, ec);
 		if (ec) break;
 		
-		for (int i = 0; i < read; ++i)
-			*it++ = static_cast<typename std::iterator_traits<OutputIterator>::value_type>(buffer[i]);
-		
-		count += read;
+		for (int i = 0; i < read; ++i, ++count)
+			*it++ = buffer[i];
 	}
 	
 	return count;
 }
 
-inline size_t read_all(stream* istream, stream* ostream, std::error_code& ec) noexcept {
-	BOOST_ASSERT(istream != nullptr);
-	if (!istream) {
-		ec = std::make_error_code(std::errc::invalid_argument);
-		return 0;
-	}
-	
-	BOOST_ASSERT(ostream != nullptr);
-	if (!ostream) {
-		ec = std::make_error_code(std::errc::invalid_argument);
-		return 0;
-	}
-	
+inline size_t read_all(stream& istream, stream& ostream, std::error_code& ec) noexcept {
 	ec = std::error_code();
 	
 	size_t count = 0;
 	constexpr size_t buffer_size = 65536;
 	stream::value_type buffer[buffer_size];
 	
-	while (!istream->eof(ec)) {
+	while (!istream.eof(ec)) {
 		if (ec) break;
 		
-		auto read = istream->read(buffer, buffer_size, ec);
+		auto read = istream.read(buffer, buffer_size, ec);
 		if (ec) break;
 		
-		count += ostream->write(buffer, read, ec);
+		count += ostream.write(buffer, read, ec);
 		if (ec) break;
 	}
 	
@@ -657,87 +696,75 @@ inline size_t read_all(stream* istream, stream* ostream, std::error_code& ec) no
 }
 
 template <typename OutputIterator>
-inline size_t read_some(stream* istream, size_t size, OutputIterator it, std::error_code& ec) noexcept {
-	static_assert(sizeof(std::iterator_traits<OutputIterator>::value_type) == sizeof(stream::value_type), "");
-	
-	BOOST_ASSERT(istream != nullptr);
-	if (!istream) {
-		ec = std::make_error_code(std::errc::invalid_argument);
-		return 0;
-	}
-	
+inline size_t read_some_iter(stream& istream, size_t size, OutputIterator it, std::error_code& ec) noexcept {
 	ec = std::error_code();
 	
 	size_t count = 0;
 	constexpr size_t buffer_size = 65536;
 	stream::value_type buffer[buffer_size];
 	
-	while (size != 0 && !istream->eof(ec)) {
+	while (size != 0 && !istream.eof(ec)) {
 		if (ec) break;
 		
-		auto read = istream->read(buffer, std::min(size, buffer_size), ec);
+		auto read = istream.read(buffer, std::min(size, buffer_size), ec);
 		if (ec) break;
 		
-		for (int i = 0; i < read; ++i)
-			*it++ = static_cast<typename std::iterator_traits<OutputIterator>::value_type>(buffer[i]);
-			
-		size -= read;
-		count += read;
+		for (int i = 0; i < read; ++i, ++count, --size)
+			*it++ = buffer[i];
 	}
 	
 	return count;
 }
 
-inline size_t read_some(stream* istream, size_t size, stream* ostream, std::error_code& ec) noexcept {
-	BOOST_ASSERT(istream != nullptr);
-	if (!istream) {
-		ec = std::make_error_code(std::errc::invalid_argument);
-		return 0;
-	}
-	
-	BOOST_ASSERT(ostream != nullptr);
-	if (!ostream) {
-		ec = std::make_error_code(std::errc::invalid_argument);
-		return 0;
-	}
-	
+inline size_t read_some(stream& istream, size_t size, stream& ostream, std::error_code& ec) noexcept {
 	ec = std::error_code();
 	
 	size_t count = 0;
 	constexpr size_t buffer_size = 65536;
 	stream::value_type buffer[buffer_size];
 	
-	while (size != 0 && !istream->eof(ec)) {
+	while (size != 0 && !istream.eof(ec)) {
 		if (ec) break;
 		
-		auto read = istream->read(buffer, std::min(size, buffer_size), ec);
+		auto read = istream.read(buffer, std::min(size, buffer_size), ec);
 		if (ec) break;
 		
 		size -= read;
 		
-		count += ostream->write(buffer, read, ec);
+		count += ostream.write(buffer, read, ec);
 		if (ec) break;
 	}
 	
 	return count;
+}
+
+template <typename OutputIterator>
+inline size_t copy_iter(stream& istream, OutputIterator it, std::error_code& ec) noexcept {
+	BOOST_ASSERT(istream.can_seek());
+	istream.seek(0, seek_origin::begin, ec);
+	if (ec)
+		return 0;
+	
+	return read_all_iter(istream, it, ec);
+}
+
+inline size_t copy(stream& istream, stream& ostream, std::error_code& ec) noexcept {
+	BOOST_ASSERT(istream.can_seek());
+	istream.seek(0, seek_origin::begin, ec);
+	if (ec)
+		return 0;
+	
+	return read_all(istream, ostream, ec);
 }
 
 template <typename InputIterator>
-inline size_t write(InputIterator begin, InputIterator end, stream* ostream, std::error_code& ec) noexcept {
-	static_assert(sizeof(std::iterator_traits<InputIterator>::value_type) == sizeof(stream::value_type), "");
-	
-	BOOST_ASSERT(ostream != nullptr);
-	if (!ostream) {
-		ec = std::make_error_code(std::errc::invalid_argument);
-		return 0;
-	}
-	
+inline size_t write_iter(InputIterator begin, InputIterator end, stream& ostream, std::error_code& ec) noexcept {
 	ec = std::error_code();
 	
 	size_t count = 0;
 	
 	for (auto it = begin; it != end; ++it) {
-		count += ostream->write(&(*it), sizeof(stream::value_type), ec);
+		count += ostream.write(std::addressof(*it), sizeof(stream::value_type), ec);
 		if (ec) break;
 	}
 	
@@ -745,42 +772,56 @@ inline size_t write(InputIterator begin, InputIterator end, stream* ostream, std
 }
 
 template <typename OutputIterator>
-inline size_t copy(stream* istream, OutputIterator it, std::error_code& ec) noexcept {
-	static_assert(sizeof(std::iterator_traits<OutputIterator>::value_type) == sizeof(stream::value_type), "");
-	
-	BOOST_ASSERT(istream != nullptr);
-	if (!istream) {
-		ec = std::make_error_code(std::errc::invalid_argument);
-		return 0;
-	}
-	
-	BOOST_ASSERT(istream->can_seek());
-	istream->seek(0, seek_origin::begin, ec);
-	if (ec)
-		return 0;
-	
-	return read_all(istream, it, ec);
+inline size_t read_all_iter(stream& istream, OutputIterator it) {
+	std::error_code ec;
+	auto ret = read_all_iter(istream, it, ec);
+	throw_error(ec);
+	return ret;
 }
 
-inline size_t copy(stream* istream, stream* ostream, std::error_code& ec) noexcept {
-	BOOST_ASSERT(istream != nullptr);
-	if (!istream) {
-		ec = std::make_error_code(std::errc::invalid_argument);
-		return 0;
-	}
-	
-	BOOST_ASSERT(ostream != nullptr);
-	if (!ostream) {
-		ec = std::make_error_code(std::errc::invalid_argument);
-		return 0;
-	}
-	
-	BOOST_ASSERT(istream->can_seek());
-	istream->seek(0, seek_origin::begin, ec);
-	if (ec)
-		return 0;
-	
-	return read_all(istream, ostream, ec);
+inline size_t read_all(stream& istream, stream& ostream) {
+	std::error_code ec;
+	auto ret = read_all(istream, ostream, ec);
+	throw_error(ec);
+	return ret;
+}
+
+template <typename OutputIterator>
+inline size_t read_some_iter(stream& istream, size_t size, OutputIterator it) {
+	std::error_code ec;
+	auto ret = read_some_iter(istream, size, it, ec);
+	throw_error(ec);
+	return ret;
+}
+
+inline size_t read_some(stream& istream, size_t size, stream& ostream) {
+	std::error_code ec;
+	auto ret = read_some(istream, size, ostream, ec);
+	throw_error(ec);
+	return ret;
+}
+
+template <typename OutputIterator>
+inline size_t copy_iter(stream& istream, OutputIterator it) {
+	std::error_code ec;
+	auto ret = copy_iter(istream, it, ec);
+	throw_error(ec);
+	return ret;
+}
+
+inline size_t copy(stream& istream, stream& ostream) {
+	std::error_code ec;
+	auto ret = copy(istream, ostream, ec);
+	throw_error(ec);
+	return ret;
+}
+
+template <typename InputIterator>
+inline size_t write_iter(InputIterator begin, InputIterator end, stream& ostream) {
+	std::error_code ec;
+	auto ret = write_iter(begin, end, ostream, ec);
+	throw_error(ec);
+	return ret;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
