@@ -345,7 +345,9 @@ public:
 
 	stream* base_stream() const noexcept { return _writer.base_stream(); }
 
+	/// Write specified number of bits
 	void write_bits(uint32_t value, size_t bits, std::error_code& ec) noexcept;
+	/// Write buffered bits aligning position by the byte boundary
 	void flush(std::error_code& ec);
 	
 	void write_bits(uint32_t value, size_t bits);
@@ -367,8 +369,13 @@ public:
 
 	stream* base_stream() const noexcept { return _reader.base_stream(); }
 
+	/// Read specified number of bits
 	uint32_t read_bits(size_t bits, std::error_code& ec) noexcept;
+	/// Align position by the byte boundary
+	void align(std::error_code& ec) noexcept;
+	
 	uint32_t read_bits(size_t bits);
+	void align();
 
 private:
 	binary_reader _reader;

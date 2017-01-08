@@ -1337,7 +1337,7 @@ inline void bitpack_writer::write_bits(uint32_t value, size_t bits, std::error_c
 	_scratch |= static_cast<uint64_t>(value & ((1 << bits) - 1)) << _scratch_bits;
 	_scratch_bits += bits;
 
-	if (_scratch_bits > 32) {
+	if (_scratch_bits >= 32) {
 		_writer.write(static_cast<uint32_t>(_scratch & 0xffffffff), ec);
 		_scratch >>= 32;
 		_scratch_bits -= 32;
@@ -1346,7 +1346,23 @@ inline void bitpack_writer::write_bits(uint32_t value, size_t bits, std::error_c
 
 inline void bitpack_writer::flush(std::error_code& ec) {
 	if (_scratch_bits > 0) {
-		_writer.write(static_cast<uint32_t>(_scratch & 0xffffffff), ec);
+		int bytes = (_scratch_bits >> 3) + (_scratch_bits & 0x7) ? 1 : 0;
+		switch (bytes) {
+		case 1:
+			_writer.write(static_cast<uint8_t>(_scratch & 0xff), ec);
+			break;
+		case 2:
+			_writer.write(static_cast<uint16_t>(_scratch & 0xff), ec);
+			break;
+		case 3:
+			_writer.write(static_cast<uint8_t>( _scratch        & 0xff), ec); if (ec) return;
+			_writer.write(static_cast<uint8_t>((_scratch >>  8) & 0xff), ec); if (ec) return;
+			_writer.write(static_cast<uint8_t>((_scratch >> 16) & 0xff), ec);
+			break;
+		case 4:
+			_writer.write(static_cast<uint32_t>(_scratch & 0xffffffff), ec);
+			break;
+		}
 		_scratch = 0;
 		_scratch_bits = 0;
 	}
@@ -1390,10 +1406,10 @@ inline uint32_t bitpack_reader::read_bits(size_t bits, std::error_code& ec) noex
 		return 0;
 	}
 
-	if (_scratch_bits < bits) {
-		auto value = _reader.read_uint32(ec);
+	while (_scratch_bits < bits) {
+		auto value = _reader.read_uint8(ec);
 		_scratch |= value << _scratch_bits;
-		_scratch_bits += 32;
+		_scratch_bits += 8;
 	}
 
 	uint32_t value = _scratch & ((1 << bits) - 1);
@@ -1404,11 +1420,29 @@ inline uint32_t bitpack_reader::read_bits(size_t bits, std::error_code& ec) noex
 	return value;
 }
 
+inline void bitpack_reader::align(std::error_code& ec) noexcept {
+	ec = std::error_code();
+	
+	BOOST_ASSERT(_scratch == 0);
+	if (_scratch != 0) {
+		ec = std::make_error_code(std::errc::illegal_byte_sequence);
+		return;
+	}
+	
+	_scratch_bits = 0;
+}
+
 inline uint32_t bitpack_reader::read_bits(size_t bits) {
 	std::error_code ec;
 	auto ret = read_bits(bits, ec);
 	throw_error(ec);
 	return ret;
+}
+
+inline void bitpack_reader::align() {
+	std::error_code ec;
+	align(ec);
+	throw_error(ec);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
