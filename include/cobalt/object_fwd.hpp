@@ -20,7 +20,10 @@ namespace cobalt {
 class object;
 
 /// Component
-class component : public ref_counter<component>, public intrusive_slist_base<component> {
+class component
+	: public ref_counter<component>
+	, public intrusive_slist_base<component>
+{
 public:
 	component() = default;
 	
@@ -92,8 +95,14 @@ private:
 	} static component##_factory_instance;                                                     \
 
 /// Object is a container for components
-class object : public ref_counter<object>, public intrusive_slist_base<object> {
+class object
+	: public ref_counter<object>
+	, public intrusive_slist_base<object>
+{
 public:
+	using children_type = intrusive_slist<object>;
+	using components_type = intrusive_slist<component>;
+	
 	object() = default;
 	
 	object(object&&) = default;
@@ -117,8 +126,8 @@ public:
 
 	object* parent() const noexcept { return _parent; }
 	
-	enumerator<intrusive_slist<object>::const_iterator> children() const { return make_enumerator(_children); }
-	enumerator<intrusive_slist<component>::const_iterator> components() const { return make_enumerator(_components); }
+	enumerator<children_type::const_iterator> children() const { return make_enumerator(_children); }
+	enumerator<components_type::const_iterator> components() const { return make_enumerator(_components); }
 	
 	object* attach(object* o) noexcept;
 	counted_ptr<object> detach(object* o);
@@ -176,13 +185,8 @@ private:
 
 private:
 	mutable object* _parent = nullptr;
-	
-	using Children = intrusive_slist<object>;
-	Children _children;
-	
-	using Components = intrusive_slist<component>;
-	Components _components;
-	
+	children_type _children;
+	components_type _components;	
 	hash_type _name = 0;
 	bool _active = true;
 };
