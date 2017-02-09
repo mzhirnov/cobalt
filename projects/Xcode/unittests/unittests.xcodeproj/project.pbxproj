@@ -17,6 +17,7 @@
 		1763ED931DF33F9A001F279B /* object.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1763ED8D1DF33F9A001F279B /* object.cpp */; };
 		179820531E3BBA5800EA8102 /* fsm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 179820511E3BBA5800EA8102 /* fsm.cpp */; };
 		179820541E3BBA5800EA8102 /* static_initializer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 179820521E3BBA5800EA8102 /* static_initializer.cpp */; };
+		1798205D1E4CDD9E00EA8102 /* platform.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1798205C1E4CDD9E00EA8102 /* platform.cpp */; };
 		17CD21631DBFD8C40046201F /* boost.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 17CD21621DBFD8C40046201F /* boost.framework */; };
 		17D56ED21DFA66CF00A36AFA /* tasks.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 17D56ED11DFA66CF00A36AFA /* tasks.cpp */; };
 /* End PBXBuildFile section */
@@ -46,6 +47,7 @@
 		179632AC1DBD20F100384195 /* unittests */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = unittests; sourceTree = BUILT_PRODUCTS_DIR; };
 		179820511E3BBA5800EA8102 /* fsm.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = fsm.cpp; sourceTree = "<group>"; };
 		179820521E3BBA5800EA8102 /* static_initializer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = static_initializer.cpp; sourceTree = "<group>"; };
+		1798205C1E4CDD9E00EA8102 /* platform.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = platform.cpp; sourceTree = "<group>"; };
 		179BBB661DC7BA59005DF931 /* include */ = {isa = PBXFileReference; lastKnownFileType = folder; name = include; path = ../../../include; sourceTree = "<group>"; };
 		17CD21621DBFD8C40046201F /* boost.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = boost.framework; path = ../frameworks/boost.framework; sourceTree = "<group>"; };
 		17D56ED11DFA66CF00A36AFA /* tasks.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = tasks.cpp; sourceTree = "<group>"; };
@@ -66,6 +68,7 @@
 		1763ED861DF33F9A001F279B /* unittests */ = {
 			isa = PBXGroup;
 			children = (
+				1798205C1E4CDD9E00EA8102 /* platform.cpp */,
 				179820511E3BBA5800EA8102 /* fsm.cpp */,
 				179820521E3BBA5800EA8102 /* static_initializer.cpp */,
 				174472BF1E06CE7C00A2097E /* io.cpp */,
@@ -176,6 +179,7 @@
 				1763ED931DF33F9A001F279B /* object.cpp in Sources */,
 				179820531E3BBA5800EA8102 /* fsm.cpp in Sources */,
 				1763ED8F1DF33F9A001F279B /* enumerator.cpp in Sources */,
+				1798205D1E4CDD9E00EA8102 /* platform.cpp in Sources */,
 				179820541E3BBA5800EA8102 /* static_initializer.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
