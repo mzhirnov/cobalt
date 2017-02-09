@@ -146,6 +146,10 @@ public:
 	const component* find_component_in_parent(hash_type component_type) const noexcept;
 	const component* find_component_in_children(hash_type component_type) const;
 	
+	const component* find_component(const char* name) const noexcept { return find_component(murmur3(name, 0)); }
+	const component* find_component_in_parent(const char* name) const noexcept { return find_component_in_parent(murmur3(name, 0)); }
+	const component* find_component_in_children(const char* name) const { return find_component_in_children(murmur3(name, 0)); }
+	
 	template <typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
 	const T* find_component() const { return static_cast<const T*>(find_component(T::component_type)); }
 	template <typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>

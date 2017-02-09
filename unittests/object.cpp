@@ -86,12 +86,22 @@ TEST_CASE("object") {
 			f1->draw(); // will compile
 		}
 		
-		SECTION("find component by name") {
+		SECTION("find component by hash") {
 			auto f1 = (const renderer*)o->find_component("renderer"_hash);
 			
 			REQUIRE(f1 == r);
 			REQUIRE_FALSE(o->find_component("transform"_hash) == nullptr);
 			REQUIRE(o->find_component("my_component"_hash) == nullptr);
+			
+			f1->draw(); // will compile
+		}
+		
+		SECTION("find component by name") {
+			auto f1 = (const renderer*)o->find_component("renderer");
+			
+			REQUIRE(f1 == r);
+			REQUIRE_FALSE(o->find_component("transform") == nullptr);
+			REQUIRE(o->find_component("my_component") == nullptr);
 			
 			f1->draw(); // will compile
 		}
