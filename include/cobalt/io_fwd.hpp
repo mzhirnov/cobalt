@@ -26,14 +26,14 @@
 #include <cstdio>
 #include <cstdint>
 
-CO_DEFINE_ENUM_CLASS(
+CO_DEFINE_ENUM(
 	seek_origin, uint8_t,
 	begin,
 	current,
 	end
 )
 
-CO_DEFINE_ENUM_CLASS(
+CO_DEFINE_ENUM(
 	open_mode, uint8_t,
 	create_always, ///< Create new or overwrite if exists
 	create_new,    ///< Create new if not exists
@@ -41,7 +41,7 @@ CO_DEFINE_ENUM_CLASS(
 	open_or_create ///< Open if exists or create otherwise
 )
 
-CO_DEFINE_ENUM_CLASS(
+CO_DEFINE_ENUM(
 	access_mode, uint8_t,
 	read_only,
 	read_write

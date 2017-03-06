@@ -20,7 +20,7 @@
 #include <unordered_map>
 #include <chrono>
 
-CO_DEFINE_ENUM_CLASS(
+CO_DEFINE_ENUM(
 	event_phase, uint8_t,
 	bubbling,
 	capture,
