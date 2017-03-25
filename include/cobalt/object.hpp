@@ -15,40 +15,6 @@ inline void component::detach() {
 	if (_object)
 		_object->detach(this);
 }
-
-////////////////////////////////////////////////////////////////////////////////
-// component_factory
-//
-	
-inline constexpr component_factory::component_factory(hash_type name) noexcept
-	: _name(name)
-{
-	BOOST_ASSERT(check_unique_name(_name));
-	_next = root(this);
-}
-	
-inline component* component_factory::create(hash_type name) {
-	for (auto&& p = root(); p; p = p->_next) {
-		if (p->_name == name)
-			return p->create_component();
-	}
-	return nullptr;
-}
-	
-inline component_factory* component_factory::root(component_factory* new_value) noexcept {
-	static component_factory* instance = nullptr;
-	if (!new_value) return instance;
-	std::swap(instance, new_value);
-	return new_value;
-}
-
-inline bool component_factory::check_unique_name(hash_type name) noexcept {
-	for (auto&& p = root(); p; p = p->_next) {
-		if (p->_name == name)
-			return false;
-	}
-	return true;
-}
 	
 ////////////////////////////////////////////////////////////////////////////////
 // object

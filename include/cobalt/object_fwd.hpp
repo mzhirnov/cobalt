@@ -58,41 +58,6 @@ public:
 	
 	virtual hash_type type() const noexcept override { return ComponentType; }
 };
-	
-/// Component factory
-class component_factory {
-public:
-	explicit constexpr component_factory(hash_type name) noexcept;
-	explicit component_factory(const char* name) noexcept
-		: component_factory(murmur3(name, 0)) {}
-	
-	component_factory(const component_factory&) = delete;
-	component_factory& operator=(const component_factory&) = delete;
-	
-	virtual component* create_component() = 0;
-	
-	static component* create(hash_type name);	
-	static component* create(const char* name) { return create(murmur3(name, 0)); }
-	
-private:
-	static component_factory* root(component_factory* new_value = nullptr) noexcept;
-	static bool check_unique_name(hash_type name) noexcept;
-	
-private:
-	hash_type _name = 0;
-	component_factory* _next = nullptr;
-};
-
-/// Defines simple component factory
-#define CO_DEFINE_COMPONENT_FACTORY(component) CO_DEFINE_COMPONENT_FACTORY_WITH_NAME(component, #component)
-
-/// Defines simple component factory with specified component name
-#define CO_DEFINE_COMPONENT_FACTORY_WITH_NAME(component, component_name)                       \
-	class component##_factory : public component_factory {                                     \
-	public:                                                                                    \
-		constexpr component##_factory() noexcept : component_factory(component_name##_hash) {} \
-		virtual component* create_component() override { return new component(); }             \
-	} static component##_factory_instance;                                                     \
 
 /// Object is a container for components
 class object

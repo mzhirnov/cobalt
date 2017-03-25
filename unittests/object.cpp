@@ -1,7 +1,10 @@
 #include "catch.hpp"
 #include <cobalt/object.hpp>
+#include <cobalt/utility/factory.hpp>
 
 using namespace cobalt;
+
+using component_factory = factory<component()>;
 
 class renderer : public basic_component<"renderer"_hash> {
 public:
@@ -17,17 +20,15 @@ private:
 };
 
 class transform : public basic_component<"transform"_hash> {
+CO_REGISTER_FACTORY(component_factory, transform)
 public:
 };
 
-CO_DEFINE_COMPONENT_FACTORY(transform)
-
 class my_component : public component {
+CO_REGISTER_FACTORY(component_factory, my_component)
 public:
 	virtual hash_type type() const noexcept override { return "my_component"_hash; }
 };
-
-CO_DEFINE_COMPONENT_FACTORY(my_component)
 
 TEST_CASE("information") {
 	printf("sizeof(void*) := %zu\n", sizeof(void*));
@@ -65,7 +66,7 @@ TEST_CASE("object") {
 		
 		auto c = o->attach(r);
 		
-		auto xform = component_factory::create("transform"_hash);
+		auto xform = component_factory::create(identifier("transform"));
 		
 		REQUIRE(xform != nullptr);
 		
