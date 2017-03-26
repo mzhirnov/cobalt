@@ -10,39 +10,39 @@ namespace cobalt {
 template <typename Iterator>
 class enumerator {
 public:
-	typedef Iterator iterator;
+	using iterator_type = Iterator;
 
-	enumerator(iterator begin, iterator end)
+	constexpr enumerator(iterator_type begin, iterator_type end) noexcept
 		: _begin(begin)
 		, _end(end)
 	{
 	}
 
-	iterator begin() const { return _begin; }
-	iterator end() const { return _end; }
+	constexpr iterator_type begin() const noexcept { return _begin; }
+	constexpr iterator_type end() const noexcept { return _end; }
 
 private:
-	iterator _begin;
-	iterator _end;
+	iterator_type _begin;
+	iterator_type _end;
 };
 
 template <typename Container>
-enumerator<typename Container::iterator> make_enumerator(Container& container) {
+constexpr enumerator<typename Container::iterator> make_enumerator(Container& container) noexcept {
 	return { std::begin(container), std::end(container) };
 }
 
 template <typename Container>
-enumerator<typename Container::const_iterator> make_enumerator(const Container& container) {
+constexpr enumerator<typename Container::const_iterator> make_enumerator(const Container& container) noexcept {
 	return { std::cbegin(container), std::cend(container) };
 }
 
 template <typename T, size_t N>
-enumerator<T*> make_enumerator(T(&array)[N]) {
+constexpr enumerator<T*> make_enumerator(T(&array)[N]) noexcept {
 	return { std::begin(array), std::end(array) };
 }
 
 template <typename T, typename = std::enable_if_t<std::is_pointer<T>::value>>
-enumerator<T> make_enumerator(T begin, T end) {
+constexpr enumerator<T> make_enumerator(T begin, T end) noexcept {
 	return { begin, end };
 }
 
