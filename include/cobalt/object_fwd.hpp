@@ -40,7 +40,7 @@ public:
 
 	class object* object() const noexcept { return _object; }
 	
-	void detach();
+	void detach() noexcept;
 	
 private:
 	friend class object;
@@ -90,27 +90,27 @@ public:
 
 	object* parent() const noexcept { return _parent; }
 	
-	enumerator<children_type::const_iterator> children() const { return make_enumerator(_children); }
-	enumerator<components_type::const_iterator> components() const { return make_enumerator(_components); }
+	enumerator<children_type::const_iterator> children() const noexcept { return make_enumerator(_children); }
+	enumerator<components_type::const_iterator> components() const noexcept { return make_enumerator(_components); }
 	
 	object* attach(object* o) noexcept;
-	counted_ptr<object> detach(object* o);
+	counted_ptr<object> detach(object* o) noexcept;
 	
-	void detach();
+	void detach() noexcept;
 	
-	void remove_all_children();
+	void remove_all_children() noexcept;
 	
 	const object* find_root() const noexcept;
-	const object* find_child(const char* path) const noexcept;
-	const object* find_child(const identifier& id) const noexcept;
+	const object* find_object(const identifier& id) const noexcept;
 	const object* find_object_in_parent(const identifier& id) const noexcept;
 	const object* find_object_in_children(const identifier& id) const noexcept;
+	const object* find_object_with_path(const char* path) const noexcept;
 
 	component* attach(component* c) noexcept;
-	counted_ptr<component> detach(component* c);
+	counted_ptr<component> detach(component* c) noexcept;
 	
-	size_t remove_components(hash_type component_type);
-	void remove_all_components();
+	size_t remove_components(hash_type component_type) noexcept;
+	void remove_all_components() noexcept;
 	
 	const component* find_component(hash_type component_type) const noexcept;
 	const component* find_component_in_parent(hash_type component_type) const noexcept;
@@ -121,11 +121,11 @@ public:
 	const component* find_component_in_children(const char* name) const { return find_component_in_children(murmur3(name, 0)); }
 	
 	template <typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-	const T* find_component() const { return static_cast<const T*>(find_component(T::component_type)); }
+	const T* find_component() const noexcept { return static_cast<const T*>(find_component(T::component_type)); }
 	template <typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-	const T* find_component_in_parent() const { return static_cast<const T*>(find_component_in_parent(T::component_type)); }
+	const T* find_component_in_parent() const noexcept { return static_cast<const T*>(find_component_in_parent(T::component_type)); }
 	template <typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-	const T* find_component_in_children() const { return static_cast<const T*>(find_component_in_children(T::component_type)); }
+	const T* find_component_in_children() const noexcept { return static_cast<const T*>(find_component_in_children(T::component_type)); }
 	
 	template <typename OutputIterator>
 	void find_components(hash_type component_type, OutputIterator result) const;
@@ -142,7 +142,7 @@ public:
 	void find_components_in_children(OutputIterator result) const;
 
 private:
-	void parent(object* parent) { _parent = parent; }
+	void parent(object* parent) noexcept { _parent = parent; }
 
 private:
 	mutable object* _parent = nullptr;

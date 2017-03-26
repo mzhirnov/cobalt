@@ -13,7 +13,7 @@ namespace cobalt {
 // component
 //
 	
-inline void component::detach() {
+inline void component::detach() noexcept {
 	if (_object)
 		_object->detach(this);
 }
@@ -46,14 +46,14 @@ inline object* object::attach(object* o) noexcept {
 	return sp.detach();
 }
 
-inline counted_ptr<object> object::detach(object* o) {
+inline counted_ptr<object> object::detach(object* o) noexcept {
 	counted_ptr<object> sp;
 	
 	if (!o)
 		return sp;
 	
 	for (auto it = _children.before_begin(), next = std::next(it); next != _children.end(); ++it, ++next) {
-		if (&*next == o) {
+		if (std::addressof(*next) == o) {
 			_children.erase_after_and_dispose(it, [&](auto&& o) { sp.reset(o, false); sp->parent(nullptr); });
 			break;
 		}
@@ -63,12 +63,12 @@ inline counted_ptr<object> object::detach(object* o) {
 	// destructor will call final release
 }
 
-inline void object::detach() {
+inline void object::detach() noexcept {
 	if (_parent)
 		_parent->detach(this);
 }
 	
-inline void object::remove_all_children() {
+inline void object::remove_all_children() noexcept {
 	_children.clear_and_dispose([](auto&& o) { o->parent(nullptr); release(o); });
 }
 
@@ -80,8 +80,69 @@ inline const object* object::find_root() const noexcept {
 	
 	return o;
 }
+	
+inline const object* object::find_object(const identifier& id) const noexcept {
+	for (auto&& child : _children) {
+		if (!child.active())
+			continue;
+		
+		if (child.id() == id)
+			return &child;
+	}
+	
+	return nullptr;
+}
 
-inline const object* object::find_child(const char* path) const noexcept {
+inline const object* object::find_object_in_parent(const identifier& id) const noexcept {
+	for (auto o = _parent; o; o = o->parent()) {
+		if (!o->active())
+			continue;
+		
+		if (o->id() == id)
+			return o;
+	}
+	
+	return nullptr;
+}
+
+inline const object* object::find_object_in_children(const identifier& id) const noexcept {
+	// Breadth-first search
+	
+	if (auto o = find_object(id))
+		return o;
+	
+	for (auto&& child : _children) {
+		if (!child.active())
+			continue;
+		
+		if (auto o = child.find_object(id))
+			return o;
+	}
+	
+	std::deque<std::reference_wrapper<const object>> queue(_children.begin(), _children.end());
+	
+	while (!queue.empty()) {
+		auto&& o = queue.front().get();
+		
+		if (!o.active())
+			continue;
+		
+		for (auto&& child : o._children) {
+			if (!child.active())
+				continue;
+			
+			if (auto o = child.find_object(id))
+				return o;
+		}
+		
+		queue.insert(queue.end(), o._children.begin(), o._children.end());
+		queue.pop_front();
+	}
+	
+	return nullptr;
+}
+
+inline const object* object::find_object_with_path(const char* path) const noexcept {
 	if (!path)
 		return nullptr;
 	
@@ -119,69 +180,7 @@ inline const object* object::find_child(const char* path) const noexcept {
 		}
 	}
 	
-	BOOST_ASSERT(!*e);
 	return current;
-}
-	
-inline const object* object::find_child(const identifier& id) const noexcept {
-	for (auto&& child : _children) {
-		if (!child.active())
-			continue;
-		
-		if (child.id() == id)
-			return &child;
-	}
-	
-	return nullptr;
-}
-
-inline const object* object::find_object_in_parent(const identifier& id) const noexcept {
-	for (auto o = _parent; o; o = o->parent()) {
-		if (!o->active())
-			continue;
-		
-		if (o->id() == id)
-			return o;
-	}
-	
-	return nullptr;
-}
-
-inline const object* object::find_object_in_children(const identifier& id) const noexcept {
-	// Breadth-first search
-	
-	if (auto o = find_child(id))
-		return o;
-	
-	for (auto&& child : _children) {
-		if (!child.active())
-			continue;
-		
-		if (auto o = child.find_child(id))
-			return o;
-	}
-	
-	std::deque<std::reference_wrapper<const object>> queue(_children.begin(), _children.end());
-	
-	while (!queue.empty()) {
-		auto&& o = queue.front().get();
-		
-		if (!o.active())
-			continue;
-		
-		for (auto&& child : o._children) {
-			if (!child.active())
-				continue;
-			
-			if (auto o = child.find_child(id))
-				return o;
-		}
-		
-		queue.insert(queue.end(), o._children.begin(), o._children.end());
-		queue.pop_front();
-	}
-	
-	return nullptr;
 }
 
 inline component* object::attach(component* c) noexcept {
@@ -194,7 +193,7 @@ inline component* object::attach(component* c) noexcept {
 	return sp.detach();
 }
 
-inline counted_ptr<component> object::detach(component* c) {
+inline counted_ptr<component> object::detach(component* c) noexcept {
 	counted_ptr<component> sp;
 	
 	if (!c)
@@ -211,7 +210,7 @@ inline counted_ptr<component> object::detach(component* c) {
 	// destructor will call final release
 }
 
-inline size_t object::remove_components(hash_type component_type) {
+inline size_t object::remove_components(hash_type component_type) noexcept {
 	size_t count = 0;
 	
 	_components.remove_and_dispose_if([&](auto&& c) { return c.type() == component_type; },
@@ -220,7 +219,7 @@ inline size_t object::remove_components(hash_type component_type) {
 	return count;
 }
 	
-inline void object::remove_all_components() {
+inline void object::remove_all_components() noexcept {
 	_components.clear_and_dispose([](auto&& c) { c->object(nullptr); release(c); });
 }
 

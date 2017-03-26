@@ -139,4 +139,13 @@ TEST_CASE("object") {
 			REQUIRE(renderer_instances == 0);
 		}
 	}
+	
+	SECTION("find with path") {
+		auto o1 = o->attach(new object(identifier("child1")));
+		auto o2 = o1->attach(new object(identifier("child2")));
+		auto o3 = o2->attach(new object(identifier("child3")));
+		
+		auto found = o->find_object_with_path("child1/child2/child3");
+		REQUIRE(found);
+	}
 }
