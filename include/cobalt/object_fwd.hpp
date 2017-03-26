@@ -9,8 +9,9 @@
 //     scene
 
 #include <cobalt/utility/intrusive.hpp>
-#include <cobalt/utility/hash.hpp>
+#include <cobalt/utility/identifier.hpp>
 #include <cobalt/utility/enumerator.hpp>
+#include <cobalt/utility/hash.hpp>
 
 #include <type_traits>
 #include <forward_list>
@@ -76,14 +77,12 @@ public:
 	object(const object&) = delete;
 	object& operator=(const object&) = delete;
 	
-	explicit object(hash_type name) noexcept : _name(name) {}
-	explicit object(const char* name) noexcept : _name(murmur3(name, 0)) {}
+	explicit object(const identifier& id) noexcept : _id(id) {}
 	
 	~object();
 
-	hash_type name() const noexcept { return _name; }
-	void name(hash_type name) noexcept { _name = name; }
-	void name(const char* name) noexcept { _name = murmur3(name, 0); }
+	const identifier& id() const noexcept { return _id; }
+	void id(const identifier& id) noexcept { _id = id; }
 
 	bool active() const noexcept { return _active; }
 	void active(bool active) noexcept { _active = active; }
@@ -102,13 +101,10 @@ public:
 	void remove_all_children();
 	
 	const object* find_root() const noexcept;
-	const object* find_child(hash_type name) const noexcept;
-	const object* find_object_in_parent(hash_type name) const noexcept;
-	const object* find_object_in_children(hash_type name) const noexcept;
-	
-	const object* find_child(const char* name) const noexcept;
-	const object* find_object_in_parent(const char* name) const noexcept { return find_object_in_parent(murmur3(name, 0)); }
-	const object* find_object_in_children(const char* name) const noexcept { return find_object_in_children(murmur3(name, 0)); }
+	const object* find_child(const char* path) const noexcept;
+	const object* find_child(const identifier& id) const noexcept;
+	const object* find_object_in_parent(const identifier& id) const noexcept;
+	const object* find_object_in_children(const identifier& id) const noexcept;
 
 	component* attach(component* c) noexcept;
 	counted_ptr<component> detach(component* c);
@@ -152,7 +148,7 @@ private:
 	mutable object* _parent = nullptr;
 	children_type _children;
 	components_type _components;	
-	hash_type _name = 0;
+	identifier _id;
 	bool _active = true;
 };
 	

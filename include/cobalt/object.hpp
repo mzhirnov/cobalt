@@ -3,6 +3,8 @@
 
 #include <cobalt/object_fwd.hpp>
 
+#include <boost/utility/string_view.hpp>
+
 #include <deque>
 
 namespace cobalt {
@@ -79,11 +81,11 @@ inline const object* object::find_root() const noexcept {
 	return o;
 }
 
-inline const object* object::find_child(const char* name) const noexcept {
-	if (!name)
+inline const object* object::find_child(const char* path) const noexcept {
+	if (!path)
 		return nullptr;
 	
-	const char* b = name;
+	const char* b = path;
 	const char* e = b;
 	
 	while (*e == '/')
@@ -94,7 +96,7 @@ inline const object* object::find_child(const char* name) const noexcept {
 	// Iterate through names in the path
 	while (*e++) {
 		if (*e == '/' || !*e) {
-			auto name_hash = murmur3(b, e - b, 0);
+			boost::string_view id(b, e - b);
 			bool found = false;
 			
 			// Compare child name with current path part
@@ -102,7 +104,7 @@ inline const object* object::find_child(const char* name) const noexcept {
 				if (!child.active())
 					continue;
 				
-				if (child.name() == name_hash) {
+				if (child.id() == id) {
 					current = &child;
 					found = true;
 					break;
@@ -117,44 +119,45 @@ inline const object* object::find_child(const char* name) const noexcept {
 		}
 	}
 	
+	BOOST_ASSERT(!*e);
 	return current;
 }
 	
-inline const object* object::find_child(hash_type name) const noexcept {
+inline const object* object::find_child(const identifier& id) const noexcept {
 	for (auto&& child : _children) {
 		if (!child.active())
 			continue;
 		
-		if (child.name() == name)
+		if (child.id() == id)
 			return &child;
 	}
 	
 	return nullptr;
 }
 
-inline const object* object::find_object_in_parent(hash_type name) const noexcept {
+inline const object* object::find_object_in_parent(const identifier& id) const noexcept {
 	for (auto o = _parent; o; o = o->parent()) {
 		if (!o->active())
 			continue;
 		
-		if (o->name() == name)
+		if (o->id() == id)
 			return o;
 	}
 	
 	return nullptr;
 }
 
-inline const object* object::find_object_in_children(hash_type name) const noexcept {
+inline const object* object::find_object_in_children(const identifier& id) const noexcept {
 	// Breadth-first search
 	
-	if (auto o = find_child(name))
+	if (auto o = find_child(id))
 		return o;
 	
 	for (auto&& child : _children) {
 		if (!child.active())
 			continue;
 		
-		if (auto o = child.find_child(name))
+		if (auto o = child.find_child(id))
 			return o;
 	}
 	
@@ -170,7 +173,7 @@ inline const object* object::find_object_in_children(hash_type name) const noexc
 			if (!child.active())
 				continue;
 			
-			if (auto o = child.find_child(name))
+			if (auto o = child.find_child(id))
 				return o;
 		}
 		
