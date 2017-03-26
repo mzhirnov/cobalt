@@ -61,6 +61,10 @@ public:
 	class registrar {
 		struct factory_impl : factory_node {
 			factory_impl() {
+				// So as this code performs during static objects initialization,
+				// we need to initialize boost::flyweight's static storage first.
+				identifier::init();
+				
 				T::register_factory();
 			}
 			
