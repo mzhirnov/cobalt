@@ -210,7 +210,7 @@ inline counted_ptr<component> object::detach(component* c) noexcept {
 	// destructor will call final release
 }
 
-inline size_t object::remove_components(hash_type component_type) noexcept {
+inline size_t object::remove_components(uint32_t component_type) noexcept {
 	size_t count = 0;
 	
 	_components.remove_and_dispose_if([&](auto&& c) { return c.type() == component_type; },
@@ -223,7 +223,7 @@ inline void object::remove_all_components() noexcept {
 	_components.clear_and_dispose([](auto&& c) { c->object(nullptr); release(c); });
 }
 
-inline const component* object::find_component(hash_type component_type) const noexcept {
+inline const component* object::find_component(uint32_t component_type) const noexcept {
 	for (auto&& c : _components) {
 		if (c.type() == component_type)
 			return &c;
@@ -232,7 +232,7 @@ inline const component* object::find_component(hash_type component_type) const n
 	return nullptr;
 }
 
-inline const component* object::find_component_in_parent(hash_type component_type) const noexcept {
+inline const component* object::find_component_in_parent(uint32_t component_type) const noexcept {
 	for (auto&& o = this; o; o = o->parent()) {
 		if (!o->active())
 			continue;
@@ -244,7 +244,7 @@ inline const component* object::find_component_in_parent(hash_type component_typ
 	return nullptr;
 }
 
-inline const component* object::find_component_in_children(hash_type component_type) const {
+inline const component* object::find_component_in_children(uint32_t component_type) const {
 	// Breadth-first search
 	
 	if (auto c = find_component(component_type))
@@ -279,7 +279,7 @@ inline const component* object::find_component_in_children(hash_type component_t
 }
 
 template <typename OutputIterator>
-inline void object::find_components(hash_type component_type, OutputIterator result) const {
+inline void object::find_components(uint32_t component_type, OutputIterator result) const {
 	for (auto&& c : _components) {
 		if (c.type() == component_type)
 			*result++ = &c;
@@ -287,7 +287,7 @@ inline void object::find_components(hash_type component_type, OutputIterator res
 }
 
 template <typename OutputIterator>
-inline void object::find_components_in_parent(hash_type component_type, OutputIterator result) const {
+inline void object::find_components_in_parent(uint32_t component_type, OutputIterator result) const {
 	for (auto&& o = this; o; o = o->parent()) {
 		if (!o->active())
 			continue;
@@ -297,7 +297,7 @@ inline void object::find_components_in_parent(hash_type component_type, OutputIt
 }
 
 template <typename OutputIterator>
-inline void object::find_components_in_children(hash_type component_type, OutputIterator result) const {
+inline void object::find_components_in_children(uint32_t component_type, OutputIterator result) const {
 	// Breadth-first search
 	
 	find_components(component_type, result);

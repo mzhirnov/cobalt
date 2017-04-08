@@ -27,7 +27,7 @@ public:
 class my_component : public component {
 	CO_REGISTER_AUTO_FACTORY(component_factory, my_component)
 public:
-	virtual hash_type type() const noexcept override { return "my_component"_hash; }
+	virtual uint32_t type() const noexcept override { return "my_component"_hash; }
 };
 
 TEST_CASE("information") {

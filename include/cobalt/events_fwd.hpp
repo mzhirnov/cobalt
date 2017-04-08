@@ -32,7 +32,7 @@ namespace cobalt {
 /// Event
 class event : public ref_counter<event> {
 public:
-	typedef hash_type target_type;
+	typedef uint32_t target_type;
 	
 	event() noexcept = default;
 	

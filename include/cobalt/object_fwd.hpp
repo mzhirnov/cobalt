@@ -36,7 +36,7 @@ public:
 	
 	virtual ~component() = default;
 
-	virtual hash_type type() const noexcept = 0;
+	virtual uint32_t type() const noexcept = 0;
 
 	class object* object() const noexcept { return _object; }
 	
@@ -52,12 +52,12 @@ private:
 };
 
 /// Base class for components
-template <hash_type ComponentType>
+template <uint32_t ComponentType>
 class basic_component : public component {
 public:
-	static constexpr hash_type component_type = ComponentType;
+	static constexpr uint32_t component_type = ComponentType;
 	
-	virtual hash_type type() const noexcept override { return ComponentType; }
+	virtual uint32_t type() const noexcept override { return ComponentType; }
 };
 
 /// Object is a container for components
@@ -109,12 +109,12 @@ public:
 	component* attach(component* c) noexcept;
 	counted_ptr<component> detach(component* c) noexcept;
 	
-	size_t remove_components(hash_type component_type) noexcept;
+	size_t remove_components(uint32_t component_type) noexcept;
 	void remove_all_components() noexcept;
 	
-	const component* find_component(hash_type component_type) const noexcept;
-	const component* find_component_in_parent(hash_type component_type) const noexcept;
-	const component* find_component_in_children(hash_type component_type) const;
+	const component* find_component(uint32_t component_type) const noexcept;
+	const component* find_component_in_parent(uint32_t component_type) const noexcept;
+	const component* find_component_in_children(uint32_t component_type) const;
 	
 	const component* find_component(const char* name) const noexcept { return find_component(murmur3(name, 0)); }
 	const component* find_component_in_parent(const char* name) const noexcept { return find_component_in_parent(murmur3(name, 0)); }
@@ -128,11 +128,11 @@ public:
 	const T* find_component_in_children() const noexcept { return static_cast<const T*>(find_component_in_children(T::component_type)); }
 	
 	template <typename OutputIterator>
-	void find_components(hash_type component_type, OutputIterator result) const;
+	void find_components(uint32_t component_type, OutputIterator result) const;
 	template <typename OutputIterator>
-	void find_components_in_parent(hash_type component_type, OutputIterator result) const;
+	void find_components_in_parent(uint32_t component_type, OutputIterator result) const;
 	template <typename OutputIterator>
-	void find_components_in_children(hash_type component_type, OutputIterator result) const;
+	void find_components_in_children(uint32_t component_type, OutputIterator result) const;
 	
 	template <typename T, typename OutputIterator, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
 	void find_components(OutputIterator result) const;
