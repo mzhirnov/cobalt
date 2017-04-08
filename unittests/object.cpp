@@ -4,7 +4,7 @@
 
 using namespace cobalt;
 
-using component_factory = factory<component()>;
+using component_factory = auto_factory<component()>;
 
 class renderer : public basic_component<"renderer"_hash> {
 public:
@@ -20,12 +20,12 @@ private:
 };
 
 class transform : public basic_component<"transform"_hash> {
-CO_REGISTER_FACTORY(component_factory, transform)
+	CO_REGISTER_AUTO_FACTORY(component_factory, transform)
 public:
 };
 
 class my_component : public component {
-CO_REGISTER_FACTORY(component_factory, my_component)
+	CO_REGISTER_AUTO_FACTORY(component_factory, my_component)
 public:
 	virtual hash_type type() const noexcept override { return "my_component"_hash; }
 };
