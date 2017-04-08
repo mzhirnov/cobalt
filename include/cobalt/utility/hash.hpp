@@ -204,17 +204,17 @@ static uint32_t murmur3_32_value(const void* key, uint32_t len, uint32_t seed) n
 		uint32_t k1 = blocks[i];
 
 		k1 *= c1;
-		k1 = rotl32(k1,15);
+		k1 = rotl32(k1, 15);
 		k1 *= c2;
 
 		h1 ^= k1;
-		h1 = rotl32(h1,13);
-		h1 = h1 * 5+0xe6546b64;
+		h1 = rotl32(h1, 13);
+		h1 = h1 * 5 + 0xe6546b64;
 	}
 
 	// tail
 		
-	const uint8_t* tail = (const uint8_t*)(data + nblocks*4);
+	const uint8_t* tail = (const uint8_t*)(data + nblocks * 4);
 		
 	uint32_t k1 = 0;
 		
@@ -222,7 +222,7 @@ static uint32_t murmur3_32_value(const void* key, uint32_t len, uint32_t seed) n
 	case 3: k1 ^= tail[2] << 16;
 	case 2: k1 ^= tail[1] << 8;
 	case 1: k1 ^= tail[0];
-			k1 *= c1; k1 = rotl32(k1,15); k1 *= c2; h1 ^= k1;
+			k1 *= c1; k1 = rotl32(k1, 15); k1 *= c2; h1 ^= k1;
 	}
 	
 	// finalization
@@ -246,19 +246,17 @@ inline uint32_t murmur3_32(const char *key, size_t len, uint32_t seed) noexcept
 	
 } // namespace runtime
 
-typedef uint32_t hash_type;
-
-constexpr hash_type operator ""_hash(const char* str, size_t len)
+constexpr uint32_t operator ""_hash(const char* str, size_t len)
 {
 	return cobalt::compiletime::murmur3_32(str, static_cast<uint32_t>(len), 0);
 }
 
-inline hash_type murmur3(const char *str, uint32_t seed) noexcept
+inline uint32_t murmur3(const char *str, uint32_t seed) noexcept
 {
 	return cobalt::runtime::murmur3_32(str, seed);
 }
 
-inline hash_type murmur3(const char *str, size_t len, uint32_t seed) noexcept
+inline uint32_t murmur3(const char *str, size_t len, uint32_t seed) noexcept
 {
 	return cobalt::runtime::murmur3_32(str, static_cast<uint32_t>(len), seed);
 }
