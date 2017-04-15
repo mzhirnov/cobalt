@@ -6,7 +6,6 @@
 // Classes in this file:
 //     component
 //     object
-//     scene
 
 #include <cobalt/utility/intrusive.hpp>
 #include <cobalt/utility/identifier.hpp>
@@ -14,7 +13,6 @@
 #include <cobalt/utility/hash.hpp>
 
 #include <type_traits>
-#include <forward_list>
 
 namespace cobalt {
 
@@ -77,12 +75,12 @@ public:
 	object(const object&) = delete;
 	object& operator=(const object&) = delete;
 	
-	explicit object(const identifier& id) noexcept : _id(id) {}
+	explicit object(const identifier& name) noexcept : _name(name) {}
 	
 	~object();
 
-	const identifier& id() const noexcept { return _id; }
-	void id(const identifier& id) noexcept { _id = id; }
+	const identifier& name() const noexcept { return _name; }
+	void name(const identifier& name) noexcept { _name = name; }
 
 	bool active() const noexcept { return _active; }
 	void active(bool active) noexcept { _active = active; }
@@ -101,9 +99,9 @@ public:
 	void remove_all_children() noexcept;
 	
 	const object* find_root() const noexcept;
-	const object* find_object(const identifier& id) const noexcept;
-	const object* find_object_in_parent(const identifier& id) const noexcept;
-	const object* find_object_in_children(const identifier& id) const noexcept;
+	const object* find_object(const identifier& name) const noexcept;
+	const object* find_object_in_parent(const identifier& name) const noexcept;
+	const object* find_object_in_children(const identifier& name) const noexcept;
 	const object* find_object_with_path(const char* path) const noexcept;
 
 	component* attach(component* c) noexcept;
@@ -148,19 +146,8 @@ private:
 	mutable object* _parent = nullptr;
 	children_type _children;
 	components_type _components;	
-	identifier _id;
+	identifier _name;
 	bool _active = true;
-};
-	
-/// Scene
-class scene : public object {
-public:
-	scene() = default;
-	
-	scene(const scene&) = delete;
-	scene& operator=(const scene&) = delete;
-	
-private:
 };
 
 } // namespace cobalt

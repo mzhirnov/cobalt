@@ -32,7 +32,6 @@ public:
 
 TEST_CASE("information") {
 	printf("sizeof(void*) := %zu\n", sizeof(void*));
-	printf("sizeof(std::forward_list<object>) := %zu\n", sizeof(std::forward_list<object>));
 	printf("sizeof(intrusive_list<object>) := %zu\n", sizeof(intrusive_list<object>));
 	printf("sizeof(intrusive_slist<object>) := %zu\n", sizeof(intrusive_slist<object>));
 	printf("sizeof(object) := %zu\n", sizeof(object));

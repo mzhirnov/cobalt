@@ -81,41 +81,41 @@ inline const object* object::find_root() const noexcept {
 	return o;
 }
 	
-inline const object* object::find_object(const identifier& id) const noexcept {
+inline const object* object::find_object(const identifier& name) const noexcept {
 	for (auto&& child : _children) {
 		if (!child.active())
 			continue;
 		
-		if (child.id() == id)
+		if (child.name() == name)
 			return &child;
 	}
 	
 	return nullptr;
 }
 
-inline const object* object::find_object_in_parent(const identifier& id) const noexcept {
+inline const object* object::find_object_in_parent(const identifier& name) const noexcept {
 	for (auto o = _parent; o; o = o->parent()) {
 		if (!o->active())
 			continue;
 		
-		if (o->id() == id)
+		if (o->name() == name)
 			return o;
 	}
 	
 	return nullptr;
 }
 
-inline const object* object::find_object_in_children(const identifier& id) const noexcept {
+inline const object* object::find_object_in_children(const identifier& name) const noexcept {
 	// Breadth-first search
 	
-	if (auto o = find_object(id))
+	if (auto o = find_object(name))
 		return o;
 	
 	for (auto&& child : _children) {
 		if (!child.active())
 			continue;
 		
-		if (auto o = child.find_object(id))
+		if (auto o = child.find_object(name))
 			return o;
 	}
 	
@@ -131,7 +131,7 @@ inline const object* object::find_object_in_children(const identifier& id) const
 			if (!child.active())
 				continue;
 			
-			if (auto o = child.find_object(id))
+			if (auto o = child.find_object(name))
 				return o;
 		}
 		
@@ -157,7 +157,7 @@ inline const object* object::find_object_with_path(const char* path) const noexc
 	// Iterate through names in the path
 	while (*e++) {
 		if (*e == '/' || !*e) {
-			boost::string_view id(b, e - b);
+			boost::string_view name(b, e - b);
 			bool found = false;
 			
 			// Compare child name with current path part
@@ -165,7 +165,7 @@ inline const object* object::find_object_with_path(const char* path) const noexc
 				if (!child.active())
 					continue;
 				
-				if (child.id() == id) {
+				if (child.name() == name) {
 					current = &child;
 					found = true;
 					break;
