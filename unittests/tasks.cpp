@@ -97,8 +97,6 @@ TEST_CASE("tasks") {
 		REQUIRE(task->get_state() == 2);
 		
 		for (int i = 0; i < task->get_frames(); ++i) {
-			std::cout << i + 1 << std::endl;
-			
 			scheduler.step();
 
 			REQUIRE(task->state() == task_state::running);
