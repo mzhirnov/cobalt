@@ -80,8 +80,20 @@ inline const object* object::find_root() const noexcept {
 	
 	return o;
 }
+
+inline const object* object::find_parent(const identifier& name) const noexcept {
+	for (auto o = _parent; o; o = o->parent()) {
+		if (!o->active())
+			continue;
+		
+		if (o->name() == name)
+			return o;
+	}
 	
-inline const object* object::find_object(const identifier& name) const noexcept {
+	return nullptr;
+}
+	
+inline const object* object::find_child(const identifier& name) const noexcept {
 	for (auto&& child : _children) {
 		if (!child.active())
 			continue;
@@ -93,29 +105,17 @@ inline const object* object::find_object(const identifier& name) const noexcept 
 	return nullptr;
 }
 
-inline const object* object::find_object_in_parent(const identifier& name) const noexcept {
-	for (auto o = _parent; o; o = o->parent()) {
-		if (!o->active())
-			continue;
-		
-		if (o->name() == name)
-			return o;
-	}
-	
-	return nullptr;
-}
-
-inline const object* object::find_object_in_children(const identifier& name) const noexcept {
+inline const object* object::find_child_in_hierarchy(const identifier& name) const noexcept {
 	// Breadth-first search
 	
-	if (auto o = find_object(name))
+	if (auto o = find_child(name))
 		return o;
 	
 	for (auto&& child : _children) {
 		if (!child.active())
 			continue;
 		
-		if (auto o = child.find_object(name))
+		if (auto o = child.find_child(name))
 			return o;
 	}
 	
@@ -131,7 +131,7 @@ inline const object* object::find_object_in_children(const identifier& name) con
 			if (!child.active())
 				continue;
 			
-			if (auto o = child.find_object(name))
+			if (auto o = child.find_child(name))
 				return o;
 		}
 		
@@ -149,10 +149,10 @@ inline const object* object::find_object_with_path(const char* path) const noexc
 	const char* b = path;
 	const char* e = b;
 	
+	auto current = (*e == '/' ? (_parent ? find_root() : this) : this);
+	
 	while (*e == '/')
 		b = ++e;
-	
-	auto current = this;
 	
 	// Iterate through names in the path
 	while (*e++) {

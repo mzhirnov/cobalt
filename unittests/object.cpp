@@ -32,14 +32,12 @@ public:
 
 TEST_CASE("information") {
 	printf("sizeof(void*) := %zu\n", sizeof(void*));
-	printf("sizeof(intrusive_list<object>) := %zu\n", sizeof(intrusive_list<object>));
-	printf("sizeof(intrusive_slist<object>) := %zu\n", sizeof(intrusive_slist<object>));
-	printf("sizeof(object) := %zu\n", sizeof(object));
-	printf("sizeof(component) := %zu\n", sizeof(component));
+	printf("sizeof(object) := %zu (%zu x void*)\n", sizeof(object), sizeof(object) / sizeof(void*));
+	printf("sizeof(component) := %zu (%zu x void*)\n", sizeof(component), sizeof(component) / sizeof(void*));
 }
 
 TEST_CASE("object") {
-	auto o = make_counted<object>();
+	auto o = make_counted<object>(identifier("root"));
 	
 	SECTION("add child") {
 		auto child = o->attach(new object());
@@ -144,7 +142,13 @@ TEST_CASE("object") {
 		auto o2 = o1->attach(new object(identifier("child2")));
 		auto o3 = o2->attach(new object(identifier("child3")));
 		
-		auto found = o->find_object_with_path("child1/child2/child3");
+		auto c2 = o->find_object_with_path("child1/child2");
+		REQUIRE(c2);
+		
+		auto found = c2->find_object_with_path("child1/child2/child3");
+		REQUIRE_FALSE(found);
+		
+		found = c2->find_object_with_path("/child1/child2/child3");
 		REQUIRE(found);
 	}
 }

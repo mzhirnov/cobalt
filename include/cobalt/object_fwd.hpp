@@ -99,9 +99,9 @@ public:
 	void remove_all_children() noexcept;
 	
 	const object* find_root() const noexcept;
-	const object* find_object(const identifier& name) const noexcept;
-	const object* find_object_in_parent(const identifier& name) const noexcept;
-	const object* find_object_in_children(const identifier& name) const noexcept;
+	const object* find_parent(const identifier& name) const noexcept;
+	const object* find_child(const identifier& name) const noexcept;
+	const object* find_child_in_hierarchy(const identifier& name) const noexcept;
 	const object* find_object_with_path(const char* path) const noexcept;
 
 	component* attach(component* c) noexcept;
