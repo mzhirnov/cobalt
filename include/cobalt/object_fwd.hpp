@@ -6,6 +6,16 @@
 // Classes in this file:
 //     component
 //     object
+//
+// Functions in this file:
+//     find_root
+//     find_parent
+//     find_child
+//     find_child_in_hierarchy
+//     find_object_with_path
+//     find_component
+//     find_component_in_parent
+//     find_component_in_children
 
 #include <cobalt/utility/intrusive.hpp>
 #include <cobalt/utility/identifier.hpp>
@@ -78,6 +88,11 @@ public:
 	explicit object(const identifier& name) noexcept : _name(name) {}
 	
 	~object();
+	
+	object* parent() const noexcept { return _parent; }
+	
+	enumerator<children_type::const_iterator> children() const noexcept { return make_enumerator(_children); }
+	enumerator<components_type::const_iterator> components() const noexcept { return make_enumerator(_components); }
 
 	const identifier& name() const noexcept { return _name; }
 	void name(const identifier& name) noexcept { _name = name; }
@@ -85,70 +100,67 @@ public:
 	bool active() const noexcept { return _active; }
 	void active(bool active) noexcept { _active = active; }
 	bool active_in_hierarchy() const noexcept;
-
-	object* parent() const noexcept { return _parent; }
 	
-	enumerator<children_type::const_iterator> children() const noexcept { return make_enumerator(_children); }
-	enumerator<components_type::const_iterator> components() const noexcept { return make_enumerator(_components); }
-	
-	object* attach(object* o) noexcept;
-	counted_ptr<object> detach(object* o) noexcept;
+	object* add_child(object* o) noexcept;
+	counted_ptr<object> remove_child(object* o) noexcept;
 	
 	void detach() noexcept;
 	
 	void remove_all_children() noexcept;
-	
-	const object* find_root() const noexcept;
-	const object* find_parent(const identifier& name) const noexcept;
-	const object* find_child(const identifier& name) const noexcept;
-	const object* find_child_in_hierarchy(const identifier& name) const noexcept;
-	const object* find_object_with_path(const char* path) const noexcept;
 
-	component* attach(component* c) noexcept;
-	counted_ptr<component> detach(component* c) noexcept;
+	component* add_component(component* c) noexcept;
+	counted_ptr<component> remove_component(component* c) noexcept;
 	
 	size_t remove_components(uint32_t component_type) noexcept;
 	void remove_all_components() noexcept;
-	
-	const component* find_component(uint32_t component_type) const noexcept;
-	const component* find_component_in_parent(uint32_t component_type) const noexcept;
-	const component* find_component_in_children(uint32_t component_type) const;
-	
-	const component* find_component(const char* name) const noexcept { return find_component(murmur3(name, 0)); }
-	const component* find_component_in_parent(const char* name) const noexcept { return find_component_in_parent(murmur3(name, 0)); }
-	const component* find_component_in_children(const char* name) const { return find_component_in_children(murmur3(name, 0)); }
-	
-	template <typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-	const T* find_component() const noexcept { return static_cast<const T*>(find_component(T::component_type)); }
-	template <typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-	const T* find_component_in_parent() const noexcept { return static_cast<const T*>(find_component_in_parent(T::component_type)); }
-	template <typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-	const T* find_component_in_children() const noexcept { return static_cast<const T*>(find_component_in_children(T::component_type)); }
-	
-	template <typename OutputIterator>
-	void find_components(uint32_t component_type, OutputIterator result) const;
-	template <typename OutputIterator>
-	void find_components_in_parent(uint32_t component_type, OutputIterator result) const;
-	template <typename OutputIterator>
-	void find_components_in_children(uint32_t component_type, OutputIterator result) const;
-	
-	template <typename T, typename OutputIterator, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-	void find_components(OutputIterator result) const;
-	template <typename T, typename OutputIterator, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-	void find_components_in_parent(OutputIterator result) const;
-	template <typename T, typename OutputIterator, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-	void find_components_in_children(OutputIterator result) const;
 
 private:
 	void parent(object* parent) noexcept { _parent = parent; }
 
 private:
-	mutable object* _parent = nullptr;
+	object* _parent = nullptr;
 	children_type _children;
 	components_type _components;	
 	identifier _name;
 	bool _active = true;
 };
+
+////////////////////////////////////////////////////////////////////////////////
+
+const object* find_root(const object* o) noexcept;
+const object* find_parent(const object* o, const identifier& name) noexcept;
+const object* find_child(const object* o, const identifier& name) noexcept;
+const object* find_child_in_hierarchy(const object* o, const identifier& name) noexcept;
+const object* find_object_with_path(const object* o, const char* path) noexcept;
+
+const component* find_component(const object* o, uint32_t component_type) noexcept;
+const component* find_component_in_parent(const object* o, uint32_t component_type) noexcept;
+const component* find_component_in_children(const object* o, uint32_t component_type);
+
+const component* find_component(const object* o, const char* name) noexcept;
+const component* find_component_in_parent(const object* o, const char* name) noexcept;
+const component* find_component_in_children(const object* o, const char* name);
+
+template <typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
+const T* find_component(const object* o) noexcept;
+template <typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
+const T* find_component_in_parent(const object* o) noexcept;
+template <typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
+const T* find_component_in_children(const object* o) noexcept;
+
+template <typename OutputIterator>
+void find_components(const object* o, uint32_t component_type, OutputIterator result);
+template <typename OutputIterator>
+void find_components_in_parent(const object* o, uint32_t component_type, OutputIterator result);
+template <typename OutputIterator>
+void find_components_in_children(const object* o, uint32_t component_type, OutputIterator result);
+
+template <typename T, typename OutputIterator, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
+void find_components(const object* o, OutputIterator result);
+template <typename T, typename OutputIterator, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
+void find_components_in_parent(const object* o, OutputIterator result);
+template <typename T, typename OutputIterator, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
+void find_components_in_children(const object* o, OutputIterator result);
 
 } // namespace cobalt
 

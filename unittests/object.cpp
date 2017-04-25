@@ -40,20 +40,20 @@ TEST_CASE("object") {
 	auto o = make_counted<object>(identifier("root"));
 	
 	SECTION("add child") {
-		auto child = o->attach(new object());
+		auto child = o->add_child(new object());
 	
 		REQUIRE(child->parent() == o.get());
 		
 		SECTION("remove child") {
-			auto removed = o->detach(child);
+			auto removed = o->remove_child(child);
 			
 			REQUIRE(removed.get() == child);
 		}
 		
-		SECTION("self remove child") {
+		SECTION("detach child") {
 			child->detach();
 			
-			REQUIRE(o->detach(child) == nullptr);
+			REQUIRE(o->remove_child(child) == nullptr);
 		}
 	}
 	
@@ -61,13 +61,13 @@ TEST_CASE("object") {
 		int renderer_instances = 0;
 		auto r = new renderer(renderer_instances);
 		
-		auto c = o->attach(r);
+		auto c = o->add_component(r);
 		
 		auto xform = component_factory::create(identifier("transform"));
 		
 		REQUIRE(xform != nullptr);
 		
-		o->attach(xform);
+		o->add_component(xform);
 		
 		SECTION("check preconditions") {
 			REQUIRE(c == r);
@@ -76,39 +76,39 @@ TEST_CASE("object") {
 		}
 		
 		SECTION("find component by type") {
-			auto f1 = (const renderer*)o->find_component(renderer::component_type);
+			auto f1 = (const renderer*)find_component(o.get(), renderer::component_type);
 			
 			REQUIRE(f1 == r);
-			REQUIRE_FALSE(o->find_component(transform::component_type) == nullptr);
+			REQUIRE_FALSE(find_component(o.get(), transform::component_type) == nullptr);
 			
 			f1->draw(); // will compile
 		}
 		
 		SECTION("find component by hash") {
-			auto f1 = (const renderer*)o->find_component("renderer"_hash);
+			auto f1 = (const renderer*)find_component(o.get(), "renderer"_hash);
 			
 			REQUIRE(f1 == r);
-			REQUIRE_FALSE(o->find_component("transform"_hash) == nullptr);
-			REQUIRE(o->find_component("my_component"_hash) == nullptr);
+			REQUIRE_FALSE(find_component(o.get(), "transform"_hash) == nullptr);
+			REQUIRE(find_component(o.get(), "my_component"_hash) == nullptr);
 			
 			f1->draw(); // will compile
 		}
 		
 		SECTION("find component by name") {
-			auto f1 = (const renderer*)o->find_component("renderer");
+			auto f1 = (const renderer*)find_component(o.get(), "renderer");
 			
 			REQUIRE(f1 == r);
-			REQUIRE_FALSE(o->find_component("transform") == nullptr);
-			REQUIRE(o->find_component("my_component") == nullptr);
+			REQUIRE_FALSE(find_component(o.get(), "transform") == nullptr);
+			REQUIRE(find_component(o.get(), "my_component") == nullptr);
 			
 			f1->draw(); // will compile
 		}
 		
 		SECTION("find component with template") {
-			auto f2 = o->find_component<renderer>();
+			auto f2 = find_component<renderer>(o.get());
 			
 			REQUIRE(f2 == r);
-			REQUIRE_FALSE(o->find_component<transform>() == nullptr);
+			REQUIRE_FALSE(find_component<transform>(o.get()) == nullptr);
 			//o->find_component<my_component>(); // won't compile due to enable_if<>
 			
 			f2->draw(); // will compile
@@ -116,7 +116,7 @@ TEST_CASE("object") {
 		
 		SECTION("find components by type") {
 			std::vector<const component*> vec;
-			o->find_components(renderer::component_type, std::back_inserter(vec));
+			find_components(o.get(), renderer::component_type, std::back_inserter(vec));
 			
 			REQUIRE(vec.size() == 1);
 			REQUIRE(vec[0] == r);
@@ -124,7 +124,7 @@ TEST_CASE("object") {
 		
 		SECTION("find components with template") {
 			std::vector<const renderer*> vec;
-			o->find_components<renderer>(std::back_inserter(vec));
+			find_components<renderer>(o.get(), std::back_inserter(vec));
 			
 			REQUIRE(vec.size() == 1);
 			REQUIRE(vec[0] == r);
@@ -138,17 +138,17 @@ TEST_CASE("object") {
 	}
 	
 	SECTION("find with path") {
-		auto o1 = o->attach(new object(identifier("child1")));
-		auto o2 = o1->attach(new object(identifier("child2")));
-		auto o3 = o2->attach(new object(identifier("child3")));
+		auto o1 = o->add_child(new object(identifier("child1")));
+		auto o2 = o1->add_child(new object(identifier("child2")));
+		auto o3 = o2->add_child(new object(identifier("child3")));
 		
-		auto c2 = o->find_object_with_path("child1/child2");
+		auto c2 = find_object_with_path(o.get(), "child1/child2");
 		REQUIRE(c2);
 		
-		auto found = c2->find_object_with_path("child1/child2/child3");
+		auto found = find_object_with_path(c2, "child1/child2/child3");
 		REQUIRE_FALSE(found);
 		
-		found = c2->find_object_with_path("/child1/child2/child3");
+		found = find_object_with_path(c2, "/child1/child2/child3");
 		REQUIRE(found);
 	}
 }
