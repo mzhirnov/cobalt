@@ -14,7 +14,7 @@
 namespace cobalt {
 
 template <typename T>
-using ref_counter = boost::intrusive_ref_counter<T>;
+using ref_counter = boost::intrusive_ref_counter<T, boost::thread_safe_counter>;
 
 template <typename T>
 using counted_ptr = boost::intrusive_ptr<T>;
