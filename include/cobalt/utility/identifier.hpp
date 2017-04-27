@@ -3,31 +3,26 @@
 
 #pragma once
 
-#include <cobalt/utility/hash.hpp>
-
 #include <boost/flyweight.hpp>
 
 #include <string>
 
 namespace cobalt {
 
-struct identifier_tag {};
-
-struct identifier_hash {
-	std::size_t operator()(const std::string& str) const noexcept {
-		return static_cast<std::size_t>(murmur3(str.c_str(), str.size(), 0));
-	}
-};
-
-using identifier = boost::flyweight<
+template <typename Tag>
+using basic_identifier = boost::flyweight<
 	std::string,
-	boost::flyweights::tag<identifier_tag>,
+	boost::flyweights::tag<Tag>,
 	boost::flyweights::hashed_factory<
-		identifier_hash,
+		std::hash<std::string>,
 		std::equal_to<std::string>,
 		std::allocator<boost::mpl::_1>
 	>
 >;
+
+struct generic_identifier_tag {};
+
+using identifier = basic_identifier<generic_identifier_tag>;
 
 } // namespace cobalt
 
