@@ -37,14 +37,6 @@ class component
 	, public intrusive_slist_base<component>
 {
 public:
-	component() = default;
-	
-	component(component&&) = default;
-	component& operator=(component&&) = default;
-	
-	component(const component&) = default;
-	component& operator=(const component&) = default;
-	
 	virtual ~component() = default;
 
 	virtual uint32_t type() const noexcept = 0;
