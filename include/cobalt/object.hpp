@@ -20,7 +20,6 @@
 
 #include <cobalt/utility/intrusive.hpp>
 #include <cobalt/utility/identifier.hpp>
-#include <cobalt/utility/enumerator.hpp>
 #include <cobalt/utility/hash.hpp>
 
 #include <boost/utility/string_view.hpp>
@@ -30,12 +29,15 @@
 
 namespace cobalt {
 
+struct object_components_tag {};
+struct object_children_tag {};
+
 class object;
 
 /// Component
 class component
 	: public ref_counter<component>
-	, public intrusive_single_list_base<component>
+	, public intrusive_single_list_base<object_components_tag>
 {
 public:
 	virtual ~component() = default;
@@ -67,11 +69,11 @@ public:
 /// Object is a container for components
 class object
 	: public ref_counter<object>
-	, public intrusive_single_list_base<object>
+	, public intrusive_single_list_base<object_children_tag>
 {
 public:
-	using children_type = intrusive_single_list<object>;
-	using components_type = intrusive_single_list<component>;
+	using children_type = intrusive_single_list<object, object_children_tag>;
+	using components_type = intrusive_single_list<component, object_components_tag>;
 	
 	object() = default;
 	
@@ -87,8 +89,8 @@ public:
 	
 	object* parent() const noexcept { return _parent; }
 	
-	enumerator<children_type::const_iterator> children() const noexcept { return make_enumerator(_children); }
-	enumerator<components_type::const_iterator> components() const noexcept { return make_enumerator(_components); }
+	const children_type& children() const noexcept { return _children; }
+	const components_type& components() const noexcept { return _components; }
 
 	const identifier& name() const noexcept { return _name; }
 	void name(const identifier& name) noexcept { _name = name; }
@@ -298,9 +300,8 @@ inline const object* find_child_in_hierarchy(const object* o, const identifier& 
 		if (auto found = find_child(&child, name))
 			return found;
 	}
-	
-	auto children = o->children();
-	std::deque<std::reference_wrapper<const object>> queue(children.begin(), children.end());
+
+	std::deque<std::reference_wrapper<const object>> queue(std::begin(o->children()), std::end(o->children()));
 	
 	while (!queue.empty()) {
 		auto&& front = queue.front().get();
@@ -308,9 +309,7 @@ inline const object* find_child_in_hierarchy(const object* o, const identifier& 
 		if (!front.active())
 			continue;
 		
-		children = front.children();
-		
-		for (auto&& child : children) {
+		for (auto&& child : front.children()) {
 			if (!child.active())
 				continue;
 			
@@ -318,7 +317,7 @@ inline const object* find_child_in_hierarchy(const object* o, const identifier& 
 				return found;
 		}
 		
-		queue.insert(queue.end(), children.begin(), children.end());
+		queue.insert(queue.end(), std::begin(front.children()), std::end(front.children()));
 		queue.pop_front();
 	}
 	
@@ -410,16 +409,13 @@ inline const component* find_component_in_children(const object* o, uint32_t com
 		if (auto c = find_component(&child, component_type))
 			return c;
 	}
-	
-	auto children = o->children();
-	std::deque<std::reference_wrapper<const object>> queue(children.begin(), children.end());
+
+	std::deque<std::reference_wrapper<const object>> queue(std::begin(o->children()), std::end(o->children()));
 	
 	while (!queue.empty()) {
 		auto&& front = queue.front().get();
 		
-		children = front.children();
-		
-		for (auto&& child : children) {
+		for (auto&& child : front.children()) {
 			if (!child.active())
 				continue;
 			
@@ -427,7 +423,7 @@ inline const component* find_component_in_children(const object* o, uint32_t com
 				return c;
 		}
 		
-		queue.insert(queue.end(), children.begin(), children.end());
+		queue.insert(queue.end(), std::begin(front.children()), std::end(front.children()));
 		queue.pop_front();
 	}
 
@@ -496,26 +492,23 @@ inline void find_components_in_children(const object* o, uint32_t component_type
 		
 		find_components(&child, component_type, result);
 	}
-	
-	auto children = o->children();
-	std::deque<std::reference_wrapper<const object>> queue(children.begin(), children.end());
+
+	std::deque<std::reference_wrapper<const object>> queue(std::begin(o->children()), std::end(o->children()));
 	
 	while (!queue.empty()) {
 		auto&& front = queue.front().get();
 		
 		if (!front.active())
 			continue;
-		
-		children = front.children();
-		
-		for (auto&& child : children) {
+
+		for (auto&& child : front.children()) {
 			if (!child.active())
 				continue;
 			
 			find_components(&child, component_type, result);
 		}
 		
-		queue.insert(queue.end(), children.begin(), children.end());
+		queue.insert(queue.end(), std::begin(front.children()), std::end(front.children()));
 		queue.pop_front();
 	}
 }
@@ -558,26 +551,23 @@ inline void find_components_in_children(const object* o, OutputIterator result) 
 		
 		find_components<T>(&child, result);
 	}
-	
-	auto children = o->children();
-	std::deque<std::reference_wrapper<const object>> queue(children.begin(), children.end());
+
+	std::deque<std::reference_wrapper<const object>> queue(std::begin(o->children()), std::end(o->children()));
 	
 	while (!queue.empty()) {
 		auto&& front = queue.front().get();
 		
 		if (!front.active())
 			continue;
-		
-		children = front.children();
-		
-		for (auto&& child : children) {
+
+		for (auto&& child : front.children()) {
 			if (!child.active())
 				continue;
 			
 			find_components<T>(&child, result);
 		}
 		
-		queue.insert(queue.end(), children.begin(), children.end());
+		queue.insert(queue.end(), std::begin(front.children()), std::end(front.children()));
 		queue.pop_front();
 	}
 }

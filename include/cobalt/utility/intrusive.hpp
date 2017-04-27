@@ -42,7 +42,7 @@ using intrusive_single_list_base = boost::intrusive::slist_base_hook<
 	boost::intrusive::tag<Tag>,
 	boost::intrusive::link_mode<boost::intrusive::safe_link>>;
 
-template <typename T, typename Tag = T>
+template <typename T, typename Tag>
 using intrusive_single_list = boost::intrusive::slist<
 	T,
 	boost::intrusive::base_hook<intrusive_single_list_base<Tag>>,
@@ -53,7 +53,7 @@ using intrusive_list_base = boost::intrusive::list_base_hook<
 	boost::intrusive::tag<Tag>,
 	boost::intrusive::link_mode<boost::intrusive::safe_link>>;
 
-template <typename T, typename Tag = T>
+template <typename T, typename Tag>
 using intrusive_list = boost::intrusive::list<
 	T,
 	boost::intrusive::base_hook<intrusive_list_base<Tag>>,
