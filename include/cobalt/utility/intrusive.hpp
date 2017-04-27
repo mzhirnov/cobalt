@@ -17,6 +17,9 @@ template <typename T>
 using ref_counter = boost::intrusive_ref_counter<T, boost::thread_safe_counter>;
 
 template <typename T>
+using unsafe_ref_counter = boost::intrusive_ref_counter<T, boost::thread_unsafe_counter>;
+
+template <typename T>
 using counted_ptr = boost::intrusive_ptr<T>;
 
 template <typename T, typename = typename std::enable_if_t<std::is_base_of<ref_counter<T>, T>::value>>
@@ -35,14 +38,14 @@ inline counted_ptr<T> make_counted(Args&&... args) {
 }
 
 template <typename Tag>
-using intrusive_slist_base = boost::intrusive::slist_base_hook<
+using intrusive_single_list_base = boost::intrusive::slist_base_hook<
 	boost::intrusive::tag<Tag>,
 	boost::intrusive::link_mode<boost::intrusive::safe_link>>;
 
 template <typename T, typename Tag = T>
-using intrusive_slist = boost::intrusive::slist<
+using intrusive_single_list = boost::intrusive::slist<
 	T,
-	boost::intrusive::base_hook<intrusive_slist_base<Tag>>,
+	boost::intrusive::base_hook<intrusive_single_list_base<Tag>>,
 	boost::intrusive::constant_time_size<false>>;
 
 template <typename Tag>

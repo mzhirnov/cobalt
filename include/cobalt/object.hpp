@@ -5,6 +5,7 @@
 
 // Classes in this file:
 //     component
+//     basic_component
 //     object
 //
 // Functions in this file:
@@ -34,7 +35,7 @@ class object;
 /// Component
 class component
 	: public ref_counter<component>
-	, public intrusive_slist_base<component>
+	, public intrusive_single_list_base<component>
 {
 public:
 	virtual ~component() = default;
@@ -66,11 +67,11 @@ public:
 /// Object is a container for components
 class object
 	: public ref_counter<object>
-	, public intrusive_slist_base<object>
+	, public intrusive_single_list_base<object>
 {
 public:
-	using children_type = intrusive_slist<object>;
-	using components_type = intrusive_slist<component>;
+	using children_type = intrusive_single_list<object>;
+	using components_type = intrusive_single_list<component>;
 	
 	object() = default;
 	
