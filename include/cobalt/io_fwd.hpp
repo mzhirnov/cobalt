@@ -19,7 +19,7 @@
 
 #include <cobalt/utility/enum_traits.hpp>
 #include <cobalt/utility/intrusive.hpp>
-#include <cobalt/utility/throw_error.hpp>
+#include <cobalt/utility/throw_if_error.hpp>
 
 #include <vector>
 #include <thread>
