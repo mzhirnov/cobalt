@@ -752,28 +752,19 @@ inline size_t copy(InputIterator begin, InputIterator end, stream& stream) {
 //
 
 inline binary_writer::binary_writer(stream& stream) noexcept
-	: _stream(&stream)
+	: stream_holder(stream)
 {
 }
 
 inline binary_writer::binary_writer(stream* stream) noexcept
-	: _stream(stream)
-	, _owning(true)
+	: stream_holder(stream)
 {
-	BOOST_ASSERT(_stream != nullptr);
-	if (!_stream)
+	if (!base_stream())
 		throw std::system_error(std::make_error_code(std::errc::invalid_argument), "stream");
-	
-	retain(_stream);
-}
-
-inline binary_writer::~binary_writer() {
-	if (_owning)
-		release(_stream);
 }
 
 inline void binary_writer::write(uint8_t value, std::error_code& ec) noexcept {
-	_stream->write(&value, sizeof(uint8_t), ec);
+	base_stream()->write(&value, sizeof(uint8_t), ec);
 }
 
 inline void binary_writer::write(uint16_t value, std::error_code& ec) noexcept {
@@ -1005,29 +996,20 @@ inline void binary_writer::write_pascal_string(const char* str) {
 //
 
 inline binary_reader::binary_reader(stream& stream) noexcept
-	: _stream(&stream)
+	: stream_holder(stream)
 {
 }
 
 inline binary_reader::binary_reader(stream* stream) noexcept
-	: _stream(stream)
-	, _owning(true)
+	: stream_holder(stream)
 {
-	BOOST_ASSERT(_stream != nullptr);
-	if (!_stream)
+	if (!base_stream())
 		throw std::system_error(std::make_error_code(std::errc::invalid_argument), "stream");
-	
-	retain(_stream);
-}
-
-inline binary_reader::~binary_reader() {
-	if (_owning)
-		release(_stream);
 }
 
 inline uint8_t binary_reader::read_uint8(std::error_code& ec) noexcept {
 	uint8_t result = 0;
-	_stream->read(&result, sizeof(uint8_t), ec);
+	base_stream()->read(&result, sizeof(uint8_t), ec);
 	return result;
 }
 
@@ -1265,7 +1247,7 @@ inline std::string binary_reader::read_pascal_string() {
 //
 
 inline bitpack_writer::bitpack_writer(stream& stream) noexcept
-	: _writer(&stream)
+	: _writer(stream)
 {
 }
 

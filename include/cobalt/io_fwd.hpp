@@ -233,14 +233,10 @@ template <typename InputIterator>
 size_t copy(InputIterator begin, InputIterator end, stream& stream);
 
 /// Binary writer
-class binary_writer {
+class binary_writer : public detail::stream_holder {
 public:
 	explicit binary_writer(stream& stream) noexcept;
 	explicit binary_writer(stream* stream) noexcept;
-	
-	~binary_writer();
-
-	stream* base_stream() const noexcept { return _stream; }
 
 	void write(uint8_t value, std::error_code& ec) noexcept;
 	void write(uint16_t value, std::error_code& ec) noexcept;
@@ -273,22 +269,14 @@ public:
 	void write_unicode_char(uint32_t value);
 	void write_c_string(const char* str); // zero ended string
 	void write_pascal_string(const char* str); // length prepended string
-
-private:
-	stream* _stream = nullptr;
-	bool _owning = false;
 };
 
 /// Binary reader
-class binary_reader {
+class binary_reader : public detail::stream_holder {
 public:
 	explicit binary_reader(stream& stream) noexcept;
 	explicit binary_reader(stream* stream) noexcept;
 	
-	~binary_reader();
-
-	stream* base_stream() const noexcept { return _stream; }
-
 	uint8_t read_uint8(std::error_code& ec) noexcept;
 	uint16_t read_uint16(std::error_code& ec) noexcept;
 	uint32_t read_uint32(std::error_code& ec) noexcept;
@@ -320,10 +308,6 @@ public:
 	uint32_t read_unicode_char();
 	std::string read_c_string(); // zero ended string
 	std::string read_pascal_string(); // length prepended string
-
-private:
-	stream* _stream = nullptr;
-	bool _owning = false;
 };
 
 /// Bit packed stream writer
