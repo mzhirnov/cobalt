@@ -233,65 +233,6 @@ inline bool stream_view::eof(std::error_code& ec) const noexcept {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// synchronized_stream
-//
-
-inline synchronized_stream::synchronized_stream(stream& stream) noexcept
-	: _stream(&stream)
-{
-}
-
-inline synchronized_stream::synchronized_stream(stream* stream)
-	: _stream(stream)
-	, _owning(true)
-{
-	counted_ptr<class stream> sp = _stream;
-	
-	BOOST_ASSERT(_stream != nullptr);
-	if (!_stream)
-		throw std::system_error(std::make_error_code(std::errc::invalid_argument), "stream");
-	
-	retain(_stream);
-	
-	sp.detach();
-}
-
-inline synchronized_stream::~synchronized_stream() noexcept {
-	if (_owning)
-		release(_stream);
-}
-
-inline size_t synchronized_stream::read(void* buffer, size_t size, std::error_code& ec) noexcept {
-	std::lock_guard<std::mutex> lock(_mutex);
-	return _stream->read(buffer, size, ec);
-}
-
-inline size_t synchronized_stream::write(const void* buffer, size_t size, std::error_code& ec) noexcept {
-	std::lock_guard<std::mutex> lock(_mutex);
-	return _stream->write(buffer, size, ec);
-}
-
-inline void synchronized_stream::flush(std::error_code& ec) const noexcept {
-	std::lock_guard<std::mutex> lock(_mutex);
-	_stream->flush(ec);
-}
-
-inline int64_t synchronized_stream::seek(int64_t offset, seek_origin origin, std::error_code& ec) noexcept {
-	std::lock_guard<std::mutex> lock(_mutex);
-	return _stream->seek(offset, origin, ec);
-}
-
-inline int64_t synchronized_stream::tell(std::error_code& ec) const noexcept {
-	std::lock_guard<std::mutex> lock(_mutex);
-	return _stream->tell(ec);
-}
-
-inline bool synchronized_stream::eof(std::error_code& ec) const noexcept {
-	std::lock_guard<std::mutex> lock(_mutex);
-	return _stream->eof(ec);
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // memory_stream
 //
 

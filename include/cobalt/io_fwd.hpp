@@ -6,7 +6,6 @@
 // Classes in this file:
 //     stream
 //     stream_view
-//     synchronized_stream
 //     memory_stream
 //     file_stream
 //     binary_writer
@@ -22,7 +21,6 @@
 #include <cobalt/utility/throw_if_error.hpp>
 
 #include <vector>
-#include <thread>
 #include <cstdio>
 #include <cstdint>
 
@@ -106,27 +104,6 @@ private:
 	bool _owning = false;
 	int64_t _offset = 0;
 	int64_t _length = 0;
-};
-
-/// Synchronized stream adapter
-class synchronized_stream : public stream {
-public:
-	explicit synchronized_stream(stream& stream) noexcept;
-	explicit synchronized_stream(stream* stream);
-	
-	~synchronized_stream() noexcept;
-	
-	virtual size_t read(void* buffer, size_t size, std::error_code& ec) noexcept override;
-	virtual size_t write(const void* buffer, size_t size, std::error_code& ec) noexcept override;
-	virtual void flush(std::error_code& ec) const noexcept override;
-	virtual int64_t seek(int64_t offset, seek_origin origin, std::error_code& ec) noexcept override;
-	virtual int64_t tell(std::error_code& ec) const noexcept override;
-	virtual bool eof(std::error_code& ec) const noexcept override;
-	
-private:
-	stream* _stream = nullptr;
-	bool _owning = false;
-	mutable std::mutex _mutex;
 };
 
 /// Memory stream
