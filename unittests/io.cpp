@@ -151,13 +151,13 @@ TEST_CASE("io") {
 		char buffer[] = "Hello, world!";
 		io::memory_stream stream(buffer, sizeof(buffer) - 1);
 		std::error_code ec;
-		constexpr size_t start_pos = 5;
+		constexpr size_t max_bytes = 5;
 		
 		SECTION("copy 1") {
 			std::vector<char> vec;
-			auto read = io::copy(stream, start_pos, std::back_inserter(vec), ec);
+			auto read = io::copy(stream, std::back_inserter(vec), max_bytes, ec);
 			REQUIRE_FALSE(ec);
-			REQUIRE(read == start_pos);
+			REQUIRE(read == max_bytes);
 			REQUIRE(vec.size() == read);
 			REQUIRE(std::memcmp(buffer, vec.data(), read) == 0);
 			
@@ -165,9 +165,9 @@ TEST_CASE("io") {
 				std::vector<char> vec;
 				auto read = io::copy(stream, std::back_inserter(vec), ec);
 				REQUIRE_FALSE(ec);
-				REQUIRE(read == sizeof(buffer) - 1 - start_pos);
+				REQUIRE(read == sizeof(buffer) - 1 - max_bytes);
 				REQUIRE(vec.size() == read);
-				REQUIRE(std::memcmp(buffer + start_pos, vec.data(), read) == 0);
+				REQUIRE(std::memcmp(buffer + max_bytes, vec.data(), read) == 0);
 			}
 		}
 		

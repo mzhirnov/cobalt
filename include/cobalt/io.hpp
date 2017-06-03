@@ -675,23 +675,23 @@ inline size_t copy(stream& stream, OutputIterator it, std::error_code& ec) noexc
 }
 
 template <typename OutputIterator>
-inline size_t copy(stream& stream, size_t max_size, OutputIterator it, std::error_code& ec) noexcept {
+inline size_t copy(stream& stream, OutputIterator it, size_t max_bytes, std::error_code& ec) noexcept {
 	ec = std::error_code();
 	
 	size_t count = 0;
 	constexpr size_t buffer_size = 65536;
 	stream::value_type buffer[buffer_size];
 	
-	while (max_size != 0 && !stream.eof(ec)) {
+	while (max_bytes != 0 && !stream.eof(ec)) {
 		if (ec) break;
 		
-		auto read = stream.read(buffer, std::min(buffer_size, max_size), ec);
+		auto read = stream.read(buffer, std::min(buffer_size, max_bytes), ec);
 		if (ec) break;
 		
 		for (int i = 0; i < read; ++i, ++count)
 			*it++ = buffer[i];
 			
-		max_size -= read;
+		max_bytes -= read;
 	}
 	
 	return count;
@@ -720,9 +720,9 @@ inline size_t copy(stream& stream, OutputIterator it) {
 }
 
 template <typename OutputIterator>
-inline size_t copy(stream& stream, size_t max_size, OutputIterator it) {
+inline size_t copy(stream& stream, OutputIterator it, size_t max_bytes) {
 	std::error_code ec;
-	auto ret = copy(stream, max_size, it, ec);
+	auto ret = copy(stream, max_bytes, it, ec);
 	throw_if_error(ec);
 	return ret;
 }

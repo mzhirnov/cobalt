@@ -185,22 +185,23 @@ private:
 	access_mode _access = access_mode::read_only;
 };
 
-/// Copies bytes from current position to eof
+/// Copies bytes from current position until eof
 /// @return Number of bytes actually read
 template <typename OutputIterator>
 size_t copy(stream& stream, OutputIterator it, std::error_code& ec) noexcept;
 
+/// Copies bytes from current position until eof
 /// Reads up to specified number of bytes
 /// @return Number of bytes actually read
 template <typename OutputIterator>
-size_t copy(stream& stream, size_t max_size, OutputIterator it, std::error_code& ec) noexcept;
+size_t copy(stream& stream, OutputIterator it, size_t max_bytes, std::error_code& ec) noexcept;
 
 /// Writes bytes range to stream
 /// @return Number of bytes actually written
 template <typename InputIterator>
 size_t copy(InputIterator begin, InputIterator end, stream& stream, std::error_code& ec) noexcept;
 
-/// Copies bytes from current position to eof
+/// Copies bytes from current position until eof
 /// Throws on error
 /// @return Number of bytes written
 template <typename OutputIterator>
@@ -210,7 +211,7 @@ size_t copy(stream& stream, OutputIterator it);
 /// Throws on error
 /// @return Number of bytes actually read
 template <typename OutputIterator>
-size_t copy(stream& stream, size_t max_size, OutputIterator it);
+size_t copy(stream& stream, OutputIterator it, size_t max_bytes);
 
 /// Writes bytes range to stream
 /// Throws on error
