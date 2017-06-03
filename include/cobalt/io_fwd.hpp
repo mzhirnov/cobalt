@@ -80,32 +80,6 @@ public:
 	void copy_to(stream& stream, size_t max_size);
 };
 
-/// Stream view adapter
-class stream_view : public stream {
-public:
-	/// Will not increase reference count
-	stream_view(stream& stream, int64_t offset, int64_t length);
-	/// Will increase reference count
-	stream_view(stream* stream, int64_t offset, int64_t length);
-	
-	~stream_view();
-	
-	stream* base_stream() const noexcept { return _stream; }
-	
-	virtual size_t read(void* buffer, size_t size, std::error_code& ec) noexcept override;
-	virtual size_t write(const void* buffer, size_t size, std::error_code& ec) noexcept override;
-	virtual void flush(std::error_code& ec) const noexcept override;
-	virtual int64_t seek(int64_t offset, seek_origin origin, std::error_code& ec) noexcept override;
-	virtual int64_t tell(std::error_code& ec) const noexcept override;
-	virtual bool eof(std::error_code& ec) const noexcept override;
-	
-private:
-	stream* _stream = nullptr;
-	bool _owning = false;
-	int64_t _offset = 0;
-	int64_t _length = 0;
-};
-
 /// Memory stream
 class memory_stream : public stream {
 public:
@@ -183,6 +157,47 @@ public:
 private:
 	FILE* _fp = nullptr;
 	access_mode _access = access_mode::read_only;
+};
+
+namespace detail {
+
+/// Helper base class for stream adaptors
+class stream_holder {
+public:
+	/// Will not change reference count
+	explicit stream_holder(stream& stream);
+	/// Will increase reference count
+	explicit stream_holder(stream* stream);
+	
+	~stream_holder();
+	
+	stream* base_stream() const noexcept { return _stream; }
+
+private:
+	stream* _stream = nullptr;
+	bool _owning = false;
+};
+
+} // namespace detail
+
+/// Stream view adapter
+class stream_view : public stream, public detail::stream_holder {
+public:
+	/// Will not increase reference count
+	stream_view(stream& stream, int64_t offset, int64_t length);
+	/// Will increase reference count
+	stream_view(stream* stream, int64_t offset, int64_t length);
+	
+	virtual size_t read(void* buffer, size_t size, std::error_code& ec) noexcept override;
+	virtual size_t write(const void* buffer, size_t size, std::error_code& ec) noexcept override;
+	virtual void flush(std::error_code& ec) const noexcept override;
+	virtual int64_t seek(int64_t offset, seek_origin origin, std::error_code& ec) noexcept override;
+	virtual int64_t tell(std::error_code& ec) const noexcept override;
+	virtual bool eof(std::error_code& ec) const noexcept override;
+	
+private:
+	int64_t _offset = 0;
+	int64_t _length = 0;
 };
 
 /// Copies bytes from current position until eof

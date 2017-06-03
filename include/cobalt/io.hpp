@@ -132,107 +132,6 @@ inline void stream::copy_to(stream& stream, size_t max_size) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// stream_view
-//
-
-inline stream_view::stream_view(stream& stream, int64_t offset, int64_t length)
-	: _stream(&stream)
-	, _offset(offset)
-	, _length(length)
-{
-	std::error_code ec;
-	_stream->seek(_offset, seek_origin::begin, ec);
-	throw_if_error(ec);
-}
-
-inline stream_view::stream_view(stream* stream, int64_t offset, int64_t length)
-	: _stream(stream)
-	, _owning(true)
-	, _offset(offset)
-	, _length(length)
-{
-	ref_ptr<class stream> sp = _stream;
-	
-	BOOST_ASSERT(_stream != nullptr);
-	if (!_stream)
-		throw std::system_error(std::make_error_code(std::errc::invalid_argument), "stream");
-
-	BOOST_ASSERT(_offset >= 0);
-	if (_offset < 0)
-		throw std::system_error(std::make_error_code(std::errc::invalid_argument), "offset");
-	
-	BOOST_ASSERT(_length >= 0);
-	if (_length < 0)
-		throw std::system_error(std::make_error_code(std::errc::invalid_argument), "length");
-	
-	std::error_code ec;
-	_stream->seek(_offset, seek_origin::begin, ec);
-	throw_if_error(ec);
-	
-	sp.detach();
-}
-
-inline stream_view::~stream_view() {
-	if (_owning)
-		release(_stream);
-}
-
-inline size_t stream_view::read(void* buffer, size_t size, std::error_code& ec) noexcept {
-	auto position = tell(ec);
-	if (ec)
-		return static_cast<size_t>(position);
-	auto count = std::min<size_t>(_length - position, size);
-	return _stream->read(buffer, count, ec);
-}
-
-inline size_t stream_view::write(const void* buffer, size_t size, std::error_code& ec) noexcept {
-	auto position = tell(ec);
-	if (ec)
-		return static_cast<size_t>(position);
-	auto count = std::min<size_t>(_length - position, size);
-	return _stream->write(buffer, count, ec);
-}
-
-inline void stream_view::flush(std::error_code& ec) const noexcept {
-	_stream->flush(ec);
-}
-
-inline int64_t stream_view::seek(int64_t offset, seek_origin origin, std::error_code& ec) noexcept {
-	int64_t oldpos = tell(ec);
-	int64_t newpos = 0;
-	
-	if (ec)
-		return oldpos;
-	
-	switch (origin) {
-	case seek_origin::begin:
-		newpos = offset;
-		break;
-	case seek_origin::current:
-		newpos = oldpos + offset;
-		break;
-	case seek_origin::end:
-		newpos = _length + offset;
-		break;
-	}
-	
-	if (newpos < 0 || newpos > _length) {
-		ec = std::make_error_code(std::errc::invalid_seek);
-		return oldpos;
-	}
-	
-	return _stream->seek(newpos + _offset, seek_origin::begin, ec) - _offset;
-}
-
-inline int64_t stream_view::tell(std::error_code& ec) const noexcept {
-	return _stream->tell(ec) - _offset;
-}
-
-inline bool stream_view::eof(std::error_code& ec) const noexcept {
-	return _stream->tell(ec) >= _offset + _length;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // memory_stream
 //
 
@@ -649,8 +548,121 @@ inline bool file_stream::eof(std::error_code& ec) const noexcept {
 	return ret != 0;
 }
 
+namespace detail {
+
+inline stream_holder::stream_holder(stream& stream)
+	: _stream(&stream)
+{
+}
+
+stream_holder::stream_holder(stream* stream)
+	: _stream(stream)
+	, _owning(true)
+{
+	BOOST_ASSERT(_stream != nullptr);
+	if (_stream)
+		retain(_stream);
+}
+
+stream_holder::~stream_holder() {
+	if (_stream && _owning)
+		release(_stream);
+}
+
+} // namespace detail
+
 ////////////////////////////////////////////////////////////////////////////////
-// functions
+// stream_view
+//
+
+inline stream_view::stream_view(stream& stream, int64_t offset, int64_t length)
+	: stream_holder(stream)
+	, _offset(offset)
+	, _length(length)
+{
+	std::error_code ec;
+	base_stream()->seek(_offset, seek_origin::begin, ec);
+	throw_if_error(ec);
+}
+
+inline stream_view::stream_view(stream* stream, int64_t offset, int64_t length)
+	: stream_holder(stream)
+	, _offset(offset)
+	, _length(length)
+{
+	if (!base_stream())
+		throw std::system_error(std::make_error_code(std::errc::invalid_argument), "stream");
+
+	BOOST_ASSERT(_offset >= 0);
+	if (_offset < 0)
+		throw std::system_error(std::make_error_code(std::errc::invalid_argument), "offset");
+	
+	BOOST_ASSERT(_length >= 0);
+	if (_length < 0)
+		throw std::system_error(std::make_error_code(std::errc::invalid_argument), "length");
+	
+	std::error_code ec;
+	base_stream()->seek(_offset, seek_origin::begin, ec);
+	throw_if_error(ec);
+}
+
+inline size_t stream_view::read(void* buffer, size_t size, std::error_code& ec) noexcept {
+	auto position = tell(ec);
+	if (ec)
+		return static_cast<size_t>(position);
+	auto count = std::min<size_t>(_length - position, size);
+	return base_stream()->read(buffer, count, ec);
+}
+
+inline size_t stream_view::write(const void* buffer, size_t size, std::error_code& ec) noexcept {
+	auto position = tell(ec);
+	if (ec)
+		return static_cast<size_t>(position);
+	auto count = std::min<size_t>(_length - position, size);
+	return base_stream()->write(buffer, count, ec);
+}
+
+inline void stream_view::flush(std::error_code& ec) const noexcept {
+	base_stream()->flush(ec);
+}
+
+inline int64_t stream_view::seek(int64_t offset, seek_origin origin, std::error_code& ec) noexcept {
+	int64_t oldpos = tell(ec);
+	int64_t newpos = 0;
+	
+	if (ec)
+		return oldpos;
+	
+	switch (origin) {
+	case seek_origin::begin:
+		newpos = offset;
+		break;
+	case seek_origin::current:
+		newpos = oldpos + offset;
+		break;
+	case seek_origin::end:
+		newpos = _length + offset;
+		break;
+	}
+	
+	if (newpos < 0 || newpos > _length) {
+		ec = std::make_error_code(std::errc::invalid_seek);
+		return oldpos;
+	}
+	
+	return base_stream()->seek(newpos + _offset, seek_origin::begin, ec) - _offset;
+}
+
+inline int64_t stream_view::tell(std::error_code& ec) const noexcept {
+	return base_stream()->tell(ec) - _offset;
+}
+
+inline bool stream_view::eof(std::error_code& ec) const noexcept {
+	return base_stream()->tell(ec) >= _offset + _length;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Functions
 //
 
 template <typename OutputIterator>
