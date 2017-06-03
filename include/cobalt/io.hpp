@@ -251,7 +251,7 @@ inline synchronized_stream::synchronized_stream(stream* stream)
 	if (!_stream)
 		throw std::system_error(std::make_error_code(std::errc::invalid_argument), "stream");
 	
-	add_ref(_stream);
+	retain(_stream);
 	
 	sp.detach();
 }
@@ -811,7 +811,7 @@ inline binary_writer::binary_writer(stream* stream) noexcept
 	if (!_stream)
 		throw std::system_error(std::make_error_code(std::errc::invalid_argument), "stream");
 	
-	add_ref(_stream);
+	retain(_stream);
 }
 
 inline binary_writer::~binary_writer() {
@@ -1064,7 +1064,7 @@ inline binary_reader::binary_reader(stream* stream) noexcept
 	if (!_stream)
 		throw std::system_error(std::make_error_code(std::errc::invalid_argument), "stream");
 	
-	add_ref(_stream);
+	retain(_stream);
 }
 
 inline binary_reader::~binary_reader() {

@@ -154,7 +154,7 @@ inline object* object::add_child(object* o) noexcept {
 	BOOST_ASSERT(o != nullptr);
 	if (!o) return nullptr;
 	
-	add_ref(o);
+	retain(o);
 	
 	_children.push_front(*o);
 	
@@ -196,7 +196,7 @@ inline void object::remove_all_children() noexcept {
 }
 
 inline component* object::add_component(component* c) noexcept {
-	add_ref(c);
+	retain(c);
 	
 	_components.push_front(*c);
 	

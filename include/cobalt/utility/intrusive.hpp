@@ -14,20 +14,32 @@
 namespace cobalt {
 
 template <typename T>
-using ref_counter = boost::intrusive_ref_counter<T, boost::thread_safe_counter>;
+using ref_counter = boost::intrusive_ref_counter<T, boost::thread_unsafe_counter>;
 
 template <typename T>
-using unsafe_ref_counter = boost::intrusive_ref_counter<T, boost::thread_unsafe_counter>;
+using thread_safe_ref_counter = boost::intrusive_ref_counter<T, boost::thread_safe_counter>;
 
 template <typename T>
 using counted_ptr = boost::intrusive_ptr<T>;
 
-template <typename T, typename = typename std::enable_if_t<std::is_base_of<ref_counter<T>, T>::value>>
-inline void add_ref(T* p) {
+template <
+	typename T,
+	typename = typename std::enable_if_t<
+		std::is_base_of<ref_counter<T>, T>::value ||
+		std::is_base_of<thread_safe_ref_counter<T>, T>::value
+	>
+>
+inline void retain(T* p) {
 	intrusive_ptr_add_ref(p);
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_base_of<ref_counter<T>, T>::value>>
+template <
+	typename T,
+	typename = typename std::enable_if_t<
+		std::is_base_of<ref_counter<T>, T>::value ||
+		std::is_base_of<thread_safe_ref_counter<T>, T>::value
+	>
+>
 inline void release(T* p) {
 	intrusive_ptr_release(p);
 }
