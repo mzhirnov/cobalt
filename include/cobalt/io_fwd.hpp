@@ -183,9 +183,7 @@ private:
 /// Stream view adapter
 class stream_view : public stream, public detail::stream_holder {
 public:
-	/// Will not increase reference count
 	stream_view(stream& stream, int64_t offset, int64_t length);
-	/// Will increase reference count
 	stream_view(stream* stream, int64_t offset, int64_t length);
 	
 	virtual size_t read(void* buffer, size_t size, std::error_code& ec) noexcept override;
