@@ -500,7 +500,7 @@ inline void file_stream::open(const char* filename, open_mode mode, access_mode 
 	switch (access) {
 	case access_mode::read_only:
 		switch (mode) {
-		case open_mode::open_existing:
+		case open_mode::open:
 			_fp = std::fopen(filename, "rb");
 			break;
 		default: // Skip all create modes
@@ -510,7 +510,7 @@ inline void file_stream::open(const char* filename, open_mode mode, access_mode 
 		break;
 	case access_mode::read_write:
 		switch (mode) {
-		case open_mode::create_always:
+		case open_mode::create:
 			_fp = std::fopen(filename, "w+b");
 			break;
 		case open_mode::create_new:
@@ -522,7 +522,7 @@ inline void file_stream::open(const char* filename, open_mode mode, access_mode 
 				_fp = std::fopen(filename, "w+b");
 			}
 			break;
-		case open_mode::open_existing:
+		case open_mode::open:
 			_fp = std::fopen(filename, "r+b");
 			break;
 		case open_mode::open_or_create:

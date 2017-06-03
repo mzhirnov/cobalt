@@ -35,10 +35,10 @@ CO_DEFINE_ENUM(
 
 CO_DEFINE_ENUM(
 	open_mode, uint8_t,
-	create_always, ///< Create new or overwrite if exists
-	create_new,    ///< Create new if not exists
-	open_existing, ///< Open if exists
-	open_or_create ///< Open if exists or create otherwise
+	create,              ///< Create if doesn't exist or overwrite otherwise
+	create_new,          ///< Create if doesn't exist
+	open,                ///< Open existing
+	open_or_create       ///< Open if exists or create new otherwise
 )
 
 CO_DEFINE_ENUM(

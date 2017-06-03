@@ -128,7 +128,7 @@ TEST_CASE("io") {
 		
 		SECTION("write") {
 			std::error_code ec;
-			stream.open("file.tmp", open_mode::create_always, access_mode::read_write, ec);
+			stream.open("file.tmp", open_mode::create, access_mode::read_write, ec);
 			REQUIRE_FALSE(ec);
 			
 			test_write_stream(&stream);
@@ -136,7 +136,7 @@ TEST_CASE("io") {
 		
 		SECTION("read") {
 			std::error_code ec;
-			stream.open("file.tmp", open_mode::open_existing, access_mode::read_only, ec);
+			stream.open("file.tmp", open_mode::open, access_mode::read_only, ec);
 			REQUIRE_FALSE(ec);
 			
 			test_read_stream(&stream);
