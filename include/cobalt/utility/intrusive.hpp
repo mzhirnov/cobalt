@@ -9,8 +9,6 @@
 #include <boost/intrusive/slist.hpp>
 #include <boost/intrusive/list.hpp>
 
-#include <type_traits>
-
 namespace cobalt {
 
 template <typename T>
@@ -22,24 +20,12 @@ using thread_safe_ref_counter = boost::intrusive_ref_counter<T, boost::thread_sa
 template <typename T>
 using counted_ptr = boost::intrusive_ptr<T>;
 
-template <
-	typename T,
-	typename = typename std::enable_if_t<
-		std::is_base_of<ref_counter<T>, T>::value ||
-		std::is_base_of<thread_safe_ref_counter<T>, T>::value
-	>
->
+template <typename T>
 inline void retain(T* p) {
 	intrusive_ptr_add_ref(p);
 }
 
-template <
-	typename T,
-	typename = typename std::enable_if_t<
-		std::is_base_of<ref_counter<T>, T>::value ||
-		std::is_base_of<thread_safe_ref_counter<T>, T>::value
-	>
->
+template <typename T>
 inline void release(T* p) {
 	intrusive_ptr_release(p);
 }
