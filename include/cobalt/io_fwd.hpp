@@ -74,10 +74,10 @@ public:
 	bool can_seek() noexcept;
 	
 	void copy_to(stream& stream, std::error_code& ec) noexcept;
-	void copy_to(stream& stream, size_t max_size, std::error_code& ec) noexcept;
+	void copy_to(stream& stream, size_t max_bytes, std::error_code& ec) noexcept;
 	
 	void copy_to(stream& stream);
-	void copy_to(stream& stream, size_t max_size);
+	void copy_to(stream& stream, size_t max_bytes);
 };
 
 /// Memory stream

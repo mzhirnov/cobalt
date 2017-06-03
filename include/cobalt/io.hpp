@@ -90,7 +90,7 @@ inline void stream::copy_to(stream& stream, std::error_code& ec) noexcept {
 	}
 }
 
-inline void stream::copy_to(stream& stream, size_t max_size, std::error_code& ec) noexcept {
+inline void stream::copy_to(stream& stream, size_t max_bytes, std::error_code& ec) noexcept {
 	if (!can_read()) {
 		ec = std::make_error_code(std::errc::operation_not_supported);
 		return;
@@ -106,16 +106,16 @@ inline void stream::copy_to(stream& stream, size_t max_size, std::error_code& ec
 	constexpr size_t buffer_size = 65536;
 	stream::value_type buffer[buffer_size];
 	
-	while (!eof(ec) && max_size > 0) {
+	while (!eof(ec) && max_bytes > 0) {
 		if (ec) break;
 		
-		auto count = read(buffer, std::min(buffer_size, max_size), ec);
+		auto count = read(buffer, std::min(buffer_size, max_bytes), ec);
 		if (ec) break;
 		
 		stream.write(buffer, count, ec);
 		if (ec) break;
 		
-		max_size -= count;
+		max_bytes -= count;
 	}
 }
 
@@ -125,9 +125,9 @@ inline void stream::copy_to(stream& stream) {
 	throw_if_error(ec);
 }
 
-inline void stream::copy_to(stream& stream, size_t max_size) {
+inline void stream::copy_to(stream& stream, size_t max_bytes) {
 	std::error_code ec;
-	copy_to(stream, max_size, ec);
+	copy_to(stream, max_bytes, ec);
 	throw_if_error(ec);
 }
 
