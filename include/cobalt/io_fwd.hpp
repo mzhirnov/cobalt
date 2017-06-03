@@ -323,10 +323,10 @@ public:
 	/// Write specified number of bits
 	void write_bits(uint32_t value, size_t bits, std::error_code& ec) noexcept;
 	/// Write buffered bits aligning position by the byte boundary
-	void flush(std::error_code& ec);
+	void align(std::error_code& ec);
 	
 	void write_bits(uint32_t value, size_t bits);
-	void flush();
+	void align();
 
 private:
 	binary_writer _writer;

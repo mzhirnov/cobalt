@@ -1258,7 +1258,7 @@ inline bitpack_writer::bitpack_writer(stream* stream) noexcept
 
 inline bitpack_writer::~bitpack_writer() {
 	std::error_code ec;
-	flush(ec);
+	align(ec);
 	BOOST_ASSERT(!ec);
 }
 
@@ -1279,7 +1279,7 @@ inline void bitpack_writer::write_bits(uint32_t value, size_t bits, std::error_c
 	}
 }
 
-inline void bitpack_writer::flush(std::error_code& ec) {
+inline void bitpack_writer::align(std::error_code& ec) {
 	if (_scratch_bits > 0) {
 		int bytes = (_scratch_bits >> 3) + (_scratch_bits & 0x7) ? 1 : 0;
 		switch (bytes) {
@@ -1309,9 +1309,9 @@ inline void bitpack_writer::write_bits(uint32_t value, size_t bits) {
 	throw_if_error(ec);
 }
 
-inline void bitpack_writer::flush() {
+inline void bitpack_writer::align() {
 	std::error_code ec;
-	flush(ec);
+	align(ec);
 	throw_if_error(ec);
 }
 
