@@ -17,41 +17,41 @@ namespace cobalt { namespace io {
 inline size_t stream::read(void* buffer, size_t size) {
 	std::error_code ec;
 	auto ret = read(buffer, size, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
 inline size_t stream::write(const void* buffer, size_t size) {
 	std::error_code ec;
 	auto ret = write(buffer, size, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
 inline void stream::flush() const {
 	std::error_code ec;
 	flush(ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 inline int64_t stream::seek(int64_t offset, seek_origin origin) {
 	std::error_code ec;
 	auto ret = seek(offset, origin, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
 inline int64_t stream::tell() const {
 	std::error_code ec;
 	auto ret = tell(ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
 inline bool stream::eof() const {
 	std::error_code ec;
 	auto ret = eof(ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
@@ -122,13 +122,13 @@ inline void stream::copy_to(stream& stream, size_t max_size, std::error_code& ec
 inline void stream::copy_to(stream& stream) {
 	std::error_code ec;
 	copy_to(stream, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 inline void stream::copy_to(stream& stream, size_t max_size) {
 	std::error_code ec;
 	copy_to(stream, max_size, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -142,7 +142,7 @@ inline stream_view::stream_view(stream& stream, int64_t offset, int64_t length)
 {
 	std::error_code ec;
 	_stream->seek(_offset, seek_origin::begin, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 inline stream_view::stream_view(stream* stream, int64_t offset, int64_t length)
@@ -167,7 +167,7 @@ inline stream_view::stream_view(stream* stream, int64_t offset, int64_t length)
 	
 	std::error_code ec;
 	_stream->seek(_offset, seek_origin::begin, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	
 	sp.detach();
 }
@@ -546,7 +546,7 @@ inline void file_stream::open(const char* filename, open_mode mode, access_mode 
 inline void file_stream::open(const char* filename, open_mode open_mode, access_mode access) {
 	std::error_code ec;
 	open(filename, open_mode, access, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 inline void file_stream::close(std::error_code& ec) noexcept {
@@ -561,7 +561,7 @@ inline void file_stream::close(std::error_code& ec) noexcept {
 inline void file_stream::close() {
 	std::error_code ec;
 	close(ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 inline bool file_stream::valid() const noexcept {
@@ -774,7 +774,7 @@ template <typename OutputIterator>
 inline size_t copy(stream& stream, OutputIterator it) {
 	std::error_code ec;
 	auto ret = copy(stream, it, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
@@ -782,7 +782,7 @@ template <typename OutputIterator>
 inline size_t copy(stream& stream, size_t max_size, OutputIterator it) {
 	std::error_code ec;
 	auto ret = copy(stream, max_size, it, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
@@ -790,7 +790,7 @@ template <typename InputIterator>
 inline size_t copy(InputIterator begin, InputIterator end, stream& stream) {
 	std::error_code ec;
 	auto ret = copy(begin, end, stream, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
@@ -960,91 +960,91 @@ inline void binary_writer::write_pascal_string(const char* str, std::error_code&
 inline void binary_writer::write(uint8_t value) {
 	std::error_code ec;
 	write(value, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 inline void binary_writer::write(uint16_t value) {
 	std::error_code ec;
 	write(value, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 inline void binary_writer::write(uint32_t value) {
 	std::error_code ec;
 	write(value, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 inline void binary_writer::write(uint64_t value) {
 	std::error_code ec;
 	write(value, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 inline void binary_writer::write(int8_t value) {
 	std::error_code ec;
 	write(value, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 inline void binary_writer::write(int16_t value) {
 	std::error_code ec;
 	write(value, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 inline void binary_writer::write(int32_t value) {
 	std::error_code ec;
 	write(value, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 inline void binary_writer::write(int64_t value) {
 	std::error_code ec;
 	write(value, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 inline void binary_writer::write(float value) {
 	std::error_code ec;
 	write(value, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 inline void binary_writer::write(double value) {
 	std::error_code ec;
 	write(value, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 inline void binary_writer::write(bool value) {
 	std::error_code ec;
 	write(value, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 inline void binary_writer::write_7bit_encoded_int(uint32_t value) {
 	std::error_code ec;
 	write_7bit_encoded_int(value, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 inline void binary_writer::write_unicode_char(uint32_t value) {
 	std::error_code ec;
 	write_unicode_char(value, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 inline void binary_writer::write_c_string(const char* str) {
 	std::error_code ec;
 	write_c_string(str, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 inline void binary_writer::write_pascal_string(const char* str) {
 	std::error_code ec;
 	write_pascal_string(str, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1205,105 +1205,105 @@ inline std::string binary_reader::read_pascal_string(std::error_code& ec) noexce
 inline uint8_t binary_reader::read_uint8() {
 	std::error_code ec;
 	auto ret = read_uint8(ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
 inline uint16_t binary_reader::read_uint16() {
 	std::error_code ec;
 	auto ret = read_uint16(ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
 inline uint32_t binary_reader::read_uint32() {
 	std::error_code ec;
 	auto ret = read_uint32(ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
 inline uint64_t binary_reader::read_uint64() {
 	std::error_code ec;
 	auto ret = read_uint64(ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
 inline int8_t binary_reader::read_int8() {
 	std::error_code ec;
 	auto ret = read_int8(ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
 inline int16_t binary_reader::read_int16() {
 	std::error_code ec;
 	auto ret = read_int16(ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
 inline int32_t binary_reader::read_int32() {
 	std::error_code ec;
 	auto ret = read_int32(ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
 inline int64_t binary_reader::read_int64() {
 	std::error_code ec;
 	auto ret = read_int64(ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
 inline float binary_reader::read_float() {
 	std::error_code ec;
 	auto ret = read_float(ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
 inline double binary_reader::read_double() {
 	std::error_code ec;
 	auto ret = read_double(ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
 inline bool binary_reader::read_bool() {
 	std::error_code ec;
 	auto ret = read_bool(ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
 inline uint32_t binary_reader::read_7bit_encoded_int() {
 	std::error_code ec;
 	auto ret = read_7bit_encoded_int(ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
 inline uint32_t binary_reader::read_unicode_char() {
 	std::error_code ec;
 	auto ret = read_unicode_char(ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
 inline std::string binary_reader::read_c_string() {
 	std::error_code ec;
 	auto ret = read_c_string(ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
 inline std::string binary_reader::read_pascal_string() {
 	std::error_code ec;
 	auto ret = read_pascal_string(ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
@@ -1371,13 +1371,13 @@ inline void bitpack_writer::flush(std::error_code& ec) {
 inline void bitpack_writer::write_bits(uint32_t value, size_t bits) {
 	std::error_code ec;
 	write_bits(value, bits, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 inline void bitpack_writer::flush() {
 	std::error_code ec;
 	flush(ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1435,14 +1435,14 @@ inline void bitpack_reader::align(std::error_code& ec) noexcept {
 inline uint32_t bitpack_reader::read_bits(size_t bits) {
 	std::error_code ec;
 	auto ret = read_bits(bits, ec);
-	throw_error(ec);
+	throw_if_error(ec);
 	return ret;
 }
 
 inline void bitpack_reader::align() {
 	std::error_code ec;
 	align(ec);
-	throw_error(ec);
+	throw_if_error(ec);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
