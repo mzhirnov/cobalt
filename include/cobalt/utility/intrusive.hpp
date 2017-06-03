@@ -15,10 +15,10 @@ template <typename T>
 using ref_counter = boost::intrusive_ref_counter<T, boost::thread_unsafe_counter>;
 
 template <typename T>
-using thread_safe_ref_counter = boost::intrusive_ref_counter<T, boost::thread_safe_counter>;
+using atomic_ref_counter = boost::intrusive_ref_counter<T, boost::thread_safe_counter>;
 
 template <typename T>
-using counted_ptr = boost::intrusive_ptr<T>;
+using ref_ptr = boost::intrusive_ptr<T>;
 
 template <typename T>
 inline void retain(T* p) {
@@ -31,7 +31,7 @@ inline void release(T* p) {
 }
 
 template <typename T, typename... Args>
-inline counted_ptr<T> make_counted(Args&&... args) {
+inline ref_ptr<T> make_ref(Args&&... args) {
 	return new T(std::forward<Args>(args)...);
 }
 

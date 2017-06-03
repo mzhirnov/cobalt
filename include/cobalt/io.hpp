@@ -151,7 +151,7 @@ inline stream_view::stream_view(stream* stream, int64_t offset, int64_t length)
 	, _offset(offset)
 	, _length(length)
 {
-	counted_ptr<class stream> sp = _stream;
+	ref_ptr<class stream> sp = _stream;
 	
 	BOOST_ASSERT(_stream != nullptr);
 	if (!_stream)

@@ -37,7 +37,7 @@ TEST_CASE("information") {
 }
 
 TEST_CASE("object") {
-	auto o = make_counted<object>(identifier("root"));
+	auto o = make_ref<object>(identifier("root"));
 	
 	SECTION("add child") {
 		auto child = o->add_child(new object());

@@ -150,19 +150,19 @@ inline bool event_dispatcher::empty() const noexcept {
 	return _queue.empty();
 }
 
-inline void event_dispatcher::post(const counted_ptr<event>& event) {
+inline void event_dispatcher::post(const ref_ptr<event>& event) {
 	_queue.emplace_back(event->target(), event);
 }
 
-inline void event_dispatcher::post(counted_ptr<event>&& event) {
+inline void event_dispatcher::post(ref_ptr<event>&& event) {
 	_queue.emplace_back(event->target(), std::move(event));
 }
 
-inline void event_dispatcher::post(event::target_type target, const counted_ptr<event>& event) {
+inline void event_dispatcher::post(event::target_type target, const ref_ptr<event>& event) {
 	_queue.emplace_back(target, event);
 }
 
-inline void event_dispatcher::post(event::target_type target, counted_ptr<event>&& event) {
+inline void event_dispatcher::post(event::target_type target, ref_ptr<event>&& event) {
 	_queue.emplace_back(target, std::move(event));
 }
 
@@ -220,13 +220,13 @@ inline void event_dispatcher::dispatch(clock_type::duration timeout) {
 		_queue.insert(_queue.begin(), std::make_move_iterator(queue.begin()), std::make_move_iterator(queue.end()));
 }
 
-inline void event_dispatcher::invoke(const counted_ptr<event>& event) {
+inline void event_dispatcher::invoke(const ref_ptr<event>& event) {
 	auto range = _subscriptions.equal_range(event->target());
 	for (auto it = range.first; it != range.second; ++it)
 		(*it).second.second(event.get());
 }
 
-inline void event_dispatcher::invoke(event::target_type target, const counted_ptr<event>& event) {
+inline void event_dispatcher::invoke(event::target_type target, const ref_ptr<event>& event) {
 	auto range = _subscriptions.equal_range(target);
 	for (auto it = range.first; it != range.second; ++it)
 		(*it).second.second(event.get());

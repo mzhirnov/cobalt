@@ -100,14 +100,14 @@ public:
 	bool active_in_hierarchy() const noexcept;
 	
 	object* add_child(object* o) noexcept;
-	counted_ptr<object> remove_child(object* o) noexcept;
+	ref_ptr<object> remove_child(object* o) noexcept;
 	
 	void detach() noexcept;
 	
 	void remove_all_children() noexcept;
 
 	component* add_component(component* c) noexcept;
-	counted_ptr<component> remove_component(component* c) noexcept;
+	ref_ptr<component> remove_component(component* c) noexcept;
 	
 	size_t remove_components(uint32_t component_type) noexcept;
 	void remove_all_components() noexcept;
@@ -163,8 +163,8 @@ inline object* object::add_child(object* o) noexcept {
 	return o;
 }
 
-inline counted_ptr<object> object::remove_child(object* o) noexcept {
-	counted_ptr<object> sp;
+inline ref_ptr<object> object::remove_child(object* o) noexcept {
+	ref_ptr<object> sp;
 	
 	if (!o)
 		return sp;
@@ -205,8 +205,8 @@ inline component* object::add_component(component* c) noexcept {
 	return c;
 }
 
-inline counted_ptr<component> object::remove_component(component* c) noexcept {
-	counted_ptr<component> sp;
+inline ref_ptr<component> object::remove_component(component* c) noexcept {
+	ref_ptr<component> sp;
 	
 	if (!c)
 		return sp;

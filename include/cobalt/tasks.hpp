@@ -62,12 +62,12 @@ inline void task::finish(task_result result) noexcept {
 	}
 }
 
-inline task* task::next(const counted_ptr<task>& next) noexcept {
+inline task* task::next(const ref_ptr<task>& next) noexcept {
 	_next = next;
 	return _next.get();
 }
 
-inline task* task::next(counted_ptr<task>&& next) noexcept {
+inline task* task::next(ref_ptr<task>&& next) noexcept {
 	_next = std::move(next);
 	return _next.get();
 }
@@ -113,13 +113,13 @@ inline task_scheduler::~task_scheduler() noexcept {
 		task->on_abort();
 }
 
-inline task* task_scheduler::schedule(const counted_ptr<task>& task) {
+inline task* task_scheduler::schedule(const ref_ptr<task>& task) {
 	BOOST_ASSERT(task);
 	_tasks.push_back(task);
 	return _tasks.back().get();
 }
 
-inline task* task_scheduler::schedule(counted_ptr<task>&& task) {
+inline task* task_scheduler::schedule(ref_ptr<task>&& task) {
 	BOOST_ASSERT(task);
 	_tasks.push_back(std::move(task));
 	return _tasks.back().get();
@@ -135,7 +135,7 @@ inline void task_scheduler::step() {
 
 		if (curr->state() == task_state::running) {
 			// Interruption task
-			counted_ptr<task> intr = curr->step();
+			ref_ptr<task> intr = curr->step();
 			
 			if (intr && intr != curr) {
 				// Move current task to the end of the continuation list
