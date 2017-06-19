@@ -1243,26 +1243,26 @@ inline std::string binary_reader::read_pascal_string() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// bitpack_writer
+// bit_writer
 //
 
-inline bitpack_writer::bitpack_writer(stream& stream) noexcept
+inline bit_writer::bit_writer(stream& stream) noexcept
 	: _writer(stream)
 {
 }
 
-inline bitpack_writer::bitpack_writer(stream* stream) noexcept
+inline bit_writer::bit_writer(stream* stream) noexcept
 	: _writer(stream)
 {
 }
 
-inline bitpack_writer::~bitpack_writer() {
+inline bit_writer::~bit_writer() {
 	std::error_code ec;
 	align(ec);
 	BOOST_ASSERT(!ec);
 }
 
-inline void bitpack_writer::write_bits(uint32_t value, size_t bits, std::error_code& ec) noexcept {
+inline void bit_writer::write_bits(uint32_t value, size_t bits, std::error_code& ec) noexcept {
 	BOOST_ASSERT(bits <= 32);
 	if (bits > 32) {
 		ec = std::make_error_code(std::errc::argument_out_of_domain);
@@ -1279,7 +1279,7 @@ inline void bitpack_writer::write_bits(uint32_t value, size_t bits, std::error_c
 	}
 }
 
-inline void bitpack_writer::align(std::error_code& ec) {
+inline void bit_writer::align(std::error_code& ec) {
 	if (_scratch_bits > 0) {
 		int bytes = (_scratch_bits >> 3) + (_scratch_bits & 0x7) ? 1 : 0;
 		switch (bytes) {
@@ -1303,38 +1303,38 @@ inline void bitpack_writer::align(std::error_code& ec) {
 	}
 }
 
-inline void bitpack_writer::write_bits(uint32_t value, size_t bits) {
+inline void bit_writer::write_bits(uint32_t value, size_t bits) {
 	std::error_code ec;
 	write_bits(value, bits, ec);
 	throw_if_error(ec);
 }
 
-inline void bitpack_writer::align() {
+inline void bit_writer::align() {
 	std::error_code ec;
 	align(ec);
 	throw_if_error(ec);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// bitpack_reader
+// bit_reader
 //
 
-inline bitpack_reader::bitpack_reader(stream& stream) noexcept
+inline bit_reader::bit_reader(stream& stream) noexcept
 	: _reader(stream)
 {
 }
 
-inline bitpack_reader::bitpack_reader(stream* stream) noexcept
+inline bit_reader::bit_reader(stream* stream) noexcept
 	: _reader(stream)
 {
 }
 
-inline bitpack_reader::~bitpack_reader() noexcept {
+inline bit_reader::~bit_reader() noexcept {
 	BOOST_ASSERT(_scratch == 0);
 	BOOST_ASSERT(_scratch_bits == 0);
 }
 
-inline uint32_t bitpack_reader::read_bits(size_t bits, std::error_code& ec) noexcept {
+inline uint32_t bit_reader::read_bits(size_t bits, std::error_code& ec) noexcept {
 	BOOST_ASSERT(bits <= 32);
 	if (bits > 32) {
 		ec = std::make_error_code(std::errc::argument_out_of_domain);
@@ -1355,7 +1355,7 @@ inline uint32_t bitpack_reader::read_bits(size_t bits, std::error_code& ec) noex
 	return value;
 }
 
-inline void bitpack_reader::align(std::error_code& ec) noexcept {
+inline void bit_reader::align(std::error_code& ec) noexcept {
 	ec = std::error_code();
 	
 	BOOST_ASSERT(_scratch == 0);
@@ -1367,14 +1367,14 @@ inline void bitpack_reader::align(std::error_code& ec) noexcept {
 	_scratch_bits = 0;
 }
 
-inline uint32_t bitpack_reader::read_bits(size_t bits) {
+inline uint32_t bit_reader::read_bits(size_t bits) {
 	std::error_code ec;
 	auto ret = read_bits(bits, ec);
 	throw_if_error(ec);
 	return ret;
 }
 
-inline void bitpack_reader::align() {
+inline void bit_reader::align() {
 	std::error_code ec;
 	align(ec);
 	throw_if_error(ec);

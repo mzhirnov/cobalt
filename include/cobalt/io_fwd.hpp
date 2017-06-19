@@ -10,8 +10,8 @@
 //     file_stream
 //     binary_writer
 //     binary_reader
-//     bitpack_writer
-//     bitpack_reader
+//     bit_writer
+//     bit_reader
 //
 // Functions in this file:
 //     copy
@@ -311,12 +311,12 @@ public:
 };
 
 /// Bit packed stream writer
-class bitpack_writer {
+class bit_writer {
 public:
-	explicit bitpack_writer(stream& stream) noexcept;
-	explicit bitpack_writer(stream* stream) noexcept;
+	explicit bit_writer(stream& stream) noexcept;
+	explicit bit_writer(stream* stream) noexcept;
 	
-	~bitpack_writer();
+	~bit_writer();
 
 	stream* base_stream() const noexcept { return _writer.base_stream(); }
 
@@ -335,12 +335,12 @@ private:
 };
 
 /// Bit packed stream reader
-class bitpack_reader {
+class bit_reader {
 public:
-	explicit bitpack_reader(stream& stream) noexcept;
-	explicit bitpack_reader(stream* stream) noexcept;
+	explicit bit_reader(stream& stream) noexcept;
+	explicit bit_reader(stream* stream) noexcept;
 	
-	~bitpack_reader() noexcept;
+	~bit_reader() noexcept;
 
 	stream* base_stream() const noexcept { return _reader.base_stream(); }
 
