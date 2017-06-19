@@ -236,7 +236,7 @@ size_t copy(InputIterator begin, InputIterator end, stream& stream);
 class binary_writer : public detail::stream_holder {
 public:
 	explicit binary_writer(stream& stream) noexcept;
-	explicit binary_writer(stream* stream) noexcept;
+	explicit binary_writer(stream* stream);
 
 	void write(uint8_t value, std::error_code& ec) noexcept;
 	void write(uint16_t value, std::error_code& ec) noexcept;
@@ -275,7 +275,7 @@ public:
 class binary_reader : public detail::stream_holder {
 public:
 	explicit binary_reader(stream& stream) noexcept;
-	explicit binary_reader(stream* stream) noexcept;
+	explicit binary_reader(stream* stream);
 	
 	uint8_t read_uint8(std::error_code& ec) noexcept;
 	uint16_t read_uint16(std::error_code& ec) noexcept;
@@ -321,17 +321,20 @@ public:
 	stream* base_stream() const noexcept { return _writer.base_stream(); }
 
 	/// Write specified number of bits
-	void write_bits(uint32_t value, size_t bits, std::error_code& ec) noexcept;
-	/// Write buffered bits aligning position by the byte boundary
-	void align(std::error_code& ec);
+	void write_bits(uint32_t value, int bits, std::error_code& ec) noexcept;
+	/// Write scratched bits to stream and align bit position to byte boundary
+	void write_align(std::error_code& ec) noexcept;
+	/// Flush scratched bits to stream
+	void flush(std::error_code& ec) noexcept;
 	
-	void write_bits(uint32_t value, size_t bits);
-	void align();
+	void write_bits(uint32_t value, int bits);
+	void write_align();
+	void flush();
 
 private:
 	binary_writer _writer;
 	uint64_t _scratch = 0;
-	size_t _scratch_bits = 0;
+	int _scratch_bits = 0;
 };
 
 /// Bit packed stream reader
@@ -345,17 +348,17 @@ public:
 	stream* base_stream() const noexcept { return _reader.base_stream(); }
 
 	/// Read specified number of bits
-	uint32_t read_bits(size_t bits, std::error_code& ec) noexcept;
+	uint32_t read_bits(int bits, std::error_code& ec) noexcept;
 	/// Align position by the byte boundary
-	void align(std::error_code& ec) noexcept;
+	void read_align(std::error_code& ec) noexcept;
 	
-	uint32_t read_bits(size_t bits);
-	void align();
+	uint32_t read_bits(int bits);
+	void read_align();
 
 private:
 	binary_reader _reader;
 	uint64_t _scratch = 0;
-	size_t _scratch_bits = 0;
+	int _scratch_bits = 0;
 };
 
 }} // namespace cobalt::io

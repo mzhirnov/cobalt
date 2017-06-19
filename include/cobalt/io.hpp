@@ -8,6 +8,8 @@
 #include <iterator>
 #include <type_traits>
 
+#include <boost/endian/conversion.hpp>
+
 namespace cobalt { namespace io {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -756,7 +758,7 @@ inline binary_writer::binary_writer(stream& stream) noexcept
 {
 }
 
-inline binary_writer::binary_writer(stream* stream) noexcept
+inline binary_writer::binary_writer(stream* stream)
 	: stream_holder(stream)
 {
 	if (!base_stream())
@@ -768,26 +770,18 @@ inline void binary_writer::write(uint8_t value, std::error_code& ec) noexcept {
 }
 
 inline void binary_writer::write(uint16_t value, std::error_code& ec) noexcept {
-	write(static_cast<uint8_t>( value        & 0xff), ec); if (ec) return;
-	write(static_cast<uint8_t>((value >>  8) & 0xff), ec);
+	boost::endian::native_to_big_inplace(value);
+	base_stream()->write(&value, sizeof(uint16_t), ec);
 }
 
 inline void binary_writer::write(uint32_t value, std::error_code& ec) noexcept {
-	write(static_cast<uint8_t>( value        & 0xff), ec); if (ec) return;
-	write(static_cast<uint8_t>((value >>  8) & 0xff), ec); if (ec) return;
-	write(static_cast<uint8_t>((value >> 16) & 0xff), ec); if (ec) return;
-	write(static_cast<uint8_t>((value >> 24) & 0xff), ec);
+	boost::endian::native_to_big_inplace(value);
+	base_stream()->write(&value, sizeof(uint32_t), ec);
 }
 
 inline void binary_writer::write(uint64_t value, std::error_code& ec) noexcept {
-	write(static_cast<uint8_t>( value        & 0xff), ec); if (ec) return;
-	write(static_cast<uint8_t>((value >>  8) & 0xff), ec); if (ec) return;
-	write(static_cast<uint8_t>((value >> 16) & 0xff), ec); if (ec) return;
-	write(static_cast<uint8_t>((value >> 24) & 0xff), ec); if (ec) return;
-	write(static_cast<uint8_t>((value >> 32) & 0xff), ec); if (ec) return;
-	write(static_cast<uint8_t>((value >> 40) & 0xff), ec); if (ec) return;
-	write(static_cast<uint8_t>((value >> 48) & 0xff), ec); if (ec) return;
-	write(static_cast<uint8_t>((value >> 56) & 0xff), ec);
+	boost::endian::native_to_big_inplace(value);
+	base_stream()->write(&value, sizeof(uint64_t), ec);
 }
 
 inline void binary_writer::write(int8_t value, std::error_code& ec) noexcept {
@@ -1000,7 +994,7 @@ inline binary_reader::binary_reader(stream& stream) noexcept
 {
 }
 
-inline binary_reader::binary_reader(stream* stream) noexcept
+inline binary_reader::binary_reader(stream* stream)
 	: stream_holder(stream)
 {
 	if (!base_stream())
@@ -1014,21 +1008,21 @@ inline uint8_t binary_reader::read_uint8(std::error_code& ec) noexcept {
 }
 
 inline uint16_t binary_reader::read_uint16(std::error_code& ec) noexcept {
-	uint16_t b0 = read_uint8(ec); if (ec) return 0;
-	uint16_t b1 = read_uint8(ec);
-	return (b1 << 8) | b0;
+	uint16_t result = 0;
+	base_stream()->read(&result, sizeof(uint16_t), ec);
+	return boost::endian::big_to_native(result);
 }
 
 inline uint32_t binary_reader::read_uint32(std::error_code& ec) noexcept {
-	uint32_t w0 = read_uint16(ec); if (ec) return 0;
-	uint32_t w1 = read_uint16(ec);
-	return (w1 << 16) | w0;
+	uint32_t result = 0;
+	base_stream()->read(&result, sizeof(uint32_t), ec);
+	return boost::endian::big_to_native(result);
 }
 
 inline uint64_t binary_reader::read_uint64(std::error_code& ec) noexcept {
-	uint64_t dw0 = read_uint32(ec); if (ec) return 0;
-	uint64_t dw1= read_uint32(ec);
-	return (dw1 << 32) | dw0;
+	uint64_t result = 0;
+	base_stream()->read(&result, sizeof(uint64_t), ec);
+	return boost::endian::big_to_native(result);
 }
 
 inline int8_t binary_reader::read_int8(std::error_code& ec) noexcept {
@@ -1258,13 +1252,13 @@ inline bit_writer::bit_writer(stream* stream) noexcept
 
 inline bit_writer::~bit_writer() {
 	std::error_code ec;
-	align(ec);
+	write_align(ec);
 	BOOST_ASSERT(!ec);
 }
 
-inline void bit_writer::write_bits(uint32_t value, size_t bits, std::error_code& ec) noexcept {
-	BOOST_ASSERT(bits <= 32);
-	if (bits > 32) {
+inline void bit_writer::write_bits(uint32_t value, int bits, std::error_code& ec) noexcept {
+	BOOST_ASSERT(bits >= 0 && bits <= 32);
+	if (bits < 0 || bits > 32) {
 		ec = std::make_error_code(std::errc::argument_out_of_domain);
 		return;
 	}
@@ -1279,39 +1273,47 @@ inline void bit_writer::write_bits(uint32_t value, size_t bits, std::error_code&
 	}
 }
 
-inline void bit_writer::align(std::error_code& ec) {
+inline void bit_writer::write_align(std::error_code& ec) noexcept {
+	int remainder = _scratch_bits % 8;
+	if (remainder) {
+		uint32_t zero = 0;
+		write_bits(zero, 8 - remainder, ec);
+		if (ec)
+			return;
+	}
+	
+	BOOST_ASSERT(_scratch_bits % 8 == 0);
+}
+
+inline void bit_writer::flush(std::error_code& ec) noexcept {
 	if (_scratch_bits > 0) {
-		int bytes = (_scratch_bits >> 3) + (_scratch_bits & 0x7) ? 1 : 0;
-		switch (bytes) {
-		case 1:
+		int bytes = (_scratch_bits >> 3) + ((_scratch_bits & 0x7) ? 1 : 0);
+		for (int i = 0; i < bytes; ++i, _scratch >>= 8, _scratch_bits -= 8) {
 			_writer.write(static_cast<uint8_t>(_scratch & 0xff), ec);
-			break;
-		case 2:
-			_writer.write(static_cast<uint16_t>(_scratch & 0xff), ec);
-			break;
-		case 3:
-			_writer.write(static_cast<uint8_t>( _scratch        & 0xff), ec); if (ec) return;
-			_writer.write(static_cast<uint8_t>((_scratch >>  8) & 0xff), ec); if (ec) return;
-			_writer.write(static_cast<uint8_t>((_scratch >> 16) & 0xff), ec);
-			break;
-		case 4:
-			_writer.write(static_cast<uint32_t>(_scratch & 0xffffffff), ec);
-			break;
+			if (ec)
+				return;
 		}
-		_scratch = 0;
-		_scratch_bits = 0;
+
+		BOOST_ASSERT(_scratch == 0);
+		BOOST_ASSERT(_scratch_bits == 0);
 	}
 }
 
-inline void bit_writer::write_bits(uint32_t value, size_t bits) {
+inline void bit_writer::write_bits(uint32_t value, int bits) {
 	std::error_code ec;
 	write_bits(value, bits, ec);
 	throw_if_error(ec);
 }
 
-inline void bit_writer::align() {
+inline void bit_writer::write_align() {
 	std::error_code ec;
-	align(ec);
+	write_align(ec);
+	throw_if_error(ec);
+}
+
+inline void bit_writer::flush() {
+	std::error_code ec;
+	flush(ec);
 	throw_if_error(ec);
 }
 
@@ -1334,9 +1336,9 @@ inline bit_reader::~bit_reader() noexcept {
 	BOOST_ASSERT(_scratch_bits == 0);
 }
 
-inline uint32_t bit_reader::read_bits(size_t bits, std::error_code& ec) noexcept {
-	BOOST_ASSERT(bits <= 32);
-	if (bits > 32) {
+inline uint32_t bit_reader::read_bits(int bits, std::error_code& ec) noexcept {
+	BOOST_ASSERT(bits >= 0 && bits <= 32);
+	if (bits < 0 || bits > 32) {
 		ec = std::make_error_code(std::errc::argument_out_of_domain);
 		return 0;
 	}
@@ -1355,28 +1357,33 @@ inline uint32_t bit_reader::read_bits(size_t bits, std::error_code& ec) noexcept
 	return value;
 }
 
-inline void bit_reader::align(std::error_code& ec) noexcept {
-	ec = std::error_code();
-	
-	BOOST_ASSERT(_scratch == 0);
-	if (_scratch != 0) {
-		ec = std::make_error_code(std::errc::illegal_byte_sequence);
-		return;
+inline void bit_reader::read_align(std::error_code& ec) noexcept {
+	int remainder = _scratch_bits % 8;
+	if (remainder) {
+		uint32_t value = read_bits(remainder, ec);
+		if (ec)
+			return;
+		
+		BOOST_ASSERT(value == 0);
+		if (value != 0) {
+			ec = std::make_error_code(std::errc::illegal_byte_sequence);
+			return;
+		}
 	}
 	
-	_scratch_bits = 0;
+	BOOST_ASSERT(_scratch_bits % 8 == 0);
 }
 
-inline uint32_t bit_reader::read_bits(size_t bits) {
+inline uint32_t bit_reader::read_bits(int bits) {
 	std::error_code ec;
 	auto ret = read_bits(bits, ec);
 	throw_if_error(ec);
 	return ret;
 }
 
-inline void bit_reader::align() {
+inline void bit_reader::read_align() {
 	std::error_code ec;
-	align(ec);
+	read_align(ec);
 	throw_if_error(ec);
 }
 
