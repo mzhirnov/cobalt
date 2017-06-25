@@ -16,10 +16,6 @@ inline void event::reset() noexcept {
 	phase(event_phase::capture);
 }
 	
-inline event::target_type event::create_custom_target(const char* name, event::target_type base_target) noexcept {
-	return murmur3(name, base_target);
-}
-	
 ////////////////////////////////////////////////////////////////////////////////
 // event_dispatcher
 //
@@ -57,7 +53,7 @@ event_dispatcher::~event_dispatcher() noexcept {
 }
 	
 template <typename T, typename E>
-inline void event_dispatcher::subscribe(void(T::*mf)(E*), const T* obj, event::target_type target) {
+inline void event_dispatcher::subscribe(void(T::*mf)(E*), const T* obj, const event_target& target) {
 	static_assert(std::is_base_of<event, E>::value, "`E` must be derived from event");
 	
 	_subscriptions.emplace(target, ObjectHandler{obj, detail::rebind_method<T, E>(mf, obj)});
@@ -65,7 +61,7 @@ inline void event_dispatcher::subscribe(void(T::*mf)(E*), const T* obj, event::t
 }
 
 template <typename T, typename E>
-inline bool event_dispatcher::subscribed(void(T::*mf)(E*), const T* obj, event::target_type target) const noexcept {
+inline bool event_dispatcher::subscribed(void(T::*mf)(E*), const T* obj, const event_target& target) const noexcept {
 	static_assert(std::is_base_of<event, E>::value, "`E` must be derived from event");
 	
 	auto subscriptions = _subscriptions.equal_range(target);
@@ -80,7 +76,7 @@ inline bool event_dispatcher::subscribed(void(T::*mf)(E*), const T* obj, event::
 }
 
 template <typename T, typename E>
-inline bool event_dispatcher::unsubscribe(void(T::*mf)(E*), const T* obj, event::target_type target) noexcept {
+inline bool event_dispatcher::unsubscribe(void(T::*mf)(E*), const T* obj, const event_target& target) noexcept {
 	static_assert(std::is_base_of<event, E>::value, "`E` must be derived from event");
 	
 	auto subscriptions = _subscriptions.equal_range(target);
@@ -105,7 +101,7 @@ inline bool event_dispatcher::unsubscribe(void(T::*mf)(E*), const T* obj, event:
 	return false;
 }
 
-inline bool event_dispatcher::connected(const void* obj, event::target_type target) const noexcept {
+inline bool event_dispatcher::connected(const void* obj, const event_target& target) const noexcept {
 	auto connections = _connections.equal_range(obj);
 	for (auto conn = connections.first; conn != connections.second; ++conn) {
 		if ((*conn).second == target)
@@ -114,7 +110,7 @@ inline bool event_dispatcher::connected(const void* obj, event::target_type targ
 	return false;
 }
 
-inline void event_dispatcher::disconnect(const void* obj, event::target_type target) {
+inline void event_dispatcher::disconnect(const void* obj, const event_target& target) {
 	// Remove object subscriptions
 	auto subscriptions = _subscriptions.equal_range(target);
 	for (auto subscr = subscriptions.first; subscr != subscriptions.second; /**/) {
@@ -154,15 +150,15 @@ inline void event_dispatcher::post(ref_ptr<event>&& event) {
 	_queue.emplace_back(event->target(), std::move(event));
 }
 
-inline void event_dispatcher::post(event::target_type target, const ref_ptr<event>& event) {
+inline void event_dispatcher::post(const event_target& target, const ref_ptr<event>& event) {
 	_queue.emplace_back(target, event);
 }
 
-inline void event_dispatcher::post(event::target_type target, ref_ptr<event>&& event) {
+inline void event_dispatcher::post(const event_target& target, ref_ptr<event>&& event) {
 	_queue.emplace_back(target, std::move(event));
 }
 
-inline bool event_dispatcher::pending(event::target_type target) const noexcept {
+inline bool event_dispatcher::pending(const event_target& target) const noexcept {
 	for (auto&& p : _queue) {
 		if (p.first == target)
 			return true;
@@ -170,7 +166,7 @@ inline bool event_dispatcher::pending(event::target_type target) const noexcept 
 	return false;
 }
 
-inline size_t event_dispatcher::pending_count(event::target_type target) const noexcept {
+inline size_t event_dispatcher::pending_count(const event_target& target) const noexcept {
 	size_t count = 0;
 	
 	for (auto&& p : _queue) {
@@ -181,7 +177,7 @@ inline size_t event_dispatcher::pending_count(event::target_type target) const n
 	return count;
 }
 
-inline bool event_dispatcher::abort_first(event::target_type target) {
+inline bool event_dispatcher::abort_first(const event_target& target) {
 	auto it = std::find_if(_queue.begin(), _queue.end(), [&](auto&& v) { return v.first == target; });
 	if (it != _queue.end()) {
 		_queue.erase(it);
@@ -190,7 +186,7 @@ inline bool event_dispatcher::abort_first(event::target_type target) {
 	return false;
 }
 
-inline bool event_dispatcher::abort_last(event::target_type target) {
+inline bool event_dispatcher::abort_last(const event_target& target) {
 	auto it = std::find_if(_queue.rbegin(), _queue.rend(), [&](auto&& v) { return v.first == target; });
 	if (it != _queue.rend()) {
 		_queue.erase(--it.base());
@@ -199,7 +195,7 @@ inline bool event_dispatcher::abort_last(event::target_type target) {
 	return false;
 }
 
-inline bool event_dispatcher::abort_all(event::target_type target) {
+inline bool event_dispatcher::abort_all(const event_target& target) {
 	auto old_count = _queue.size();
 	
 	_queue.erase(std::remove_if(_queue.begin(), _queue.end(),
@@ -235,7 +231,7 @@ inline void event_dispatcher::invoke(const ref_ptr<event>& event) {
 		(*it).second.second(event.get());
 }
 
-inline void event_dispatcher::invoke(event::target_type target, const ref_ptr<event>& event) {
+inline void event_dispatcher::invoke(const event_target& target, const ref_ptr<event>& event) {
 	auto subscriptions = _subscriptions.equal_range(target);
 	for (auto it = subscriptions.first; it != subscriptions.second; ++it)
 		(*it).second.second(event.get());
@@ -270,24 +266,24 @@ inline bool event_handler<T>::subscribed(handler<E> handler) const noexcept {
 
 template <typename T>
 template <typename E>
-inline void event_handler<T>::unsubscribe(handler<E> handler, event::target_type target) noexcept {
+inline void event_handler<T>::unsubscribe(handler<E> handler, const event_target& target) noexcept {
 	BOOST_VERIFY(_dispatcher.unsubscribe(target, handler, static_cast<T*>(this)));
 }
 
 template <typename T>
 template <typename E>
-inline void event_handler<T>::respond(event::target_type target, handler<E> handler) {
+inline void event_handler<T>::respond(const event_target& target, handler<E> handler) {
 	_dispatcher.subscribe(handler, static_cast<T*>(this), target);
 }
 
 template <typename T>
 template <typename E>
-inline bool event_handler<T>::responds(event::target_type target, handler<E> handler) const noexcept {
+inline bool event_handler<T>::responds(const event_target& target, handler<E> handler) const noexcept {
 	return _dispatcher.subscribed(handler, static_cast<const T*>(this), target);
 }
 
 template <typename T>
-inline bool event_handler<T>::connected(event::target_type target) const noexcept {
+inline bool event_handler<T>::connected(const event_target& target) const noexcept {
 	return _dispatcher.connected(this, target);
 }
 

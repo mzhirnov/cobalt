@@ -52,8 +52,8 @@ struct my_event_target : event_handler<my_event_target>
 	explicit my_event_target(event_dispatcher& dispatcher)
 		: event_handler(dispatcher)
 	{
-		respond<test_event>(event::create_custom_target("do a test"));
-		respond<simple_event>(event::create_custom_target("do another test"));
+		respond<test_event>(event_target("do a test"));
+		respond<simple_event>(event_target("do another test"));
 	}
 	
 	void on_target_event(test_event* event) {
@@ -93,8 +93,8 @@ TEST_CASE("event_dispatcher") {
 		REQUIRE(dispatcher.subscribed(&my_subscriber::on_test_event, &subscriber));
 		REQUIRE(subscriber.subscribed(&my_subscriber::on_test_event));
 		
-		REQUIRE(dispatcher.connected(&subscriber, test_event::type));
-		REQUIRE(subscriber.connected(test_event::type));
+		REQUIRE(dispatcher.connected(&subscriber, test_event::static_target()));
+		REQUIRE(subscriber.connected(test_event::static_target()));
 		
 		dispatcher.post(event);
 
@@ -111,8 +111,8 @@ TEST_CASE("event_dispatcher") {
 		REQUIRE((dispatcher.subscribed<my_subscriber2, test_event>(&my_subscriber2::on_event, &subscriber)));
 		REQUIRE(subscriber.subscribed<test_event>());
 		
-		REQUIRE(dispatcher.connected(&subscriber, test_event::type));
-		REQUIRE(subscriber.connected(test_event::type));
+		REQUIRE(dispatcher.connected(&subscriber, test_event::static_target()));
+		REQUIRE(subscriber.connected(test_event::static_target()));
 		
 		dispatcher.post(event);
 
@@ -149,13 +149,13 @@ TEST_CASE("event_dispatcher") {
 		my_event_target target(dispatcher);
 		
 		SECTION("invoke with created custom target") {
-			REQUIRE(target.responds<test_event>(event::create_custom_target("do a test")));
-			REQUIRE_FALSE(target.responds<test_event>(event::create_custom_target("do another test")));
-			REQUIRE_FALSE(target.responds<simple_event>(event::create_custom_target("do a test")));
+			REQUIRE(target.responds<test_event>(event_target("do a test")));
+			REQUIRE_FALSE(target.responds<test_event>(event_target("do another test")));
+			REQUIRE_FALSE(target.responds<simple_event>(event_target("do a test")));
 		
 			REQUIRE(event->handled() == false);
 			
-			dispatcher.invoke(event::create_custom_target("do a test"), event);
+			dispatcher.invoke(event_target("do a test"), event);
 
 			REQUIRE(event->handled() == true);
 		}
@@ -165,7 +165,7 @@ TEST_CASE("event_dispatcher") {
 			
 			REQUIRE(ev->handled() == false);
 			
-			dispatcher.invoke(event::create_custom_target("do another test"), ev);
+			dispatcher.invoke(event_target("do another test"), ev);
 			
 			REQUIRE(ev->handled() == true);
 		}
