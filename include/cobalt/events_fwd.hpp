@@ -83,14 +83,6 @@ private:
 	bool _handled = false;
 };
 
-/// Basic event implementation
-class basic_event : public event {
-public:
-	static const event_target& static_target() { static event_target target("..."); return target; }
-
-	virtual const event_target& target() const noexcept override { return static_target(); }
-};
-
 #define CO_DEFINE_EVENT(Event) CO_DEFINE_EVENT_CLASS(Event) {};
 #define CO_DEFINE_EVENT_WITH_TARGET_NAME(Event, TargetName) CO_DEFINE_EVENT_CLASS_WITH_TARGET_NAME(Event, TargetName) {};
 
