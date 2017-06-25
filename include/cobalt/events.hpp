@@ -30,24 +30,24 @@ template <typename T, typename E, typename = typename std::enable_if_t<std::is_b
 struct rebind_method {
 	using method_type = void(T::*)(E*);
 	
-	constexpr rebind_method(method_type mf, T* obj) noexcept
+	constexpr rebind_method(method_type mf, const T* obj) noexcept
 		: _method(mf), _object(obj)
 	{ }
 	
 	const method_type method() const noexcept { return _method; }
-	
 	const T* object() const noexcept { return _object; }
 	
-	void operator()(event* ev) { (_object->*_method)(static_cast<E*>(ev)); }
+	void operator()(event* ev) const { (_object->*_method)(static_cast<E*>(ev)); }
+	void operator()(event* ev) { (const_cast<T*>(_object)->*_method)(static_cast<E*>(ev)); }
+
+private:
+	method_type _method;
+	const T* _object;
 	
 private:
 	friend bool operator==(const rebind_method& rhs, const rebind_method& lhs) noexcept {
 		return rhs._object == lhs._object && rhs._method == lhs._method;
 	}
-
-private:
-	method_type _method;
-	T* _object;
 };
 
 } // namespace detail
@@ -60,7 +60,7 @@ template <typename T, typename E>
 inline void event_dispatcher::subscribe(void(T::*mf)(E*), const T* obj, event::target_type target) {
 	static_assert(std::is_base_of<event, E>::value, "`E` must be derived from event");
 	
-	_subscriptions.emplace(target, ObjectHandler{obj, detail::rebind_method<T, E>(mf, const_cast<T*>(obj))});
+	_subscriptions.emplace(target, ObjectHandler{obj, detail::rebind_method<T, E>(mf, obj)});
 	_connections.emplace(obj, target);
 }
 
@@ -68,13 +68,11 @@ template <typename T, typename E>
 inline bool event_dispatcher::subscribed(void(T::*mf)(E*), const T* obj, event::target_type target) const noexcept {
 	static_assert(std::is_base_of<event, E>::value, "`E` must be derived from event");
 	
-	const detail::rebind_method<T, E> sought(mf, const_cast<T*>(obj));
-	
-	auto range = _subscriptions.equal_range(target);
-	for (auto it = range.first; it != range.second; ++it) {
-		auto&& object_handler = (*it).second;
-		auto target = object_handler.second.template target<detail::rebind_method<T, E>>();
-		if (target && *target == sought)
+	auto subscriptions = _subscriptions.equal_range(target);
+	for (auto subscr = subscriptions.first; subscr != subscriptions.second; ++subscr) {
+		auto&& handler = (*subscr).second.second;
+		auto&& target = handler.template target<detail::rebind_method<T, E>>();
+		if (target && target->object() == obj && target->method() == mf)
 			return true;
 	}
 	
@@ -85,20 +83,18 @@ template <typename T, typename E>
 inline bool event_dispatcher::unsubscribe(void(T::*mf)(E*), const T* obj, event::target_type target) noexcept {
 	static_assert(std::is_base_of<event, E>::value, "`E` must be derived from event");
 	
-	const detail::rebind_method<T, E> sought(mf, const_cast<T*>(obj));
-	
-	auto range = _subscriptions.equal_range(target);
-	for (auto it = range.first; it != range.second; ++it) {
-		auto&& object_handler = (*it).second;
-		auto target = object_handler.second.template target<detail::rebind_method<T, E>>();
-		if (target && *target == sought) {
+	auto subscriptions = _subscriptions.equal_range(target);
+	for (auto subscr = subscriptions.first; subscr != subscriptions.second; ++subscr) {
+		auto&& handler = (*subscr).second.second;
+		auto&& target = handler.template target<detail::rebind_method<T, E>>();
+		if (target && target->object() == obj && target->method() == mf) {
 			// Remove object subscription
-			_subscriptions.erase(it);
+			_subscriptions.erase(subscr);
 			// Remove object connection
-			auto conn_range = _connections.equal_range(obj);
-			for (auto conn_it = conn_range.first; conn_it != conn_range.second; ++conn_it) {
-				if ((*conn_it).second == target) {
-					_connections.erase(conn_it);
+			auto connections = _connections.equal_range(obj);
+			for (auto conn = connections.first; conn != connections.second; ++conn) {
+				if ((*conn).second == target) {
+					_connections.erase(conn);
 					break;
 				}
 			}
@@ -110,9 +106,9 @@ inline bool event_dispatcher::unsubscribe(void(T::*mf)(E*), const T* obj, event:
 }
 
 inline bool event_dispatcher::connected(const void* obj, event::target_type target) const noexcept {
-	auto range = _connections.equal_range(obj);
-	for (auto it = range.first; it != range.second; ++it) {
-		if ((*it).second == target)
+	auto connections = _connections.equal_range(obj);
+	for (auto conn = connections.first; conn != connections.second; ++conn) {
+		if ((*conn).second == target)
 			return true;
 	}
 	return false;
@@ -120,29 +116,29 @@ inline bool event_dispatcher::connected(const void* obj, event::target_type targ
 
 inline void event_dispatcher::disconnect(const void* obj, event::target_type target) {
 	// Remove object subscriptions
-	auto subscr_range = _subscriptions.equal_range(target);
-	for (auto it = subscr_range.first; it != subscr_range.second; ) {
-		auto&& object_handler = (*it).second;
-		it = (object_handler.first == obj) ? _subscriptions.erase(it) : ++it;
+	auto subscriptions = _subscriptions.equal_range(target);
+	for (auto subscr = subscriptions.first; subscr != subscriptions.second; /**/) {
+		auto&& object = (*subscr).second.first;
+		subscr = (object == obj) ? _subscriptions.erase(subscr) : ++subscr;
 	}
 	
 	// Remove object connections
-	auto conn_range = _connections.equal_range(obj);
-	for (auto conn_it = conn_range.first; conn_it != conn_range.second; )
-		conn_it = ((*conn_it).second == target) ? _connections.erase(conn_it) : ++conn_it;
+	auto connections = _connections.equal_range(obj);
+	for (auto conn = connections.first; conn != connections.second; /**/)
+		conn = ((*conn).second == target) ? _connections.erase(conn) : ++conn;
 }
 
-inline void event_dispatcher::disconnect(const void* obj) {
-	auto conn_range = _connections.equal_range(obj);
-	for (auto conn_it = conn_range.first; conn_it != conn_range.second; ++conn_it) {
-		auto subscr_range = _subscriptions.equal_range((*conn_it).second);
-		for (auto it = subscr_range.first; it != subscr_range.second; ) {
-			auto&& object_handler = (*it).second;
-			it = (object_handler.first == obj) ? _subscriptions.erase(it) : ++it;
+inline void event_dispatcher::disconnect_all(const void* obj) {
+	auto connections = _connections.equal_range(obj);
+	for (auto conn = connections.first; conn != connections.second; ++conn) {
+		auto subscriptions = _subscriptions.equal_range((*conn).second);
+		for (auto subscr = subscriptions.first; subscr != subscriptions.second; /**/) {
+			auto&& object = (*subscr).second.first;
+			subscr = (object == obj) ? _subscriptions.erase(subscr) : ++subscr;
 		}
 	}
 	
-	if (conn_range.first != conn_range.second)
+	if (connections.first != connections.second)
 		_connections.erase(obj);
 }
 	
@@ -166,12 +162,23 @@ inline void event_dispatcher::post(event::target_type target, ref_ptr<event>&& e
 	_queue.emplace_back(target, std::move(event));
 }
 
-inline bool event_dispatcher::posted(event::target_type target) const noexcept {
+inline bool event_dispatcher::pending(event::target_type target) const noexcept {
 	for (auto&& p : _queue) {
 		if (p.first == target)
 			return true;
 	}
 	return false;
+}
+
+inline size_t event_dispatcher::pending_count(event::target_type target) const noexcept {
+	size_t count = 0;
+	
+	for (auto&& p : _queue) {
+		if (p.first == target)
+			++count;
+	}
+	
+	return count;
 }
 
 inline bool event_dispatcher::abort_first(event::target_type target) {
@@ -193,7 +200,7 @@ inline bool event_dispatcher::abort_last(event::target_type target) {
 }
 
 inline bool event_dispatcher::abort_all(event::target_type target) {
-	auto count = _queue.size();
+	auto old_count = _queue.size();
 	
 	_queue.erase(std::remove_if(_queue.begin(), _queue.end(),
 		[&](auto&& v) {
@@ -201,15 +208,17 @@ inline bool event_dispatcher::abort_all(event::target_type target) {
 		}),
 		_queue.end());
 	
-	return _queue.size() != count;
+	return _queue.size() != old_count;
 }
 
 inline void event_dispatcher::dispatch(clock_type::duration timeout) {
-	EventQueue queue = std::move(_queue);
+	EventQueue queue;
+	
+	std::swap(_queue, queue);
 	
 	auto start = clock_type::now();
 	
-	while (!queue.empty() && !(timeout != clock_type::duration() && clock_type::now() - start >= timeout)) {
+	while (!queue.empty() && (timeout == clock_type::duration() || clock_type::now() - start < timeout)) {
 		auto&& p = queue.front();
 		invoke(p.first, p.second);
 		queue.pop_front();
@@ -221,19 +230,19 @@ inline void event_dispatcher::dispatch(clock_type::duration timeout) {
 }
 
 inline void event_dispatcher::invoke(const ref_ptr<event>& event) {
-	auto range = _subscriptions.equal_range(event->target());
-	for (auto it = range.first; it != range.second; ++it)
+	auto subscriptions = _subscriptions.equal_range(event->target());
+	for (auto it = subscriptions.first; it != subscriptions.second; ++it)
 		(*it).second.second(event.get());
 }
 
 inline void event_dispatcher::invoke(event::target_type target, const ref_ptr<event>& event) {
-	auto range = _subscriptions.equal_range(target);
-	for (auto it = range.first; it != range.second; ++it)
+	auto subscriptions = _subscriptions.equal_range(target);
+	for (auto it = subscriptions.first; it != subscriptions.second; ++it)
 		(*it).second.second(event.get());
 }
 	
 ////////////////////////////////////////////////////////////////////////////////
-// event_subscriber
+// event_handler
 //
 
 template <typename T>
@@ -244,7 +253,7 @@ inline event_handler<T>::event_handler(event_dispatcher& dispatcher) noexcept
 
 template <typename T>
 inline event_handler<T>::~event_handler() {
-	_dispatcher.disconnect(this);
+	_dispatcher.disconnect_all(this);
 }
 
 template <typename T>

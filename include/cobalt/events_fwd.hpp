@@ -105,22 +105,22 @@ public:
 	// Subscription
 	//
 	
-	/// Subscribe object's method to specified event target
+	/// Subscribe object to event target
 	template <typename T, typename E>
 	void subscribe(void(T::*mf)(E*), const T* obj, event::target_type target = E::type);
-	/// Check if specified object's method is subscribed to the event target
+	/// Check if object is subscribed to event target
 	template <typename T, typename E>
 	bool subscribed(void(T::*mf)(E*), const T* obj, event::target_type target = E::type) const noexcept;
-	/// Unsubscribe object's method from the event target
+	/// Unsubscribe object from event target
 	template <typename T, typename E>
 	bool unsubscribe(void(T::*mf)(E*), const T* obj, event::target_type target = E::type) noexcept;
 	
-	/// Check if object is connected to at least one specified event target
+	/// Check if object connected to any events with this target
 	bool connected(const void* obj, event::target_type target) const noexcept;
-	/// Disconnect object from all connections with specified event target
+	/// Disconnect object from all events with this target
 	void disconnect(const void* obj, event::target_type target);
-	/// Disconnect object from all connections
-	void disconnect(const void* obj);
+	/// Disconnect object from all event targets
+	void disconnect_all(const void* obj);
 
 	//
 	// Event queue
@@ -137,22 +137,24 @@ public:
 	void post(event::target_type target, const ref_ptr<event>& event);
 	void post(event::target_type target, ref_ptr<event>&& event);
 	
-	/// Check if event queue contains event with specified target
-	bool posted(event::target_type target) const noexcept;
+	/// Check if there is penging event with this target
+	bool pending(event::target_type target) const noexcept;
+	/// @return Number of pending events with this target
+	size_t pending_count(event::target_type target) const noexcept;
 	
-	/// Remove event with specified target from event queue
+	/// Remove event with this target from event queue
 	/// @return True if event was removed, false otherwise
 	bool abort_first(event::target_type target);
 	bool abort_last(event::target_type target);
 	bool abort_all(event::target_type target);
 
-	/// Invoke posted events with timeout
+	/// Invoke pending events with timeout
 	void dispatch(clock_type::duration timeout = clock_type::duration());
 
-	/// Invoke the event immediately
+	/// Invoke event immediately
 	void invoke(const ref_ptr<event>& event);
 
-	/// Invoke the event for specified target immediately
+	/// Invoke event for specified event target immediately
 	void invoke(event::target_type target, const ref_ptr<event>& event);
 
 private:
@@ -172,8 +174,7 @@ private:
 template <typename T>
 class event_handler {
 public:
-	template <typename E>
-	using handler = void(T::*)(E*);
+	template <typename E> using handler = void(T::*)(E*);
 	
 	explicit event_handler(event_dispatcher& dispatcher) noexcept;
 
@@ -184,19 +185,19 @@ public:
 	
 	event_dispatcher& dispatcher() { return _dispatcher; }
 
-	/// Subscribe method to specified event target
+	/// Subscribe method to event
 	template <typename E> void subscribe(handler<E> = &T::on_event);
-	/// Check if method is subscribed to specified event target
+	/// Check if method subscribed to event
 	template <typename E> bool subscribed(handler<E> = &T::on_event) const noexcept;
-	/// Unsubscribe method from specified event target
+	/// Unsubscribe method from event
 	template <typename E> void unsubscribe(handler<E> = &T::on_event, event::target_type target = E::type) noexcept;
 	
-	/// Register method as specified unique event responder
+	/// Register method as event responder
 	template <typename E> void respond(event::target_type target, handler<E> = &T::on_target_event);
-	/// Check if method responds to specified unique event
+	/// Check if method responds to event
 	template <typename E> bool responds(event::target_type target, handler<E> = &T::on_target_event) const noexcept;
 	
-	/// Check if this object connected to at least one specified event target
+	/// Check if this object connected to any events with this target
 	bool connected(event::target_type target) const noexcept;
 
 private:
