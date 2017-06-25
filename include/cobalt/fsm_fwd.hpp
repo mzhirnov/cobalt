@@ -3,6 +3,10 @@
 
 #pragma once
 
+// Classes in this file:
+//     state
+//     state_machine
+
 #include <boost/type_index.hpp>
 #include <boost/functional/hash.hpp>
 
