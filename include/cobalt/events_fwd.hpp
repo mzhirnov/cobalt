@@ -18,13 +18,6 @@
 #include <unordered_map>
 #include <chrono>
 
-CO_DEFINE_ENUM(
-	event_phase, uint8_t,
-	bubbling,
-	capture,
-	sinking
-)
-
 namespace cobalt {
 
 /// Event
@@ -42,21 +35,12 @@ public:
 	
 	virtual const identifier& target() const noexcept = 0;
 	
-	event_phase phase() const noexcept { return _phase; }
-	
 	bool handled() const noexcept { return _handled; }
 	void handled(bool handled) noexcept { _handled = handled; }
-	
-protected:
-	void phase(event_phase phase) noexcept { _phase = phase; }
-	
-	/// Resets object to initial state
-	virtual void reset() noexcept;
 
 private:
 	friend class event_dispatcher;
 	
-	event_phase _phase = event_phase::capture;
 	bool _handled = false;
 };
 
