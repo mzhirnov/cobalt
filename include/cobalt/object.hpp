@@ -1,12 +1,12 @@
-#ifndef COBALT_OBJECT_HPP_INCLUDED
-#define COBALT_OBJECT_HPP_INCLUDED
+#ifndef COBALT_ACTOR_HPP_INCLUDED
+#define COBALT_ACTOR_HPP_INCLUDED
 
 #pragma once
 
 // Classes in this file:
-//     component
-//     basic_component
-//     object
+//     actor_component
+//     basic_actor_component
+//     actor
 //
 // Functions in this file:
 //     find_root
@@ -29,65 +29,65 @@
 
 namespace cobalt {
 
-struct object_components_tag {};
-struct object_children_tag {};
+struct actor_components_tag {};
+struct actor_children_tag {};
 
-class object;
+class actor;
 
-/// Component
-class component
-	: public ref_counter<component>
-	, public intrusive_single_list_base<object_components_tag>
+/// Actor component
+class actor_component
+	: public ref_counter<actor_component>
+	, public intrusive_single_list_base<actor_components_tag>
 {
 public:
-	virtual ~component() = default;
+	virtual ~actor_component() = default;
 
 	virtual uint32_t type() const noexcept = 0;
 
-	class object* object() const noexcept { return _object; }
+	class actor* actor() const noexcept { return _actor; }
 	
 	void detach() noexcept;
 	
 private:
-	friend class object;
+	friend class actor;
 	
-	void object(class object* object) noexcept { _object = object; }
+	void actor(class actor* actor) noexcept { _actor = actor; }
 
 private:
-	class object* _object = nullptr;
+	class actor* _actor = nullptr;
 };
 
 /// Base class for components
 template <uint32_t ComponentType>
-class basic_component : public component {
+class basic_actor_component : public actor_component {
 public:
 	static constexpr uint32_t component_type = ComponentType;
 	
 	virtual uint32_t type() const noexcept override { return ComponentType; }
 };
 
-/// Object is a container for components
-class object
-	: public ref_counter<object>
-	, public intrusive_single_list_base<object_children_tag>
+/// Actor is a container for components
+class actor
+	: public ref_counter<actor>
+	, public intrusive_single_list_base<actor_children_tag>
 {
 public:
-	using children_type = intrusive_single_list<object, object_children_tag>;
-	using components_type = intrusive_single_list<component, object_components_tag>;
+	using children_type = intrusive_single_list<actor, actor_children_tag>;
+	using components_type = intrusive_single_list<actor_component, actor_components_tag>;
 	
-	object() = default;
+	actor() = default;
 	
-	object(object&&) = default;
-	object& operator=(object&&) = default;
+	actor(actor&&) = default;
+	actor& operator=(actor&&) = default;
 
-	object(const object&) = delete;
-	object& operator=(const object&) = delete;
+	actor(const actor&) = delete;
+	actor& operator=(const actor&) = delete;
 	
-	explicit object(const identifier& name) noexcept : _name(name) {}
+	explicit actor(const identifier& name) noexcept : _name(name) {}
 	
-	~object();
+	~actor();
 	
-	object* parent() const noexcept { return _parent; }
+	actor* parent() const noexcept { return _parent; }
 	
 	const children_type& children() const noexcept { return _children; }
 	const components_type& components() const noexcept { return _components; }
@@ -99,24 +99,24 @@ public:
 	void active(bool active) noexcept { _active = active; }
 	bool active_in_hierarchy() const noexcept;
 	
-	object* add_child(object* o) noexcept;
-	ref_ptr<object> remove_child(object* o) noexcept;
+	actor* add_child(actor* o) noexcept;
+	ref_ptr<actor> remove_child(actor* o) noexcept;
 	
 	void detach() noexcept;
 	
 	void remove_all_children() noexcept;
 
-	component* add_component(component* c) noexcept;
-	ref_ptr<component> remove_component(component* c) noexcept;
+	actor_component* add_component(actor_component* c) noexcept;
+	ref_ptr<actor_component> remove_component(actor_component* c) noexcept;
 	
 	size_t remove_components(uint32_t component_type) noexcept;
 	void remove_all_components() noexcept;
 
 private:
-	void parent(object* parent) noexcept { _parent = parent; }
+	void parent(actor* parent) noexcept { _parent = parent; }
 
 private:
-	object* _parent = nullptr;
+	actor* _parent = nullptr;
 	children_type _children;
 	components_type _components;	
 	identifier _name;
@@ -127,21 +127,21 @@ private:
 // component
 //
 	
-inline void component::detach() noexcept {
-	if (_object)
-		_object->remove_component(this);
+inline void actor_component::detach() noexcept {
+	if (_actor)
+		_actor->remove_component(this);
 }
 	
 ////////////////////////////////////////////////////////////////////////////////
 // object
 //
 
-inline object::~object() {
+inline actor::~actor() {
 	remove_all_components();
 	remove_all_children();
 }
 
-inline bool object::active_in_hierarchy() const noexcept {
+inline bool actor::active_in_hierarchy() const noexcept {
 	for (auto o = this; o; o = o->parent()) {
 		if (!o->active())
 			return false;
@@ -150,7 +150,7 @@ inline bool object::active_in_hierarchy() const noexcept {
 	return true;
 }
 
-inline object* object::add_child(object* o) noexcept {
+inline actor* actor::add_child(actor* o) noexcept {
 	BOOST_ASSERT(o != nullptr);
 	if (!o) return nullptr;
 	
@@ -163,8 +163,8 @@ inline object* object::add_child(object* o) noexcept {
 	return o;
 }
 
-inline ref_ptr<object> object::remove_child(object* o) noexcept {
-	ref_ptr<object> sp;
+inline ref_ptr<actor> actor::remove_child(actor* o) noexcept {
+	ref_ptr<actor> sp;
 	
 	if (!o)
 		return sp;
@@ -183,30 +183,30 @@ inline ref_ptr<object> object::remove_child(object* o) noexcept {
 	return sp;
 }
 
-inline void object::detach() noexcept {
+inline void actor::detach() noexcept {
 	if (_parent)
 		_parent->remove_child(this);
 }
 	
-inline void object::remove_all_children() noexcept {
+inline void actor::remove_all_children() noexcept {
 	_children.clear_and_dispose([](auto&& o) {
 		o->parent(nullptr);
 		release(o);
 	});
 }
 
-inline component* object::add_component(component* c) noexcept {
+inline actor_component* actor::add_component(actor_component* c) noexcept {
 	retain(c);
 	
 	_components.push_front(*c);
 	
-	c->object(this);
+	c->actor(this);
 	
 	return c;
 }
 
-inline ref_ptr<component> object::remove_component(component* c) noexcept {
-	ref_ptr<component> sp;
+inline ref_ptr<actor_component> actor::remove_component(actor_component* c) noexcept {
+	ref_ptr<actor_component> sp;
 	
 	if (!c)
 		return sp;
@@ -216,7 +216,7 @@ inline ref_ptr<component> object::remove_component(component* c) noexcept {
 			_components.erase_after_and_dispose(it, [&](auto&& c) {
 				// Don't increase ref_counter, transfer ownership to smart pointer
 				sp.reset(c, false);
-				sp->object(nullptr);
+				sp->actor(nullptr);
 			});
 			break;
 		}
@@ -225,27 +225,27 @@ inline ref_ptr<component> object::remove_component(component* c) noexcept {
 	return sp;
 }
 
-inline size_t object::remove_components(uint32_t component_type) noexcept {
+inline size_t actor::remove_components(uint32_t component_type) noexcept {
 	size_t count = 0;
 	
 	_components.remove_and_dispose_if(
 		[&](auto&& c) { return c.type() == component_type; },
-		[&](auto&& c) { c->object(nullptr); release(c); ++count; }
+		[&](auto&& c) { c->actor(nullptr); release(c); ++count; }
 	);
 	
 	return count;
 }
 	
-inline void object::remove_all_components() noexcept {
+inline void actor::remove_all_components() noexcept {
 	_components.clear_and_dispose([](auto&& c) {
-		c->object(nullptr);
+		c->actor(nullptr);
 		release(c);
 	});
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-inline const object* find_root(const object* o) noexcept {
+inline const actor* find_root(const actor* o) noexcept {
 	BOOST_ASSERT(o != nullptr);
 	if (!o) return nullptr;
 	
@@ -255,7 +255,7 @@ inline const object* find_root(const object* o) noexcept {
 	return o;
 }
 
-inline const object* find_parent(const object* o, const identifier& name) noexcept {
+inline const actor* find_parent(const actor* o, const identifier& name) noexcept {
 	BOOST_ASSERT(o != nullptr);
 	if (!o) return nullptr;
 	
@@ -270,7 +270,7 @@ inline const object* find_parent(const object* o, const identifier& name) noexce
 	return nullptr;
 }
 
-inline const object* find_child(const object* o, const identifier& name) noexcept {
+inline const actor* find_child(const actor* o, const identifier& name) noexcept {
 	BOOST_ASSERT(o != nullptr);
 	if (!o) return nullptr;
 	
@@ -286,7 +286,7 @@ inline const object* find_child(const object* o, const identifier& name) noexcep
 }
 
 // Breadth-first search
-inline const object* find_child_in_hierarchy(const object* o, const identifier& name) noexcept {
+inline const actor* find_child_in_hierarchy(const actor* o, const identifier& name) noexcept {
 	BOOST_ASSERT(o != nullptr);
 	if (!o) return nullptr;
 	
@@ -301,7 +301,7 @@ inline const object* find_child_in_hierarchy(const object* o, const identifier& 
 			return found;
 	}
 
-	std::deque<std::reference_wrapper<const object>> queue(std::begin(o->children()), std::end(o->children()));
+	std::deque<std::reference_wrapper<const actor>> queue(std::begin(o->children()), std::end(o->children()));
 	
 	while (!queue.empty()) {
 		auto&& front = queue.front().get();
@@ -324,7 +324,7 @@ inline const object* find_child_in_hierarchy(const object* o, const identifier& 
 	return nullptr;
 }
 
-inline const object* find_object_with_path(const object* o, const char* path) noexcept {
+inline const actor* find_object_with_path(const actor* o, const char* path) noexcept {
 	BOOST_ASSERT(o != nullptr);
 	BOOST_ASSERT(path != nullptr);
 	
@@ -368,7 +368,7 @@ inline const object* find_object_with_path(const object* o, const char* path) no
 	return current;
 }
 
-inline const component* find_component(const object* o, uint32_t component_type) noexcept {
+inline const actor_component* find_component(const actor* o, uint32_t component_type) noexcept {
 	BOOST_ASSERT(o != nullptr);
 	if (!o) return nullptr;
 	
@@ -380,7 +380,7 @@ inline const component* find_component(const object* o, uint32_t component_type)
 	return nullptr;
 }
 
-inline const component* find_component_in_parent(const object* o, uint32_t component_type) noexcept {
+inline const actor_component* find_component_in_parent(const actor* o, uint32_t component_type) noexcept {
 	BOOST_ASSERT(o != nullptr);
 	
 	for ( ; o; o = o->parent()) {
@@ -395,7 +395,7 @@ inline const component* find_component_in_parent(const object* o, uint32_t compo
 }
 
 // Breadth-first search
-inline const component* find_component_in_children(const object* o, uint32_t component_type) {
+inline const actor_component* find_component_in_children(const actor* o, uint32_t component_type) {
 	BOOST_ASSERT(o != nullptr);
 	if (!o) return nullptr;
 	
@@ -410,7 +410,7 @@ inline const component* find_component_in_children(const object* o, uint32_t com
 			return c;
 	}
 
-	std::deque<std::reference_wrapper<const object>> queue(std::begin(o->children()), std::end(o->children()));
+	std::deque<std::reference_wrapper<const actor>> queue(std::begin(o->children()), std::end(o->children()));
 	
 	while (!queue.empty()) {
 		auto&& front = queue.front().get();
@@ -430,35 +430,35 @@ inline const component* find_component_in_children(const object* o, uint32_t com
 	return nullptr;
 }
 
-inline const component* find_component(const object* o, const char* name) noexcept {
+inline const actor_component* find_component(const actor* o, const char* name) noexcept {
 	return find_component(o, murmur3(name, 0));
 }
 
-inline const component* find_component_in_parent(const object* o, const char* name) noexcept {
+inline const actor_component* find_component_in_parent(const actor* o, const char* name) noexcept {
 	return find_component_in_parent(o, murmur3(name, 0));
 }
 
-inline const component* find_component_in_children(const object* o, const char* name) {
+inline const actor_component* find_component_in_children(const actor* o, const char* name) {
 	return find_component_in_children(o, murmur3(name, 0));
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-inline const T* find_component(const object* o) noexcept {
+template <typename T, typename = typename std::enable_if_t<std::is_base_of<actor_component, T>::value>>
+inline const T* find_component(const actor* o) noexcept {
 	return static_cast<const T*>(find_component(o, T::component_type));
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-inline const T* find_component_in_parent(const object* o) noexcept {
+template <typename T, typename = typename std::enable_if_t<std::is_base_of<actor_component, T>::value>>
+inline const T* find_component_in_parent(const actor* o) noexcept {
 	return static_cast<const T*>(find_component_in_parent(o, T::component_type));
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-inline const T* find_component_in_children(const object* o) noexcept {
+template <typename T, typename = typename std::enable_if_t<std::is_base_of<actor_component, T>::value>>
+inline const T* find_component_in_children(const actor* o) noexcept {
 	return static_cast<const T*>(find_component_in_children(o, T::component_type));
 }
 
 template <typename OutputIterator>
-inline void find_components(const object* o, uint32_t component_type, OutputIterator result) {
+inline void find_components(const actor* o, uint32_t component_type, OutputIterator result) {
 	for (auto&& c : o->components()) {
 		if (c.type() == component_type)
 			*result++ = &c;
@@ -466,7 +466,7 @@ inline void find_components(const object* o, uint32_t component_type, OutputIter
 }
 
 template <typename OutputIterator>
-inline void find_components_in_parent(const object* o, uint32_t component_type, OutputIterator result) {
+inline void find_components_in_parent(const actor* o, uint32_t component_type, OutputIterator result) {
 	BOOST_ASSERT(o != nullptr);
 	if (!o) return;
 	
@@ -480,7 +480,7 @@ inline void find_components_in_parent(const object* o, uint32_t component_type, 
 
 // Breadth-first search
 template <typename OutputIterator>
-inline void find_components_in_children(const object* o, uint32_t component_type, OutputIterator result) {
+inline void find_components_in_children(const actor* o, uint32_t component_type, OutputIterator result) {
 	BOOST_ASSERT(o != nullptr);
 	if (!o) return;
 	
@@ -493,7 +493,7 @@ inline void find_components_in_children(const object* o, uint32_t component_type
 		find_components(&child, component_type, result);
 	}
 
-	std::deque<std::reference_wrapper<const object>> queue(std::begin(o->children()), std::end(o->children()));
+	std::deque<std::reference_wrapper<const actor>> queue(std::begin(o->children()), std::end(o->children()));
 	
 	while (!queue.empty()) {
 		auto&& front = queue.front().get();
@@ -513,8 +513,8 @@ inline void find_components_in_children(const object* o, uint32_t component_type
 	}
 }
 
-template <typename T, typename OutputIterator, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-inline void find_components(const object* o, OutputIterator result) {
+template <typename T, typename OutputIterator, typename = typename std::enable_if_t<std::is_base_of<actor_component, T>::value>>
+inline void find_components(const actor* o, OutputIterator result) {
 	BOOST_ASSERT(o != nullptr);
 	if (!o) return;
 	
@@ -524,8 +524,8 @@ inline void find_components(const object* o, OutputIterator result) {
 	}
 }
 
-template <typename T, typename OutputIterator, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-inline void find_components_in_parent(const object* o, OutputIterator result) {
+template <typename T, typename OutputIterator, typename = typename std::enable_if_t<std::is_base_of<actor_component, T>::value>>
+inline void find_components_in_parent(const actor* o, OutputIterator result) {
 	BOOST_ASSERT(o != nullptr);
 	if (!o) return;
 	
@@ -538,8 +538,8 @@ inline void find_components_in_parent(const object* o, OutputIterator result) {
 }
 
 // Breadth-first search
-template <typename T, typename OutputIterator, typename = typename std::enable_if_t<std::is_base_of<component, T>::value>>
-inline void find_components_in_children(const object* o, OutputIterator result) {
+template <typename T, typename OutputIterator, typename = typename std::enable_if_t<std::is_base_of<actor_component, T>::value>>
+inline void find_components_in_children(const actor* o, OutputIterator result) {
 	BOOST_ASSERT(o != nullptr);
 	if (!o) return;
 	
@@ -552,7 +552,7 @@ inline void find_components_in_children(const object* o, OutputIterator result) 
 		find_components<T>(&child, result);
 	}
 
-	std::deque<std::reference_wrapper<const object>> queue(std::begin(o->children()), std::end(o->children()));
+	std::deque<std::reference_wrapper<const actor>> queue(std::begin(o->children()), std::end(o->children()));
 	
 	while (!queue.empty()) {
 		auto&& front = queue.front().get();
@@ -574,4 +574,4 @@ inline void find_components_in_children(const object* o, OutputIterator result) 
 
 } // namespace cobalt
 
-#endif // COBALT_OBJECT_HPP_INCLUDED
+#endif // COBALT_ACTOR_HPP_INCLUDED

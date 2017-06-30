@@ -4,9 +4,9 @@
 
 using namespace cobalt;
 
-using component_factory = auto_factory<component()>;
+using component_factory = auto_factory<actor_component()>;
 
-class renderer : public basic_component<"renderer"_hash> {
+class renderer : public basic_actor_component<"renderer"_hash> {
 public:
 	renderer(int& instances) : _instances(instances)
 		{ ++_instances; }
@@ -19,12 +19,12 @@ private:
 	int& _instances;
 };
 
-class transform : public basic_component<"transform"_hash> {
+class transform : public basic_actor_component<"transform"_hash> {
 	CO_REGISTER_AUTO_FACTORY(component_factory, transform)
 public:
 };
 
-class my_component : public component {
+class my_component : public actor_component {
 	CO_REGISTER_AUTO_FACTORY(component_factory, my_component)
 public:
 	virtual uint32_t type() const noexcept override { return "my_component"_hash; }
@@ -32,15 +32,15 @@ public:
 
 TEST_CASE("information") {
 	printf("sizeof(void*) := %zu\n", sizeof(void*));
-	printf("sizeof(object) := %zu (%zu x void*)\n", sizeof(object), sizeof(object) / sizeof(void*));
-	printf("sizeof(component) := %zu (%zu x void*)\n", sizeof(component), sizeof(component) / sizeof(void*));
+	printf("sizeof(actor) := %zu (%zu x void*)\n", sizeof(actor), sizeof(actor) / sizeof(void*));
+	printf("sizeof(actor_component) := %zu (%zu x void*)\n", sizeof(actor_component), sizeof(actor_component) / sizeof(void*));
 }
 
 TEST_CASE("object") {
-	auto o = make_ref<object>(identifier("root"));
+	auto o = make_ref<actor>(identifier("root"));
 	
 	SECTION("add child") {
-		auto child = o->add_child(new object());
+		auto child = o->add_child(new actor());
 	
 		REQUIRE(child->parent() == o.get());
 		
@@ -71,7 +71,7 @@ TEST_CASE("object") {
 		
 		SECTION("check preconditions") {
 			REQUIRE(c == r);
-			REQUIRE(c->object() == o.get());
+			REQUIRE(c->actor() == o.get());
 			REQUIRE(renderer_instances == 1);
 		}
 		
@@ -115,7 +115,7 @@ TEST_CASE("object") {
 		}
 		
 		SECTION("find components by type") {
-			std::vector<const component*> vec;
+			std::vector<const actor_component*> vec;
 			find_components(o.get(), renderer::component_type, std::back_inserter(vec));
 			
 			REQUIRE(vec.size() == 1);
@@ -138,9 +138,9 @@ TEST_CASE("object") {
 	}
 	
 	SECTION("find with path") {
-		auto o1 = o->add_child(new object(identifier("child1")));
-		auto o2 = o1->add_child(new object(identifier("child2")));
-		auto o3 = o2->add_child(new object(identifier("child3")));
+		auto o1 = o->add_child(new actor(identifier("child1")));
+		auto o2 = o1->add_child(new actor(identifier("child2")));
+		auto o3 = o2->add_child(new actor(identifier("child3")));
 		
 		auto c2 = find_object_with_path(o.get(), "child1/child2");
 		REQUIRE(c2);
