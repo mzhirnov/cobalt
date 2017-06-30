@@ -52,8 +52,8 @@ struct my_event_target : event_handler<my_event_target>
 	explicit my_event_target(event_dispatcher& dispatcher)
 		: event_handler(dispatcher)
 	{
-		respond<test_event>(event_target("do a test"));
-		respond<simple_event>(event_target("do another test"));
+		respond<test_event>(identifier("do a test"));
+		respond<simple_event>(identifier("do another test"));
 	}
 	
 	void on_target_event(test_event* event) {
@@ -149,13 +149,13 @@ TEST_CASE("event_dispatcher") {
 		my_event_target target(dispatcher);
 		
 		SECTION("invoke with created custom target") {
-			REQUIRE(target.responds<test_event>(event_target("do a test")));
-			REQUIRE_FALSE(target.responds<test_event>(event_target("do another test")));
-			REQUIRE_FALSE(target.responds<simple_event>(event_target("do a test")));
+			REQUIRE(target.responds<test_event>(identifier("do a test")));
+			REQUIRE_FALSE(target.responds<test_event>(identifier("do another test")));
+			REQUIRE_FALSE(target.responds<simple_event>(identifier("do a test")));
 		
 			REQUIRE(event->handled() == false);
 			
-			dispatcher.invoke(event_target("do a test"), event);
+			dispatcher.invoke(identifier("do a test"), event);
 
 			REQUIRE(event->handled() == true);
 		}
@@ -165,7 +165,7 @@ TEST_CASE("event_dispatcher") {
 			
 			REQUIRE(ev->handled() == false);
 			
-			dispatcher.invoke(event_target("do another test"), ev);
+			dispatcher.invoke(identifier("do another test"), ev);
 			
 			REQUIRE(ev->handled() == true);
 		}

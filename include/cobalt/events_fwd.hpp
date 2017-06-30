@@ -4,19 +4,16 @@
 #pragma once
 
 // Classes in this file:
-//     event_target
 //     event
 //     event_dispatcher
 //     event_handler
 
 #include <cobalt/utility/intrusive.hpp>
 #include <cobalt/utility/enum_traits.hpp>
+#include <cobalt/utility/identifier.hpp>
 
-#include <boost/flyweight.hpp>
 #include <boost/assert.hpp>
 
-#include <string>
-#include <array>
 #include <deque>
 #include <unordered_map>
 #include <chrono>
@@ -29,26 +26,6 @@ CO_DEFINE_ENUM(
 )
 
 namespace cobalt {
-
-namespace detail {
-
-struct event_target_tag {};
-
-} // namespace detail
-
-/// Event target
-///
-/// Event subscribers' end point.
-using event_target = boost::flyweight<
-	std::string,
-	boost::flyweights::tag<detail::event_target_tag>,
-	boost::flyweights::hashed_factory<
-		std::hash<std::string>,
-		std::equal_to<std::string>,
-		std::allocator<boost::mpl::_1>
-	>,
-	boost::flyweights::tracking<boost::flyweights::refcounted>
->;
 
 /// Event
 class event : public ref_counter<event> {
@@ -63,7 +40,7 @@ public:
 	
 	virtual ~event() noexcept = default;
 	
-	virtual const event_target& target() const noexcept = 0;
+	virtual const identifier& target() const noexcept = 0;
 	
 	event_phase phase() const noexcept { return _phase; }
 	
@@ -90,8 +67,8 @@ private:
 #define CO_DEFINE_EVENT_CLASS_WITH_TARGET_NAME(Event, TargetName) \
 class Event##_base : public event { \
 public: \
-	static const event_target& static_target() noexcept { static event_target target(TargetName); return target; } \
-	virtual const event_target& target() const noexcept override { return static_target(); } \
+	static const identifier& static_target() noexcept { static identifier target(TargetName); return target; } \
+	virtual const identifier& target() const noexcept override { return static_target(); } \
 }; \
 class Event : public Event##_base
 
@@ -119,18 +96,18 @@ public:
 	
 	/// Subscribe object to event target
 	template <typename T, typename E>
-	void subscribe(void(T::*mf)(E*), const T* obj, const event_target& target = E::static_target());
+	void subscribe(void(T::*mf)(E*), const T* obj, const identifier& target = E::static_target());
 	/// Check if object is subscribed to event target
 	template <typename T, typename E>
-	bool subscribed(void(T::*mf)(E*), const T* obj, const event_target& target = E::static_target()) const noexcept;
+	bool subscribed(void(T::*mf)(E*), const T* obj, const identifier& target = E::static_target()) const noexcept;
 	/// Unsubscribe object from event target
 	template <typename T, typename E>
-	bool unsubscribe(void(T::*mf)(E*), const T* obj, const event_target& target = E::static_target()) noexcept;
+	bool unsubscribe(void(T::*mf)(E*), const T* obj, const identifier& target = E::static_target()) noexcept;
 	
 	/// Check if object connected to any events with this target
-	bool connected(const void* obj, const event_target& target) const noexcept;
+	bool connected(const void* obj, const identifier& target) const noexcept;
 	/// Disconnect object from all events with this target
-	void disconnect(const void* obj, const event_target& target);
+	void disconnect(const void* obj, const identifier& target);
 	/// Disconnect object from all event targets
 	void disconnect_all(const void* obj);
 
@@ -146,19 +123,19 @@ public:
 	void post(ref_ptr<event>&& event);
 	
 	/// Post event with explicitly specified target to event queue
-	void post(const event_target& target, const ref_ptr<event>& event);
-	void post(const event_target& target, ref_ptr<event>&& event);
+	void post(const identifier& target, const ref_ptr<event>& event);
+	void post(const identifier& target, ref_ptr<event>&& event);
 	
 	/// Check if there is penging event with this target
-	bool pending(const event_target& target) const noexcept;
+	bool pending(const identifier& target) const noexcept;
 	/// @return Number of pending events with this target
-	size_t pending_count(const event_target& target) const noexcept;
+	size_t pending_count(const identifier& target) const noexcept;
 	
 	/// Remove event with this target from event queue
 	/// @return True if event was removed, false otherwise
-	bool abort_first(const event_target& target);
-	bool abort_last(const event_target& target);
-	bool abort_all(const event_target& target);
+	bool abort_first(const identifier& target);
+	bool abort_last(const identifier& target);
+	bool abort_all(const identifier& target);
 
 	/// Invoke pending events with timeout
 	void dispatch(clock_type::duration timeout = clock_type::duration());
@@ -167,13 +144,13 @@ public:
 	void invoke(const ref_ptr<event>& event);
 
 	/// Invoke event for specified event target immediately
-	void invoke(const event_target& target, const ref_ptr<event>& event);
+	void invoke(const identifier& target, const ref_ptr<event>& event);
 
 private:
 	using ObjectHandler = std::pair<const void*, handler_type>;
-	using Subscriptions =  std::unordered_multimap<event_target, ObjectHandler, boost::hash<event_target>>;
-	using Connections = std::unordered_multimap<const void*, event_target>;
-	using EventQueue = std::deque<std::pair<event_target, ref_ptr<event>>>;
+	using Subscriptions =  std::unordered_multimap<identifier, ObjectHandler, boost::hash<identifier>>;
+	using Connections = std::unordered_multimap<const void*, identifier>;
+	using EventQueue = std::deque<std::pair<identifier, ref_ptr<event>>>;
 	
 	Subscriptions _subscriptions;
 	Connections _connections;
@@ -200,15 +177,15 @@ public:
 	/// Check if method subscribed to event
 	template <typename E> bool subscribed(handler<E> = &T::on_event) const noexcept;
 	/// Unsubscribe method from event
-	template <typename E> void unsubscribe(handler<E> = &T::on_event, const event_target& target = E::static_target()) noexcept;
+	template <typename E> void unsubscribe(handler<E> = &T::on_event, const identifier& target = E::static_target()) noexcept;
 	
 	/// Register method as event responder
-	template <typename E> void respond(const event_target& target, handler<E> = &T::on_target_event);
+	template <typename E> void respond(const identifier& target, handler<E> = &T::on_target_event);
 	/// Check if method responds to event
-	template <typename E> bool responds(const event_target& target, handler<E> = &T::on_target_event) const noexcept;
+	template <typename E> bool responds(const identifier& target, handler<E> = &T::on_target_event) const noexcept;
 	
 	/// Check if this object connected to any events with this target
-	bool connected(const event_target& target) const noexcept;
+	bool connected(const identifier& target) const noexcept;
 
 private:
 	event_dispatcher& _dispatcher;

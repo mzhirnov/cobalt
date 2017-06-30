@@ -17,7 +17,8 @@ using basic_identifier = boost::flyweight<
 		std::hash<std::string>,
 		std::equal_to<std::string>,
 		std::allocator<boost::mpl::_1>
-	>
+	>,
+	boost::flyweights::tracking<boost::flyweights::refcounted>
 >;
 
 struct generic_identifier_tag {};
