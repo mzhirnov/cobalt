@@ -1,5 +1,5 @@
 #include "catch.hpp"
-#include <cobalt/object.hpp>
+#include <cobalt/actor.hpp>
 #include <cobalt/utility/factory.hpp>
 
 using namespace cobalt;
@@ -36,7 +36,7 @@ TEST_CASE("information") {
 	printf("sizeof(actor_component) := %zu (%zu x void*)\n", sizeof(actor_component), sizeof(actor_component) / sizeof(void*));
 }
 
-TEST_CASE("object") {
+TEST_CASE("actor") {
 	auto o = make_ref<actor>(identifier("root"));
 	
 	SECTION("add child") {

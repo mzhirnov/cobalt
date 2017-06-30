@@ -14,7 +14,7 @@
 		1763ED901DF33F9A001F279B /* events.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1763ED8A1DF33F9A001F279B /* events.cpp */; };
 		1763ED911DF33F9A001F279B /* hash.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1763ED8B1DF33F9A001F279B /* hash.cpp */; };
 		1763ED921DF33F9A001F279B /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1763ED8C1DF33F9A001F279B /* main.cpp */; };
-		1763ED931DF33F9A001F279B /* object.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1763ED8D1DF33F9A001F279B /* object.cpp */; };
+		1763ED931DF33F9A001F279B /* actor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1763ED8D1DF33F9A001F279B /* actor.cpp */; };
 		176E8C231E86926E00ADF5AC /* factory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 176E8C221E86926E00ADF5AC /* factory.cpp */; };
 		179820531E3BBA5800EA8102 /* fsm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 179820511E3BBA5800EA8102 /* fsm.cpp */; };
 		1798205D1E4CDD9E00EA8102 /* platform.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1798205C1E4CDD9E00EA8102 /* platform.cpp */; };
@@ -43,7 +43,7 @@
 		1763ED8A1DF33F9A001F279B /* events.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = events.cpp; sourceTree = "<group>"; };
 		1763ED8B1DF33F9A001F279B /* hash.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = hash.cpp; sourceTree = "<group>"; };
 		1763ED8C1DF33F9A001F279B /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
-		1763ED8D1DF33F9A001F279B /* object.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = object.cpp; sourceTree = "<group>"; };
+		1763ED8D1DF33F9A001F279B /* actor.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = actor.cpp; sourceTree = "<group>"; };
 		176E8C221E86926E00ADF5AC /* factory.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = factory.cpp; sourceTree = "<group>"; };
 		179632AC1DBD20F100384195 /* unittests */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = unittests; sourceTree = BUILT_PRODUCTS_DIR; };
 		179820511E3BBA5800EA8102 /* fsm.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = fsm.cpp; sourceTree = "<group>"; };
@@ -80,7 +80,7 @@
 				1763ED8A1DF33F9A001F279B /* events.cpp */,
 				1763ED8B1DF33F9A001F279B /* hash.cpp */,
 				1763ED8C1DF33F9A001F279B /* main.cpp */,
-				1763ED8D1DF33F9A001F279B /* object.cpp */,
+				1763ED8D1DF33F9A001F279B /* actor.cpp */,
 			);
 			name = unittests;
 			path = ../../../unittests;
@@ -177,7 +177,7 @@
 				174472C01E06CE7C00A2097E /* io.cpp in Sources */,
 				17D56ED21DFA66CF00A36AFA /* tasks.cpp in Sources */,
 				1763ED921DF33F9A001F279B /* main.cpp in Sources */,
-				1763ED931DF33F9A001F279B /* object.cpp in Sources */,
+				1763ED931DF33F9A001F279B /* actor.cpp in Sources */,
 				179820531E3BBA5800EA8102 /* fsm.cpp in Sources */,
 				1763ED8F1DF33F9A001F279B /* enumerator.cpp in Sources */,
 				1798205D1E4CDD9E00EA8102 /* platform.cpp in Sources */,
