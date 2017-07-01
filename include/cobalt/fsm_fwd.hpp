@@ -7,8 +7,7 @@
 //     state
 //     state_machine
 
-#include <boost/type_index.hpp>
-#include <boost/functional/hash.hpp>
+#include <cobalt/utility/type_index.hpp>
 
 #include <memory>
 #include <unordered_map>
@@ -16,31 +15,27 @@
 namespace cobalt {
 namespace fsm {
 
-using boost::typeindex::type_index;
-using boost::typeindex::type_id;
-using boost::typeindex::type_id_runtime;
-
-using transition_t = std::pair<type_index, type_index>;
+using transition = std::pair<type_index, type_index>;
 
 /// Abstract base class for state
 class state_base {
 public:
 	state_base() noexcept = default;
-	state_base(std::initializer_list<transition_t> transitions);
+	state_base(std::initializer_list<transition> transitions);
 	
 	virtual ~state_base() = default;
 	
 	virtual void enter(state_base* from) = 0;
 	virtual void leave(state_base* to) = 0;
 	
-	void add(std::initializer_list<transition_t> transitions);
-	bool add(const transition_t& transition);
-	bool add(transition_t&& transition);
+	void add(std::initializer_list<transition> transitions);
+	bool add(const transition& transition);
+	bool add(transition&& transition);
 	
 	bool can_transit_to(type_index state_type) const noexcept;
 	
 protected:
-	using Transitions = std::unordered_map<type_index, type_index, boost::hash<type_index>>;
+	using Transitions = std::unordered_map<type_index, type_index>;
 	Transitions _transitions;
 };
 
@@ -53,7 +48,7 @@ public:
 	using machine_type = state_machine<T>;
 	
 	state() noexcept = default;
-	state(std::initializer_list<transition_t> transitions);
+	state(std::initializer_list<transition> transitions);
 	
 	using state_base::can_transit_to;
 	
@@ -101,7 +96,7 @@ public:
 	template <typename State> state_type* state_for() const noexcept;
 	
 private:
-	using States = std::unordered_map<type_index, std::unique_ptr<state_type>, boost::hash<type_index>>;
+	using States = std::unordered_map<type_index, std::unique_ptr<state_type>>;
 	States _states;
 	
 	state_type* _current_state = nullptr;

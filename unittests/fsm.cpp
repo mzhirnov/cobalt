@@ -17,7 +17,7 @@ class state_c;
 class state_a : public state_machine::state_type {
 public:
 	state_a() noexcept = default;
-	state_a(std::initializer_list<fsm::transition_t> transitions)
+	state_a(std::initializer_list<fsm::transition> transitions)
 		: state_machine::state_type(transitions)
 	{}
 	
@@ -32,7 +32,7 @@ public:
 class state_b : public state_machine::state_type {
 public:
 	state_b() noexcept = default;
-	state_b(std::initializer_list<fsm::transition_t> transitions)
+	state_b(std::initializer_list<fsm::transition> transitions)
 		: state_machine::state_type(transitions)
 	{}
 	
@@ -47,7 +47,7 @@ public:
 class state_c : public state_machine::state_type {
 public:
 	state_c() noexcept = default;
-	state_c(std::initializer_list<fsm::transition_t> transitions)
+	state_c(std::initializer_list<fsm::transition> transitions)
 		: state_machine::state_type(transitions)
 	{}
 	
@@ -66,16 +66,16 @@ struct event_up {};
 TEST_CASE("fsm") {
 	state_machine machine{
 		fsm::make_state<state_a>({
-			fsm::transition<event_next, state_b>(),
-			fsm::transition<event_prev, state_c>()
+			fsm::make_transition<event_next, state_b>(),
+			fsm::make_transition<event_prev, state_c>()
 		}),
 		fsm::make_state<state_b>({
-			fsm::transition<event_next, state_c>(),
-			fsm::transition<event_prev, state_a>()
+			fsm::make_transition<event_next, state_c>(),
+			fsm::make_transition<event_prev, state_a>()
 		}),
 		fsm::make_state<state_c>({
-			fsm::transition<event_next, state_a>(),
-			fsm::transition<event_prev, state_b>()
+			fsm::make_transition<event_next, state_a>(),
+			fsm::make_transition<event_prev, state_b>()
 		})
 	};
 	

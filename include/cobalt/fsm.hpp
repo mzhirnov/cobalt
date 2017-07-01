@@ -12,20 +12,20 @@
 namespace cobalt {
 namespace fsm {
 
-inline state_base::state_base(std::initializer_list<transition_t> transitions) {
+inline state_base::state_base(std::initializer_list<transition> transitions) {
 	add(transitions);
 }
 
-inline void state_base::add(std::initializer_list<transition_t> transitions) {
+inline void state_base::add(std::initializer_list<transition> transitions) {
 	for (auto&& transition : transitions)
 		BOOST_VERIFY(add(transition));
 }
 
-inline bool state_base::add(const transition_t& transition) {
+inline bool state_base::add(const transition& transition) {
 	return _transitions.insert(transition).second;
 }
 
-inline bool state_base::add(transition_t&& transition) {
+inline bool state_base::add(transition&& transition) {
 	return _transitions.insert(std::move(transition)).second;
 }
 
@@ -40,7 +40,7 @@ inline bool state_base::can_transit_to(type_index state_type) const noexcept {
 ////////////////////////////////////////////////////////////////////////////////
 
 template <typename T>
-inline state<T>::state(std::initializer_list<transition_t> transitions)
+inline state<T>::state(std::initializer_list<transition> transitions)
 	: state_base(transitions)
 {
 }
@@ -178,12 +178,12 @@ inline bool state_machine<T>::send() {
 ////////////////////////////////////////////////////////////////////////////////
 
 template <typename Event, typename State, typename = std::enable_if_t<std::is_base_of<state_base, State>::value>>
-inline transition_t transition() noexcept {
+inline transition make_transition() noexcept {
 	return std::make_pair(type_id<Event>(), type_id<State>());
 }
 
 template <typename State, typename = std::enable_if_t<std::is_base_of<state_base, State>::value>>
-inline std::unique_ptr<State> make_state(std::initializer_list<transition_t> transitions) {
+inline std::unique_ptr<State> make_state(std::initializer_list<transition> transitions) {
 	return std::make_unique<State>(transitions);
 }
 
