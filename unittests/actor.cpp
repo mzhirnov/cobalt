@@ -6,7 +6,7 @@ using namespace cobalt;
 
 using component_factory = auto_factory<actor_component()>;
 
-class renderer : public basic_actor_component<"renderer"_hash> {
+class renderer : public basic_actor_component<renderer> {
 public:
 	renderer(int& instances) : _instances(instances)
 		{ ++_instances; }
@@ -19,15 +19,9 @@ private:
 	int& _instances;
 };
 
-class transform : public basic_actor_component<"transform"_hash> {
+class transform : public basic_actor_component<transform> {
 	CO_REGISTER_AUTO_FACTORY(component_factory, transform)
 public:
-};
-
-class my_component : public actor_component {
-	CO_REGISTER_AUTO_FACTORY(component_factory, my_component)
-public:
-	virtual uint32_t type() const noexcept override { return "my_component"_hash; }
 };
 
 TEST_CASE("information") {
@@ -76,30 +70,10 @@ TEST_CASE("actor") {
 		}
 		
 		SECTION("find component by type") {
-			auto f1 = (const renderer*)find_component(o.get(), renderer::component_type);
+			auto f1 = (const renderer*)find_component(o.get(), renderer::static_type());
 			
 			REQUIRE(f1 == r);
-			REQUIRE_FALSE(find_component(o.get(), transform::component_type) == nullptr);
-			
-			f1->draw(); // will compile
-		}
-		
-		SECTION("find component by hash") {
-			auto f1 = (const renderer*)find_component(o.get(), "renderer"_hash);
-			
-			REQUIRE(f1 == r);
-			REQUIRE_FALSE(find_component(o.get(), "transform"_hash) == nullptr);
-			REQUIRE(find_component(o.get(), "my_component"_hash) == nullptr);
-			
-			f1->draw(); // will compile
-		}
-		
-		SECTION("find component by name") {
-			auto f1 = (const renderer*)find_component(o.get(), "renderer");
-			
-			REQUIRE(f1 == r);
-			REQUIRE_FALSE(find_component(o.get(), "transform") == nullptr);
-			REQUIRE(find_component(o.get(), "my_component") == nullptr);
+			REQUIRE_FALSE(find_component(o.get(), transform::static_type()) == nullptr);
 			
 			f1->draw(); // will compile
 		}
@@ -109,14 +83,13 @@ TEST_CASE("actor") {
 			
 			REQUIRE(f2 == r);
 			REQUIRE_FALSE(find_component<transform>(o.get()) == nullptr);
-			//o->find_component<my_component>(); // won't compile due to enable_if<>
 			
 			f2->draw(); // will compile
 		}
 		
 		SECTION("find components by type") {
 			std::vector<const actor_component*> vec;
-			find_components(o.get(), renderer::component_type, std::back_inserter(vec));
+			find_components(o.get(), renderer::static_type(), std::back_inserter(vec));
 			
 			REQUIRE(vec.size() == 1);
 			REQUIRE(vec[0] == r);
