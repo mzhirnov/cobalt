@@ -6,12 +6,11 @@ using namespace cobalt;
 
 using component_factory = auto_factory<actor_component()>;
 
-class renderer : public basic_actor_component<renderer> {
+class renderer_component : public actor_component {
+	IMPLEMENT_OBJECT_TYPE(renderer_component)
 public:
-	renderer(int& instances) : _instances(instances)
-		{ ++_instances; }
-	~renderer()
-		{ --_instances; }
+	explicit renderer_component(int& instances) : _instances(instances) { ++_instances; }
+	~renderer_component() { --_instances; }
 	
 	virtual void draw() const { }
 	
@@ -19,8 +18,9 @@ private:
 	int& _instances;
 };
 
-class transform : public basic_actor_component<transform> {
-	CO_REGISTER_AUTO_FACTORY(component_factory, transform)
+class sound_component : public actor_component {
+	IMPLEMENT_OBJECT_TYPE(sound_component)
+	CO_REGISTER_AUTO_FACTORY_WITH_NAME(component_factory, sound_component, "sound")
 public:
 };
 
@@ -31,97 +31,32 @@ TEST_CASE("information") {
 }
 
 TEST_CASE("actor") {
-	auto o = make_ref<actor>(identifier("root"));
-	
-	SECTION("add child") {
-		auto child = o->add_child(new actor());
-	
-		REQUIRE(child->parent() == o.get());
-		
-		SECTION("remove child") {
-			auto removed = o->remove_child(child);
-			
-			REQUIRE(removed.get() == child);
-		}
-		
-		SECTION("detach child") {
-			child->detach();
-			
-			REQUIRE(o->remove_child(child) == nullptr);
-		}
-	}
-	
-	SECTION("add component") {
+	auto actor1 = make_ref<actor>();
+
+	SECTION("attach component") {
 		int renderer_instances = 0;
-		auto r = new renderer(renderer_instances);
+		auto renderer = new renderer_component(renderer_instances);
 		
-		auto c = o->add_component(r);
+		REQUIRE(renderer_instances == 1);
+		REQUIRE(renderer != nullptr);
+		REQUIRE(renderer->actor() == nullptr);
 		
-		auto xform = component_factory::create(identifier("transform"));
+		renderer->attach_to(actor1->transform());
 		
-		REQUIRE(xform != nullptr);
+		REQUIRE(renderer->actor() == actor1.get());
 		
-		o->add_component(xform);
+		auto sound = component_factory::create(identifier("sound"));
 		
-		SECTION("check preconditions") {
-			REQUIRE(c == r);
-			REQUIRE(c->actor() == o.get());
-			REQUIRE(renderer_instances == 1);
-		}
+		REQUIRE(sound != nullptr);
+		REQUIRE(sound->actor() == nullptr);
 		
-		SECTION("find component by type") {
-			auto f1 = (const renderer*)find_component(o.get(), renderer::static_type());
-			
-			REQUIRE(f1 == r);
-			REQUIRE_FALSE(find_component(o.get(), transform::static_type()) == nullptr);
-			
-			f1->draw(); // will compile
-		}
+		sound->attach_to(actor1->transform());
 		
-		SECTION("find component with template") {
-			auto f2 = find_component<renderer>(o.get());
-			
-			REQUIRE(f2 == r);
-			REQUIRE_FALSE(find_component<transform>(o.get()) == nullptr);
-			
-			f2->draw(); // will compile
-		}
+		REQUIRE(sound->actor() == actor1.get());
 		
-		SECTION("find components by type") {
-			std::vector<const actor_component*> vec;
-			find_components(o.get(), renderer::static_type(), std::back_inserter(vec));
-			
-			REQUIRE(vec.size() == 1);
-			REQUIRE(vec[0] == r);
-		}
+		//renderer->detach();
+		actor1.reset();
 		
-		SECTION("find components with template") {
-			std::vector<const renderer*> vec;
-			find_components<renderer>(o.get(), std::back_inserter(vec));
-			
-			REQUIRE(vec.size() == 1);
-			REQUIRE(vec[0] == r);
-		}
-		
-		SECTION("remove component") {
-			r->detach();
-			
-			REQUIRE(renderer_instances == 0);
-		}
-	}
-	
-	SECTION("find with path") {
-		auto o1 = o->add_child(new actor(identifier("child1")));
-		auto o2 = o1->add_child(new actor(identifier("child2")));
-		auto o3 = o2->add_child(new actor(identifier("child3")));
-		
-		auto c2 = find_object_with_path(o.get(), "child1/child2");
-		REQUIRE(c2);
-		
-		auto found = find_object_with_path(c2, "child1/child2/child3");
-		REQUIRE_FALSE(found);
-		
-		found = find_object_with_path(c2, "/child1/child2/child3");
-		REQUIRE(found);
+		REQUIRE(renderer_instances == 0);
 	}
 }
