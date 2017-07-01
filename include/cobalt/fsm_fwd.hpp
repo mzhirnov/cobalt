@@ -22,7 +22,7 @@ using boost::typeindex::type_id_runtime;
 
 using transition_t = std::pair<type_index, type_index>;
 
-//
+/// Abstract base class for state
 class state_base {
 public:
 	state_base() noexcept = default;
@@ -40,13 +40,13 @@ public:
 	bool can_transit_to(type_index state_type) const noexcept;
 	
 protected:
-	using Transitions = std::map<type_index, type_index>;
+	using Transitions = std::unordered_map<type_index, type_index, boost::hash<type_index>>;
 	Transitions _transitions;
 };
 
 template <typename T> class state_machine;
 
-//
+/// State class
 template <typename T>
 class state : public state_base, public T {
 public:
@@ -73,7 +73,7 @@ private:
 	machine_type* _machine = nullptr;
 };
 
-//
+/// State machine
 template <typename T>
 class state_machine {
 public:
