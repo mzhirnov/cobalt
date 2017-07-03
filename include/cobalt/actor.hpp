@@ -10,14 +10,7 @@
 //     level
 //
 // Functions in this file:
-//     find_root
-//     find_parent
-//     find_child
-//     find_child_in_hierarchy
-//     find_object_with_path
-//     find_component
-//     find_component_in_parent
-//     find_component_in_children
+//
 
 #include <cobalt/utility/identifier.hpp>
 #include <cobalt/utility/type_index.hpp>
@@ -31,107 +24,105 @@
 #define IMPLEMENT_OBJECT_TYPE(ThisClass) \
 public: \
 	static const type_index& static_type() noexcept { static auto type = type_id<ThisClass>(); return type; } \
-	virtual const type_index& type() const noexcept override { return static_type(); }
+	virtual const type_index& generic_type() const noexcept override { return static_type(); }
 
 namespace cobalt {
 
+///
 /// Object
+///
 class object : public ref_counter<object> {
 public:
+	object() = default;
+	
+	object(const object&) = delete;
+	object& operator=(const object&) = delete;
+	
 	virtual ~object() = default;
 	
-	virtual const type_index& type() const noexcept = 0;
-};
-
-struct generic_list_tag { };
-
-class actor;
-class transform_component;
-
-/// Actor abstract component
-class actor_component : public object, public intrusive_list_base<generic_list_tag> {
-public:
-	virtual actor* actor() const noexcept;
-	
-	void attach_to(transform_component* parent) noexcept;
-	void detach() noexcept;
-	
-	transform_component* parent() const noexcept { return _parent; }
+	virtual const type_index& generic_type() const noexcept = 0;
 	
 	const identifier& name() const noexcept { return _name; }
 	void name(const identifier& name) noexcept { _name = name; }
 	
 private:
-	friend class transform_component;
-
-private:
-	transform_component* _parent = nullptr;
 	identifier _name;
 };
 
-/// Transform and hierarchy component
-class transform_component : public actor_component {
-	IMPLEMENT_OBJECT_TYPE(transform_component)
+struct basic_list_tag { };
+
+class actor;
+class transform_component;
+
+///
+/// Actor component
+///
+class actor_component : public object, public intrusive_list_base<basic_list_tag> {
 public:
-	using children_type = intrusive_list<actor_component, generic_list_tag>;
-	
-	~transform_component() {
-		while (!_children.empty())
-			_children.back().detach();
-	}
-	
-	virtual class actor* actor() const noexcept override { return _actor; }
-	
-private:
-	friend class actor_component;
-	
-	void add_child(actor_component* component) noexcept {
-		BOOST_ASSERT(!!component);
-		if (!component->is_linked())
-			retain(component);
-		_children.push_back(*component);
-		component->_parent = this;
-	}
-	
-	void remove_child(actor_component* component) noexcept {
-		BOOST_ASSERT(!!component);
-		_children.erase_and_dispose(_children.iterator_to(*component), [&](actor_component* c) {
-			c->_parent = nullptr;
-			release(c);
-		});
-	}
+	virtual class actor* actor() const noexcept { return _actor; }
 	
 private:
 	friend class actor;
-	
 	class actor* _actor = nullptr;
+};
+
+///
+/// Transform and hierarchy actor component
+///
+class transform_component : public actor_component {
+IMPLEMENT_OBJECT_TYPE(transform_component)
+
+public:
+	using children_type = intrusive_list<transform_component, basic_list_tag>;
+	
+	~transform_component();
+	
+	virtual class actor* actor() const noexcept override;
+	
+	transform_component* parent() const noexcept { return _parent; }
+	
+	void add_child(transform_component* child) noexcept;
+	void remove_child(transform_component* child) noexcept;
+	
+	void clear_children() noexcept;
+	
+	const children_type& children() const noexcept { return _children; }
+	
+	void attach_to(transform_component* parent) noexcept;
+	void detach_from_parent() noexcept;
+	
+private:
+	transform_component* _parent = nullptr;
 	children_type _children;
 };
 
 class level;
 
+///
 /// Actor is a container for components
-class actor	: public object, public intrusive_list_base<generic_list_tag> {
-	IMPLEMENT_OBJECT_TYPE(actor)
-public:
-	actor();
-	
-	actor(actor&&) = default;
-	actor& operator=(actor&&) = default;
+///
+class actor : public object, public intrusive_list_base<basic_list_tag> {
+IMPLEMENT_OBJECT_TYPE(actor)
 
-	actor(const actor&) = delete;
-	actor& operator=(const actor&) = delete;
+public:
+	using components_type = intrusive_list<actor_component, basic_list_tag>;
 	
-	const identifier& name() const noexcept { return _name; }
-	void name(const identifier& name) noexcept { _name = name; }
-	
+	~actor();
+
 	void attach_to(level* level) noexcept;
-	void detach() noexcept;
+	void detach_from_level() noexcept;
 	
 	level* level() const noexcept { return _level; }
 	
 	transform_component* transform() const noexcept { return _transform.get(); }
 	void transform(transform_component* transform) noexcept;
+	
+	void add_component(actor_component* component) noexcept;
+	void remove_component(actor_component* component) noexcept;
+	
+	void clear_components() noexcept;
+	
+	const components_type& components() const noexcept { return _components; }
 
 	void active(bool active) noexcept { _active = active; }
 	bool active_self() const noexcept { return _active; }
@@ -139,43 +130,29 @@ public:
 
 private:
 	friend class level;
-	
-	identifier _name;
 	class level* _level = nullptr;
 	ref_ptr<transform_component> _transform;
+	components_type _components;
 	bool _active = true;
 };
 
+///
 /// Level is a set of actors
+///
 class level : public object {
+IMPLEMENT_OBJECT_TYPE(level)
+
 public:
-	using actors_type = intrusive_list<actor, generic_list_tag>;
+	using actors_type = intrusive_list<actor, basic_list_tag>;
 	
-	~level() {
-		_actors.clear_and_dispose([](actor* a) {
-			a->_level = nullptr;
-			release(a);
-		});
-	}
+	~level();
 	
-private:
-	friend class actor;
+	void add_actor(actor* actor) noexcept;
+	void remove_actor(actor* actor) noexcept;
 	
-	void add_actor(actor* actor) noexcept {
-		BOOST_ASSERT(!!actor);
-		if (!actor->is_linked())
-			retain(actor);
-		_actors.push_back(*actor);
-		actor->_level = this;
-	}
+	void clear_actors() noexcept;
 	
-	void remove_actor(actor* actor) noexcept {
-		BOOST_ASSERT(!!actor);
-		_actors.erase_and_dispose(_actors.iterator_to(*actor), [&](class actor* a) {
-			a->_level = nullptr;
-			release(a);
-		});
-	}
+	const actors_type& actors() const noexcept { return _actors; }
 	
 private:
 	actors_type _actors;
@@ -185,20 +162,55 @@ private:
 // actor_component
 //
 
-inline class actor* actor_component::actor() const noexcept {
+////////////////////////////////////////////////////////////////////////////////
+// trasform_component
+//
+
+inline transform_component::~transform_component() {
+	clear_children();
+}
+
+inline class actor* transform_component::actor() const noexcept {
+	if (auto a = actor_component::actor())
+		return a;
+	
 	for (auto p = parent(); p; p = p->parent()) {
-		if (auto a = p->actor())
+		if (auto a = p->actor_component::actor())
 			return a;
 	}
+	
 	return nullptr;
 }
 
-inline void actor_component::attach_to(transform_component* parent) noexcept {
+inline void transform_component::add_child(transform_component* child) noexcept {
+	BOOST_ASSERT(!!child);
+	if (!child->is_linked())
+		retain(child);
+	_children.push_back(*child);
+	child->_parent = this;
+}
+
+inline void transform_component::remove_child(transform_component* child) noexcept {
+	BOOST_ASSERT(!!child);
+	_children.erase_and_dispose(_children.iterator_to(*child), [](transform_component* child) {
+		child->_parent = nullptr;
+		release(child);
+	});
+}
+
+inline void transform_component::clear_children() noexcept {
+	_children.clear_and_dispose([](transform_component* child) {
+		child->_parent = nullptr;
+		release(child);
+	});
+}
+
+inline void transform_component::attach_to(transform_component* parent) noexcept {
 	BOOST_ASSERT(!!parent);
 	parent->add_child(this);
 }
 
-inline void actor_component::detach() noexcept {
+inline void transform_component::detach_from_parent() noexcept {
 	if (_parent)
 		_parent->remove_child(this);
 }
@@ -207,11 +219,8 @@ inline void actor_component::detach() noexcept {
 // actor
 //
 
-inline actor::actor()
-	: _name(type_id_runtime(*this).pretty_name())
-	, _transform(make_ref<transform_component>())
-{
-	_transform->_actor = this;
+inline actor::~actor() {
+	clear_components();
 }
 
 inline void actor::attach_to(class level* level) noexcept {
@@ -219,15 +228,71 @@ inline void actor::attach_to(class level* level) noexcept {
 	level->add_actor(this);
 }
 
-inline void actor::detach() noexcept {
+inline void actor::detach_from_level() noexcept {
 	if (_level)
 		_level->remove_actor(this);
 }
 
 inline void actor::transform(transform_component* transform) noexcept {
-	_transform = transform;
 	if (_transform)
+		_transform->_actor = nullptr;
+
+	if ((_transform = transform))
 		_transform->_actor = this;
+}
+
+inline void actor::add_component(actor_component* component) noexcept {
+	BOOST_ASSERT(!!component);
+	if (!component->is_linked())
+		retain(component);
+	_components.push_back(*component);
+	component->_actor = this;
+}
+
+inline void actor::remove_component(actor_component* component) noexcept {
+	BOOST_ASSERT(!!component);
+	_components.erase_and_dispose(_components.iterator_to(*component), [](actor_component* c) {
+		c->_actor = nullptr;
+		release(c);
+	});
+}
+
+inline void actor::clear_components() noexcept {
+	_components.clear_and_dispose([](actor_component* component) {
+		component->_actor = nullptr;
+		release(component);
+	});
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// level
+//
+
+inline level::~level() {
+	clear_actors();
+}
+
+inline void level::add_actor(actor* actor) noexcept {
+	BOOST_ASSERT(!!actor);
+	if (!actor->is_linked())
+		retain(actor);
+	_actors.push_back(*actor);
+	actor->_level = this;
+}
+
+inline void level::remove_actor(actor* actor) noexcept {
+	BOOST_ASSERT(!!actor);
+	_actors.erase_and_dispose(_actors.iterator_to(*actor), [](class actor* actor) {
+		actor->_level = nullptr;
+		release(actor);
+	});
+}
+
+inline void level::clear_actors() noexcept {
+	_actors.clear_and_dispose([](actor* actor) {
+		actor->_level = nullptr;
+		release(actor);
+	});
 }
 
 //inline bool actor::active_in_hierarchy() const noexcept {

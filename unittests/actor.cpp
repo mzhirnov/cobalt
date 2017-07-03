@@ -18,9 +18,9 @@ private:
 	int& _instances;
 };
 
-class sound_component : public actor_component {
-	IMPLEMENT_OBJECT_TYPE(sound_component)
-	CO_REGISTER_AUTO_FACTORY_WITH_NAME(component_factory, sound_component, "sound")
+class audio_component : public actor_component {
+	IMPLEMENT_OBJECT_TYPE(audio_component)
+	CO_REGISTER_AUTO_FACTORY_WITH_NAME(component_factory, audio_component, "audio")
 public:
 };
 
@@ -32,6 +32,7 @@ TEST_CASE("information") {
 
 TEST_CASE("actor") {
 	auto actor1 = make_ref<actor>();
+	actor1->transform(new transform_component());
 
 	SECTION("attach component") {
 		int renderer_instances = 0;
@@ -41,18 +42,18 @@ TEST_CASE("actor") {
 		REQUIRE(renderer != nullptr);
 		REQUIRE(renderer->actor() == nullptr);
 		
-		renderer->attach_to(actor1->transform());
+		actor1->add_component(renderer);
 		
 		REQUIRE(renderer->actor() == actor1.get());
 		
-		auto sound = component_factory::create(identifier("sound"));
+		auto audio = component_factory::create(identifier("audio"));
 		
-		REQUIRE(sound != nullptr);
-		REQUIRE(sound->actor() == nullptr);
+		REQUIRE(audio != nullptr);
+		REQUIRE(audio->actor() == nullptr);
 		
-		sound->attach_to(actor1->transform());
+		actor1->add_component(audio);
 		
-		REQUIRE(sound->actor() == actor1.get());
+		REQUIRE(audio->actor() == actor1.get());
 		
 		//renderer->detach();
 		actor1.reset();
