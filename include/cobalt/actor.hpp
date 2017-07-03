@@ -80,13 +80,12 @@ public:
 	virtual class actor* actor() const noexcept override;
 	
 	transform_component* parent() const noexcept { return _parent; }
+	const children_type& children() const noexcept { return _children; }
 	
 	void add_child(transform_component* child) noexcept;
 	void remove_child(transform_component* child) noexcept;
 	
 	void clear_children() noexcept;
-	
-	const children_type& children() const noexcept { return _children; }
 	
 	void attach_to(transform_component* parent) noexcept;
 	void detach_from_parent() noexcept;
@@ -108,22 +107,22 @@ public:
 	using components_type = intrusive_list<actor_component, basic_list_tag>;
 	
 	~actor();
-
-	void attach_to(level* level) noexcept;
-	void detach_from_level() noexcept;
-	
-	level* level() const noexcept { return _level; }
 	
 	transform_component* transform() const noexcept { return _transform.get(); }
 	void transform(transform_component* transform) noexcept;
+	
+	const components_type& components() const noexcept { return _components; }
 	
 	void add_component(actor_component* component) noexcept;
 	void remove_component(actor_component* component) noexcept;
 	
 	void clear_components() noexcept;
 	
-	const components_type& components() const noexcept { return _components; }
+	level* level() const noexcept { return _level; }
 
+	void attach_to(class level* level) noexcept;
+	void detach_from_level() noexcept;
+	
 	void active(bool active) noexcept { _active = active; }
 	bool active_self() const noexcept { return _active; }
 	//bool active_in_hierarchy() const noexcept;
@@ -147,12 +146,12 @@ public:
 	
 	~level();
 	
+	const actors_type& actors() const noexcept { return _actors; }
+	
 	void add_actor(actor* actor) noexcept;
 	void remove_actor(actor* actor) noexcept;
 	
 	void clear_actors() noexcept;
-	
-	const actors_type& actors() const noexcept { return _actors; }
 	
 private:
 	actors_type _actors;
@@ -223,24 +222,6 @@ inline actor::~actor() {
 	clear_components();
 }
 
-inline void actor::attach_to(class level* level) noexcept {
-	BOOST_ASSERT(!!level);
-	level->add_actor(this);
-}
-
-inline void actor::detach_from_level() noexcept {
-	if (_level)
-		_level->remove_actor(this);
-}
-
-inline void actor::transform(transform_component* transform) noexcept {
-	if (_transform)
-		_transform->_actor = nullptr;
-
-	if ((_transform = transform))
-		_transform->_actor = this;
-}
-
 inline void actor::add_component(actor_component* component) noexcept {
 	BOOST_ASSERT(!!component);
 	if (!component->is_linked())
@@ -262,6 +243,24 @@ inline void actor::clear_components() noexcept {
 		component->_actor = nullptr;
 		release(component);
 	});
+}
+
+inline void actor::attach_to(class level* level) noexcept {
+	BOOST_ASSERT(!!level);
+	level->add_actor(this);
+}
+
+inline void actor::detach_from_level() noexcept {
+	if (_level)
+		_level->remove_actor(this);
+}
+
+inline void actor::transform(transform_component* transform) noexcept {
+	if (_transform)
+		_transform->_actor = nullptr;
+
+	if ((_transform = transform))
+		_transform->_actor = this;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
