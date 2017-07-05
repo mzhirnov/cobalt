@@ -70,7 +70,7 @@ private:
 /// Transform and hierarchy actor component
 ///
 class transform_component : public actor_component {
-IMPLEMENT_OBJECT_TYPE(transform_component)
+	IMPLEMENT_OBJECT_TYPE(transform_component)
 
 public:
 	using children_type = intrusive_list<transform_component, basic_list_tag>;
@@ -80,7 +80,7 @@ public:
 	virtual class actor* actor() const noexcept override;
 	
 	transform_component* parent() const noexcept { return _parent; }
-	const children_type& children() const noexcept { return _children; }
+	children_type& children() noexcept { return _children; }
 	
 	void add_child(transform_component* child) noexcept;
 	void remove_child(transform_component* child) noexcept;
@@ -101,7 +101,7 @@ class level;
 /// Actor is a container for components
 ///
 class actor : public object, public intrusive_list_base<basic_list_tag> {
-IMPLEMENT_OBJECT_TYPE(actor)
+	IMPLEMENT_OBJECT_TYPE(actor)
 
 public:
 	using components_type = intrusive_list<actor_component, basic_list_tag>;
@@ -118,6 +118,9 @@ public:
 	
 	void clear_components() noexcept;
 	
+	actor_component* find_component_by_type(const type_index& type) noexcept;
+	size_t find_components_by_type(const type_index& type, std::vector<actor_component*>& components) noexcept;
+	
 	level* level() const noexcept { return _level; }
 
 	void attach_to(class level* level) noexcept;
@@ -126,6 +129,9 @@ public:
 	void active(bool active) noexcept { _active = active; }
 	bool active_self() const noexcept { return _active; }
 	//bool active_in_hierarchy() const noexcept;
+	
+private:
+	template <typename Handler> void traverse_components(Handler handler) noexcept;
 
 private:
 	friend class level;
@@ -139,7 +145,7 @@ private:
 /// Level is a set of actors
 ///
 class level : public object {
-IMPLEMENT_OBJECT_TYPE(level)
+	IMPLEMENT_OBJECT_TYPE(level)
 
 public:
 	using actors_type = intrusive_list<actor, basic_list_tag>;
@@ -243,6 +249,57 @@ inline void actor::clear_components() noexcept {
 		component->_actor = nullptr;
 		release(component);
 	});
+}
+
+template <typename Handler>
+inline void actor::traverse_components(Handler handler) noexcept {
+	struct helper {
+		static bool traverse(transform_component* component, Handler handler) {
+			if (!handler(component))
+				return false;
+			
+			for (auto&& child : component->children()) {
+				if (!traverse(&child, handler))
+					return false;
+			}
+			
+			return true;
+		}
+	};
+	
+	if (_transform && !helper::traverse(_transform.get(), handler))
+		return;
+	
+	for (auto&& component : _components) {
+		if (!handler(&component))
+			break;
+	}
+}
+
+inline actor_component* actor::find_component_by_type(const type_index& type) noexcept {
+	actor_component* result = nullptr;
+	
+	traverse_components([&](actor_component* component) -> bool {
+		if (component->generic_type() == type) {
+			result = component;
+			return false;
+		}
+		return true;
+	});
+	
+	return result;
+}
+
+inline size_t actor::find_components_by_type(const type_index& type, std::vector<actor_component*>& components) noexcept {
+	size_t initial_size = components.size();
+	
+	traverse_components([&](actor_component* component) -> bool {
+		if (component->generic_type() == type)
+			components.push_back(component);
+		return true;
+	});
+	
+	return components.size() - initial_size;
 }
 
 inline void actor::attach_to(class level* level) noexcept {
