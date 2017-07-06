@@ -82,7 +82,9 @@ template <typename R, typename... Args> template <typename T, typename I>
 typename auto_factory<R(Args...)>::template registrar<T, I>::factory_impl auto_factory<R(Args...)>::template registrar<T, I>::_factory;
 
 #define REGISTER_AUTO_FACTORY_WITH_NAME(Factory, Class, Name) \
-	struct registrar : Factory::registrar<registrar, Class> { static void register_factory() { _factory.id = Name; } };
+	struct Factory##_registrar : Factory::registrar<Factory##_registrar, Class> { \
+		static void register_factory() { _factory.id = Name; } \
+	};
 	
 #define REGISTER_AUTO_FACTORY(Factory, Class) \
 	REGISTER_AUTO_FACTORY_WITH_NAME(Factory, Class, #Class)

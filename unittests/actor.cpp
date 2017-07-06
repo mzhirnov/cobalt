@@ -5,6 +5,7 @@
 using namespace cobalt;
 
 using component_factory = auto_factory<actor_component()>;
+using component_factory2 = auto_factory<actor_component(int)>;
 
 class sample_component : public actor_component {
 	IMPLEMENT_OBJECT_TYPE(sample_component)
@@ -19,7 +20,11 @@ private:
 class audio_component : public actor_component {
 	IMPLEMENT_OBJECT_TYPE(audio_component)
 	REGISTER_AUTO_FACTORY_WITH_NAME(component_factory, audio_component, "audio")
+	REGISTER_AUTO_FACTORY_WITH_NAME(component_factory2, audio_component, "audio")
 public:
+	audio_component() = default;
+	audio_component(int) {}
+	
 	void play() {}
 	void stop() {}
 };
@@ -86,7 +91,7 @@ TEST_CASE("actor") {
 		
 		REQUIRE(sample->actor() == actor1.get());
 		
-		actor_component* audio = component_factory::create(identifier("audio"));
+		actor_component* audio = component_factory2::create(identifier("audio"), 1);
 		
 		REQUIRE(audio != nullptr);
 		REQUIRE(audio->actor() == nullptr);
