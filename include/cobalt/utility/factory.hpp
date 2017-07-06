@@ -81,15 +81,11 @@ public:
 template <typename R, typename... Args> template <typename T, typename I>
 typename auto_factory<R(Args...)>::template registrar<T, I>::factory_impl auto_factory<R(Args...)>::template registrar<T, I>::_factory;
 
-#define CO_REGISTER_AUTO_FACTORY_WITH_NAME(Factory, Class, Name) \
-	struct registrar : Factory::registrar<registrar, Class> { \
-		static void register_factory() { \
-			_factory.id = Name; \
-		} \
-	};
+#define REGISTER_AUTO_FACTORY_WITH_NAME(Factory, Class, Name) \
+	struct registrar : Factory::registrar<registrar, Class> { static void register_factory() { _factory.id = Name; } };
 	
-#define CO_REGISTER_AUTO_FACTORY(Factory, Class) \
-	CO_REGISTER_AUTO_FACTORY_WITH_NAME(Factory, Class, #Class)
+#define REGISTER_AUTO_FACTORY(Factory, Class) \
+	REGISTER_AUTO_FACTORY_WITH_NAME(Factory, Class, #Class)
 
 } // namespace cobalt
 

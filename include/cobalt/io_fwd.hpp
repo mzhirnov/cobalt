@@ -24,14 +24,14 @@
 #include <cstdio>
 #include <cstdint>
 
-CO_DEFINE_ENUM(
+DEFINE_ENUM(
 	seek_origin, uint8_t,
 	begin,
 	current,
 	end
 )
 
-CO_DEFINE_ENUM(
+DEFINE_ENUM(
 	open_mode, uint8_t,
 	create,              ///< Create if doesn't exist or overwrite otherwise
 	create_new,          ///< Create if doesn't exist
@@ -39,7 +39,7 @@ CO_DEFINE_ENUM(
 	open_or_create       ///< Open if exists or create new otherwise
 )
 
-CO_DEFINE_ENUM(
+DEFINE_ENUM(
 	access_mode, uint8_t,
 	read_only,
 	read_write

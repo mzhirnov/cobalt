@@ -14,7 +14,7 @@ using component_factory = auto_factory<component(const char*)>;
 
 //
 class my_component : public component {
-	CO_REGISTER_AUTO_FACTORY(component_factory, my_component)
+	REGISTER_AUTO_FACTORY(component_factory, my_component)
 public:
 	explicit my_component(const char* name) : _name(name) {}
 	
@@ -26,7 +26,7 @@ private:
 
 //
 class my_component2 : public component {
-	CO_REGISTER_AUTO_FACTORY(component_factory, my_component2)
+	REGISTER_AUTO_FACTORY(component_factory, my_component2)
 public:
 	explicit my_component2(const char* name) : _name(name) {}
 	

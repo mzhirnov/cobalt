@@ -13,7 +13,7 @@
 
 #include <deque>
 
-CO_DEFINE_ENUM(
+DEFINE_ENUM(
 	task_state, uint8_t,
 	uninitialized,
 	// alive states
@@ -26,7 +26,7 @@ CO_DEFINE_ENUM(
 	removed
 )
 
-CO_DEFINE_ENUM(
+DEFINE_ENUM(
 	task_result, uint8_t,
 	success,
 	fail,

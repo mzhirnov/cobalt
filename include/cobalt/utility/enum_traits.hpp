@@ -147,32 +147,32 @@ struct helper {
 } // namespace detail
 } // namespace cobalt
 
-#define CO_DEFINE_ENUM(EnumName, UnderlyingType, ...)                                                     \
+#define DEFINE_ENUM(EnumName, UnderlyingType, ...)                                                        \
 	enum class EnumName : UnderlyingType {                                                                \
 		__VA_ARGS__                                                                                       \
 	};                                                                                                    \
 	namespace cobalt {                                                                                    \
-		CO_DEFINE_ENUM_TRAITS(EnumName, __VA_ARGS__)                                                      \
+		DEFINE_ENUM_TRAITS(EnumName, __VA_ARGS__)                                                         \
 	}                                                                                                     \
 	inline std::ostream& operator<<(std::ostream& os, EnumName e) {                                       \
 		return os << cobalt::enum_traits<EnumName>::to_string(e);                                         \
 	}
 
 
-#define CO_DEFINE_ENUM_FLAGS(EnumName, UnderlyingType, ...)                                               \
+#define DEFINE_ENUM_FLAGS(EnumName, UnderlyingType, ...)                                                  \
 	enum class EnumName : UnderlyingType {                                                                \
 		__VA_ARGS__                                                                                       \
 	};                                                                                                    \
 	namespace cobalt {                                                                                    \
-		CO_DEFINE_ENUM_FLAGS_TRAITS(EnumName, __VA_ARGS__)                                                \
+		DEFINE_ENUM_FLAGS_TRAITS(EnumName, __VA_ARGS__)                                                   \
 	}                                                                                                     \
 	inline std::ostream& operator<<(std::ostream& os, EnumName e) {                                       \
 		return os << cobalt::enum_traits<EnumName>::to_string(e);                                         \
 	}                                                                                                     \
-	CO_DEFINE_ENUM_FLAGS_OPERATORS(EnumName)                                                              \
+	DEFINE_ENUM_FLAGS_OPERATORS(EnumName)                                                                 \
 
 
-#define CO_DEFINE_ENUM_TRAITS(EnumName, ...)                                                              \
+#define DEFINE_ENUM_TRAITS(EnumName, ...)                                                                 \
 	template<> struct enum_traits<EnumName> {                                                             \
 		static constexpr bool is_enum = true;                                                             \
 		static constexpr bool is_flags = false;                                                           \
@@ -192,7 +192,7 @@ struct helper {
 			{ return static_cast<EnumName>(detail::helper::from_string(items(), str, length)); }          \
 	};                                                                                                    \
 
-#define CO_DEFINE_ENUM_FLAGS_TRAITS(EnumName, ...)                                                        \
+#define DEFINE_ENUM_FLAGS_TRAITS(EnumName, ...)                                                           \
 	template<> struct enum_traits<EnumName> {                                                             \
 		static constexpr bool is_enum = true;                                                             \
 		static constexpr bool is_flags = true;                                                            \
@@ -212,23 +212,23 @@ struct helper {
 			{ return static_cast<EnumName>(detail::helper::from_flags_string(items(), str, length)); }    \
 	};                                                                                                    \
 
-#define CO_ENUM_TO_VAL(EnumName, value) static_cast<std::underlying_type_t<EnumName>>(value)
-#define CO_ENUM_TO_REF(EnumName, value) reinterpret_cast<std::underlying_type_t<EnumName>&>(value)
+#define ENUM_TO_VAL(EnumName, value) static_cast<std::underlying_type_t<EnumName>>(value)
+#define ENUM_TO_REF(EnumName, value) reinterpret_cast<std::underlying_type_t<EnumName>&>(value)
 
-#define CO_DEFINE_ENUM_FLAGS_OPERATORS(EnumName)                                                                \
-	constexpr EnumName operator~(EnumName elem) noexcept                                                        \
-		{ return static_cast<EnumName>(~CO_ENUM_TO_VAL(EnumName, elem)); }                                      \
-	constexpr EnumName operator|(EnumName lhs, EnumName rhs) noexcept                                           \
-		{ return static_cast<EnumName>(CO_ENUM_TO_VAL(EnumName, lhs) | CO_ENUM_TO_VAL(EnumName, rhs)); }        \
-	constexpr EnumName operator&(EnumName lhs, EnumName rhs) noexcept                                           \
-		{ return static_cast<EnumName>(CO_ENUM_TO_VAL(EnumName, lhs) & CO_ENUM_TO_VAL(EnumName, rhs)); }        \
-	constexpr EnumName operator^(EnumName lhs, EnumName rhs) noexcept                                           \
-		{ return static_cast<EnumName>(CO_ENUM_TO_VAL(EnumName, lhs) ^ CO_ENUM_TO_VAL(EnumName, rhs)); }        \
-	inline EnumName& operator|=(EnumName& lhs, EnumName rhs) noexcept                                           \
-		{ return reinterpret_cast<EnumName&>(CO_ENUM_TO_REF(EnumName, lhs) |= CO_ENUM_TO_VAL(EnumName, rhs)); } \
-	inline EnumName& operator&=(EnumName& lhs, EnumName rhs) noexcept                                           \
-		{ return reinterpret_cast<EnumName&>(CO_ENUM_TO_REF(EnumName, lhs) &= CO_ENUM_TO_VAL(EnumName, rhs)); } \
-	inline EnumName& operator^=(EnumName& lhs, EnumName rhs) noexcept                                           \
-		{ return reinterpret_cast<EnumName&>(CO_ENUM_TO_REF(EnumName, lhs) ^= CO_ENUM_TO_VAL(EnumName, rhs)); } \
+#define DEFINE_ENUM_FLAGS_OPERATORS(EnumName)                                                             \
+	constexpr EnumName operator~(EnumName elem) noexcept                                                  \
+		{ return static_cast<EnumName>(~ENUM_TO_VAL(EnumName, elem)); }                                   \
+	constexpr EnumName operator|(EnumName lhs, EnumName rhs) noexcept                                     \
+		{ return static_cast<EnumName>(ENUM_TO_VAL(EnumName, lhs) | ENUM_TO_VAL(EnumName, rhs)); }        \
+	constexpr EnumName operator&(EnumName lhs, EnumName rhs) noexcept                                     \
+		{ return static_cast<EnumName>(ENUM_TO_VAL(EnumName, lhs) & ENUM_TO_VAL(EnumName, rhs)); }        \
+	constexpr EnumName operator^(EnumName lhs, EnumName rhs) noexcept                                     \
+		{ return static_cast<EnumName>(ENUM_TO_VAL(EnumName, lhs) ^ ENUM_TO_VAL(EnumName, rhs)); }        \
+	inline EnumName& operator|=(EnumName& lhs, EnumName rhs) noexcept                                     \
+		{ return reinterpret_cast<EnumName&>(ENUM_TO_REF(EnumName, lhs) |= ENUM_TO_VAL(EnumName, rhs)); } \
+	inline EnumName& operator&=(EnumName& lhs, EnumName rhs) noexcept                                     \
+		{ return reinterpret_cast<EnumName&>(ENUM_TO_REF(EnumName, lhs) &= ENUM_TO_VAL(EnumName, rhs)); } \
+	inline EnumName& operator^=(EnumName& lhs, EnumName rhs) noexcept                                     \
+		{ return reinterpret_cast<EnumName&>(ENUM_TO_REF(EnumName, lhs) ^= ENUM_TO_VAL(EnumName, rhs)); } \
 
 #endif // COBALT_UTILITY_ENUM_TRAITS_HPP_INCLUDED

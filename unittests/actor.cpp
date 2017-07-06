@@ -18,7 +18,7 @@ private:
 
 class audio_component : public actor_component {
 	IMPLEMENT_OBJECT_TYPE(audio_component)
-	CO_REGISTER_AUTO_FACTORY_WITH_NAME(component_factory, audio_component, "audio")
+	REGISTER_AUTO_FACTORY_WITH_NAME(component_factory, audio_component, "audio")
 public:
 	void play() {}
 	void stop() {}
@@ -26,13 +26,13 @@ public:
 
 class mesh_component : public transform_component {
 	IMPLEMENT_OBJECT_TYPE(mesh_component)
-	CO_REGISTER_AUTO_FACTORY_WITH_NAME(component_factory, mesh_component, "mesh")
+	REGISTER_AUTO_FACTORY_WITH_NAME(component_factory, mesh_component, "mesh")
 public:
 };
 
 class bone_component : public transform_component {
 	IMPLEMENT_OBJECT_TYPE(bone_component)
-	CO_REGISTER_AUTO_FACTORY_WITH_NAME(component_factory, bone_component, "bone")
+	REGISTER_AUTO_FACTORY_WITH_NAME(component_factory, bone_component, "bone")
 
 public:
 	bone_component() = default;	

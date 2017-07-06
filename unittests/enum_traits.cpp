@@ -3,14 +3,14 @@
 
 #include <sstream>
 
-CO_DEFINE_ENUM(
+DEFINE_ENUM(
 	enum_class, uint32_t,
 	value1,
 	value2 = 42,
 	value3
 )
 
-CO_DEFINE_ENUM_FLAGS(
+DEFINE_ENUM_FLAGS(
 	enum_flags, uint32_t,
 	value1 = 1 << 0,
 	value2 = 1 << 1,
