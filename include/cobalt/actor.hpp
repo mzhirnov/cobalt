@@ -131,7 +131,7 @@ public:
 	size_t find_components_by_type(const type_index& type, std::vector<actor_component*>& components) noexcept;
 	
 	template <typename T> T* find_component() noexcept;
-	template <typename T, typename Container> size_t find_components(Container& components) noexcept;
+	template <typename T, typename OutputIterator> size_t find_components(OutputIterator components) noexcept;
 	
 	level* level() const noexcept { return _level; }
 
@@ -333,17 +333,19 @@ T* actor::find_component() noexcept {
 	return static_cast<T*>(find_component_by_type(T::static_type()));
 }
 
-template <typename T, typename Container>
-size_t actor::find_components(Container& components) noexcept {
-	size_t initial_size = components.size();
+template <typename T, typename OutputIterator>
+size_t actor::find_components(OutputIterator components) noexcept {
+	size_t count = 0;
 	
 	traverse_components([&](actor_component* component) -> bool {
-		if (component->generic_type() == T::static_type())
-			components.push_back(static_cast<T*>(component));
+		if (component->generic_type() == T::static_type()) {
+			*components = static_cast<T*>(component);
+			count++;
+		}
 		return true;
 	});
 	
-	return components.size() - initial_size;
+	return count;
 }
 
 inline void actor::attach_to(class level* level) noexcept {

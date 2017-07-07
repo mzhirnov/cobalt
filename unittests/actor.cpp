@@ -119,7 +119,7 @@ TEST_CASE("actor") {
 		REQUIRE(mesh1->actor() == actor1);
 		
 		boost::container::small_vector<bone_component*, 256> components;
-		auto num = actor1->find_components<bone_component>(components);
+		auto num = actor1->find_components<bone_component>(std::back_inserter(components));
 		REQUIRE(num == 8);
 		REQUIRE(num == components.size());
 	}
