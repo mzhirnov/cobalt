@@ -51,18 +51,16 @@ public:
 ref_ptr<actor> create_actor() {
 	auto ac = make_ref<actor>();
 	
-	auto body = new bone_component("body");
-	
 	auto head = new bone_component("head");
 	head->add_child(new bone_component("jaw"));
 	head->add_child(new bone_component("left_eye"));
 	head->add_child(new bone_component("right_eye"));
-	body->add_child(head);
 	
+	auto body = new bone_component("body");
+	body->add_child(head);
 	body->add_child(new bone_component("left_fin"));
 	body->add_child(new bone_component("right_fin"));
 	body->add_child(new bone_component("tail"));
-	
 	body->add_child(object::create_instance<mesh_component>());
 	
 	ac->transform(body);

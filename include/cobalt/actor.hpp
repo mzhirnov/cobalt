@@ -4,6 +4,7 @@
 #pragma once
 
 // Classes in this file:
+//     object
 //     actor_component
 //     transform_component
 //     actor
@@ -16,6 +17,7 @@
 #include <cobalt/utility/type_index.hpp>
 #include <cobalt/utility/intrusive.hpp>
 #include <cobalt/utility/factory.hpp>
+#include <cobalt/utility/enum_traits.hpp>
 
 #include <boost/utility/string_view.hpp>
 
@@ -28,6 +30,12 @@ private: \
 public: \
 	static const type_index& static_type() noexcept { static auto type = type_id<ThisClass>(); return type; } \
 	virtual const type_index& generic_type() const noexcept override { return static_type(); }
+
+DEFINE_ENUM(
+	traverse_order, uint8_t,
+	depth_first,
+	breadth_first
+);
 
 namespace cobalt {
 
@@ -96,6 +104,9 @@ public:
 	
 	void clear_children() noexcept;
 	
+	template <typename Handler>
+	bool traverse(traverse_order order, Handler handler) noexcept;
+	
 	void attach_to(transform_component* parent) noexcept;
 	void detach_from_parent() noexcept;
 	
@@ -127,11 +138,16 @@ public:
 	
 	void clear_components() noexcept;
 	
-	actor_component* find_component_by_type(const type_index& type) noexcept;
-	size_t find_components_by_type(const type_index& type, std::vector<actor_component*>& components) noexcept;
+	template <typename Handler>
+	void traverse_components(traverse_order order, Handler handler) noexcept;
 	
-	template <typename T> T* find_component() noexcept;
-	template <typename T, typename OutputIterator> size_t find_components(OutputIterator components) noexcept;
+	actor_component* find_component_by_type(const type_index& type, traverse_order order = traverse_order::depth_first) noexcept;
+	size_t find_components_by_type(const type_index& type, std::vector<actor_component*>& components, traverse_order order = traverse_order::depth_first) noexcept;
+	
+	template <typename T>
+	T* find_component(traverse_order order = traverse_order::depth_first) noexcept;
+	template <typename T, typename OutputIterator>
+	size_t find_components(OutputIterator components, traverse_order order = traverse_order::depth_first) noexcept;
 	
 	level* level() const noexcept { return _level; }
 
@@ -141,9 +157,6 @@ public:
 	void active(bool active) noexcept { _active = active; }
 	bool active_self() const noexcept { return _active; }
 	//bool active_in_hierarchy() const noexcept;
-	
-private:
-	template <typename Handler> void traverse_components(Handler handler) noexcept;
 
 private:
 	friend class level;
@@ -236,6 +249,67 @@ inline void transform_component::clear_children() noexcept {
 	});
 }
 
+namespace detail {
+
+struct lifo {
+	void push(transform_component* comp) { _deque.push_back(comp); }
+	transform_component* pop() { auto comp = _deque.back(); _deque.pop_back(); return comp; }
+	bool empty() const { return _deque.empty(); }
+
+private:
+	std::deque<transform_component*> _deque;
+};
+
+struct fifo {
+	void push(transform_component* comp) { _deque.push_front(comp); }
+	transform_component* pop() { auto comp = _deque.back(); _deque.pop_back(); return comp; }
+	bool empty() const { return _deque.empty(); }
+
+private:
+	std::deque<transform_component*> _deque;
+};
+
+template <typename Frontier, typename Handler>
+static bool traverse(transform_component* root, Handler handler) {
+	Frontier frontier;
+	
+	frontier.push(root);
+	
+	while (!frontier.empty()) {
+		auto current = frontier.pop();
+		
+		if (!handler(current))
+			return false;
+		
+		for (auto&& child : current->children())
+			frontier.push(&child);
+	}
+	
+	return true;
+}
+
+template <typename Handler>
+static bool dfs(transform_component* root, Handler handler) {
+	return traverse<lifo>(root, handler);
+}
+
+template <typename Handler>
+static bool bfs(transform_component* root, Handler handler) {
+	return traverse<fifo>(root, handler);
+}
+
+} // namespace detail
+
+template <typename Handler>
+inline bool transform_component::traverse(traverse_order order, Handler handler) noexcept {
+	switch (order) {
+	case traverse_order::depth_first:
+		return detail::dfs(this, handler);
+	case traverse_order::breadth_first:
+		return detail::bfs(this, handler);
+	};
+}
+
 inline void transform_component::attach_to(transform_component* parent) noexcept {
 	BOOST_ASSERT(!!parent);
 	parent->add_child(this);
@@ -278,22 +352,8 @@ inline void actor::clear_components() noexcept {
 }
 
 template <typename Handler>
-inline void actor::traverse_components(Handler handler) noexcept {
-	struct helper {
-		static bool traverse(transform_component* component, Handler handler) {
-			if (!handler(component))
-				return false;
-			
-			for (auto&& child : component->children()) {
-				if (!traverse(&child, handler))
-					return false;
-			}
-			
-			return true;
-		}
-	};
-	
-	if (_transform && !helper::traverse(_transform.get(), handler))
+inline void actor::traverse_components(traverse_order order, Handler handler) noexcept {
+	if (_transform && !_transform->traverse(order, handler))
 		return;
 	
 	for (auto&& component : _components) {
@@ -302,10 +362,10 @@ inline void actor::traverse_components(Handler handler) noexcept {
 	}
 }
 
-inline actor_component* actor::find_component_by_type(const type_index& type) noexcept {
+inline actor_component* actor::find_component_by_type(const type_index& type, traverse_order order) noexcept {
 	actor_component* result = nullptr;
 	
-	traverse_components([&](actor_component* component) -> bool {
+	traverse_components(order, [&](actor_component* component) -> bool {
 		if (component->generic_type() == type) {
 			result = component;
 			return false;
@@ -316,10 +376,10 @@ inline actor_component* actor::find_component_by_type(const type_index& type) no
 	return result;
 }
 
-inline size_t actor::find_components_by_type(const type_index& type, std::vector<actor_component*>& components) noexcept {
+inline size_t actor::find_components_by_type(const type_index& type, std::vector<actor_component*>& components, traverse_order order) noexcept {
 	size_t initial_size = components.size();
 	
-	traverse_components([&](actor_component* component) -> bool {
+	traverse_components(order, [&](actor_component* component) -> bool {
 		if (component->generic_type() == type)
 			components.push_back(component);
 		return true;
@@ -329,15 +389,15 @@ inline size_t actor::find_components_by_type(const type_index& type, std::vector
 }
 
 template <typename T>
-T* actor::find_component() noexcept {
-	return static_cast<T*>(find_component_by_type(T::static_type()));
+inline T* actor::find_component(traverse_order order) noexcept {
+	return static_cast<T*>(find_component_by_type(T::static_type(), order));
 }
 
 template <typename T, typename OutputIterator>
-size_t actor::find_components(OutputIterator components) noexcept {
+inline size_t actor::find_components(OutputIterator components, traverse_order order) noexcept {
 	size_t count = 0;
 	
-	traverse_components([&](actor_component* component) -> bool {
+	traverse_components(order, [&](actor_component* component) -> bool {
 		if (component->generic_type() == T::static_type()) {
 			*components = static_cast<T*>(component);
 			count++;
