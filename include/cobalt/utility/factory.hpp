@@ -83,10 +83,7 @@ public:
 	template <typename T, typename I>
 	class registrar {
 		struct creator_impl : creator {
-			creator_impl() {
-				T::set_creator_key();
-			}
-			
+			creator_impl() { T::set_creator_key(); }			
 			virtual result_type create(Args&&... args) const override {
 				static_assert(std::is_base_of<R, I>::value, "Implementation not derived from result type");
 				return new I(std::forward<Args&&>(args)...);
