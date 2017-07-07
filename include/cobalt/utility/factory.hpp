@@ -76,7 +76,7 @@ public:
 template <typename R, typename... Args> template <typename T, typename I>
 typename auto_factory<R(Args...)>::template registrar<T, I>::factory_impl auto_factory<R(Args...)>::template registrar<T, I>::_factory;
 
-#define REGISTER_AUTO_FACTORY_WITH_NAME(Factory, Class, Name) \
+#define REGISTER_FACTORY_WITH_NAME(Factory, Class, Name) \
 	struct Factory##_registrar : Factory::registrar<Factory##_registrar, Class> { \
 		static void set_factory_name() { \
 			BOOST_ASSERT(!Factory::can_create(Name)); \
@@ -84,8 +84,8 @@ typename auto_factory<R(Args...)>::template registrar<T, I>::factory_impl auto_f
 		} \
 	};
 	
-#define REGISTER_AUTO_FACTORY(Factory, Class) \
-	REGISTER_AUTO_FACTORY_WITH_NAME(Factory, Class, #Class)
+#define REGISTER_FACTORY(Factory, Class) \
+	REGISTER_FACTORY_WITH_NAME(Factory, Class, #Class)
 
 } // namespace cobalt
 

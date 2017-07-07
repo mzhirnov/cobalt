@@ -19,8 +19,8 @@ private:
 
 class audio_component : public actor_component {
 	IMPLEMENT_OBJECT_TYPE(audio_component)
-	REGISTER_AUTO_FACTORY_WITH_NAME(component_factory, audio_component, "audio")
-	REGISTER_AUTO_FACTORY_WITH_NAME(component_factory2, audio_component, "audio")
+	REGISTER_FACTORY(component_factory, audio_component)
+	REGISTER_FACTORY(component_factory2, audio_component)
 public:
 	audio_component() = default;
 	audio_component(int) {}
@@ -31,13 +31,13 @@ public:
 
 class mesh_component : public transform_component {
 	IMPLEMENT_OBJECT_TYPE(mesh_component)
-	REGISTER_AUTO_FACTORY_WITH_NAME(component_factory, mesh_component, "mesh")
+	REGISTER_FACTORY_WITH_NAME(component_factory, mesh_component, "mesh")
 public:
 };
 
 class bone_component : public transform_component {
 	IMPLEMENT_OBJECT_TYPE(bone_component)
-	REGISTER_AUTO_FACTORY_WITH_NAME(component_factory, bone_component, "bone")
+	REGISTER_FACTORY_WITH_NAME(component_factory, bone_component, "bone")
 
 public:
 	bone_component() = default;	
@@ -91,7 +91,7 @@ TEST_CASE("actor") {
 		
 		REQUIRE(sample->actor() == actor1.get());
 		
-		actor_component* audio = component_factory2::create("audio", 1);
+		actor_component* audio = component_factory2::create("audio_component", 1);
 		
 		REQUIRE(audio != nullptr);
 		REQUIRE(audio->actor() == nullptr);
