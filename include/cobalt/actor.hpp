@@ -23,7 +23,8 @@
 #include <deque>
 
 #define IMPLEMENT_OBJECT_TYPE(ThisClass) \
-REGISTER_FACTORY_WITH_KEY(object_factory, ThisClass, ThisClass::static_type()) \
+private: \
+	REGISTER_FACTORY_WITH_KEY(object_factory, ThisClass, ThisClass::static_type()) \
 public: \
 	static const type_index& static_type() noexcept { static auto type = type_id<ThisClass>(); return type; } \
 	virtual const type_index& generic_type() const noexcept override { return static_type(); }
