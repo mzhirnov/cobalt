@@ -47,6 +47,7 @@ public:
 	const identifier& name() const noexcept { return _name; }
 	void name(const identifier& name) noexcept { _name = name; }
 	
+	static object* create_instance(const type_index& type);
 	template <class T> static T* create_instance();
 	
 protected:
@@ -176,6 +177,10 @@ private:
 ////////////////////////////////////////////////////////////////////////////////
 // object
 //
+
+inline object* object::create_instance(const type_index& type) {
+	return object_factory::create(type);
+}
 
 template <class T>
 inline T* object::create_instance() {
