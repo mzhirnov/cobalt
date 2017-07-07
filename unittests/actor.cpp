@@ -4,8 +4,11 @@
 
 using namespace cobalt;
 
-using component_factory = auto_factory<actor_component()>;
-using component_factory2 = auto_factory<actor_component(int)>;
+using component_factory = auto_factory<actor_component(), const char*>;
+using component_factory2 = auto_factory<actor_component(int), type_index>;
+
+#define REGISTER_FACTORY(F, C) REGISTER_FACTORY_WITH_KEY(F, C, #C)
+#define REGISTER_FACTORY2(F, C) REGISTER_FACTORY_WITH_KEY(F, C, C::static_type())
 
 class sample_component : public actor_component {
 	IMPLEMENT_OBJECT_TYPE(sample_component)
@@ -20,7 +23,7 @@ private:
 class audio_component : public actor_component {
 	IMPLEMENT_OBJECT_TYPE(audio_component)
 	REGISTER_FACTORY(component_factory, audio_component)
-	REGISTER_FACTORY(component_factory2, audio_component)
+	REGISTER_FACTORY2(component_factory2, audio_component)
 public:
 	audio_component() = default;
 	audio_component(int) {}
@@ -31,13 +34,13 @@ public:
 
 class mesh_component : public transform_component {
 	IMPLEMENT_OBJECT_TYPE(mesh_component)
-	REGISTER_FACTORY_WITH_NAME(component_factory, mesh_component, "mesh")
+	REGISTER_FACTORY_WITH_KEY(component_factory, mesh_component, "mesh")
 public:
 };
 
 class bone_component : public transform_component {
 	IMPLEMENT_OBJECT_TYPE(bone_component)
-	REGISTER_FACTORY_WITH_NAME(component_factory, bone_component, "bone")
+	REGISTER_FACTORY_WITH_KEY(component_factory, bone_component, "bone")
 
 public:
 	bone_component() = default;	
@@ -91,7 +94,7 @@ TEST_CASE("actor") {
 		
 		REQUIRE(sample->actor() == actor1.get());
 		
-		actor_component* audio = component_factory2::create("audio_component", 1);
+		actor_component* audio = component_factory2::create(audio_component::static_type(), 1);
 		
 		REQUIRE(audio != nullptr);
 		REQUIRE(audio->actor() == nullptr);

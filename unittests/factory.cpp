@@ -11,7 +11,9 @@ public:
 	virtual const std::string& name() const noexcept = 0;
 };
 
-using component_factory = auto_factory<component(const char*)>;
+using component_factory = auto_factory<component(const char*), const char*>;
+
+#define REGISTER_FACTORY(F, C) REGISTER_FACTORY_WITH_KEY(F, C, #C)
 
 //
 class my_component : public component {
