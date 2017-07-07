@@ -63,6 +63,7 @@ public:
 			}
 			
 			virtual result_type create(Args&&... args) const override {
+				static_assert(std::is_base_of<R, I>::value, "Implementation not derived from result type");
 				return new I(std::forward<Args&&>(args)...);
 			}
 		};
