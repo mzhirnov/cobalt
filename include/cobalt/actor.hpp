@@ -15,6 +15,7 @@
 #include <cobalt/utility/identifier.hpp>
 #include <cobalt/utility/type_index.hpp>
 #include <cobalt/utility/intrusive.hpp>
+#include <cobalt/utility/factory.hpp>
 
 #include <boost/utility/string_view.hpp>
 
@@ -22,6 +23,7 @@
 #include <deque>
 
 #define IMPLEMENT_OBJECT_TYPE(ThisClass) \
+REGISTER_FACTORY_WITH_KEY(object_factory, ThisClass, ThisClass::static_type()) \
 public: \
 	static const type_index& static_type() noexcept { static auto type = type_id<ThisClass>(); return type; } \
 	virtual const type_index& generic_type() const noexcept override { return static_type(); }
@@ -44,6 +46,11 @@ public:
 	
 	const identifier& name() const noexcept { return _name; }
 	void name(const identifier& name) noexcept { _name = name; }
+	
+	template <class T> static T* create_instance();
+	
+protected:
+	using object_factory = auto_factory<object(), type_index>;
 	
 private:
 	identifier _name;
@@ -121,6 +128,9 @@ public:
 	actor_component* find_component_by_type(const type_index& type) noexcept;
 	size_t find_components_by_type(const type_index& type, std::vector<actor_component*>& components) noexcept;
 	
+	template <typename T> T* find_component() noexcept;
+	template <typename T, typename Container> size_t find_components(Container& components) noexcept;
+	
 	level* level() const noexcept { return _level; }
 
 	void attach_to(class level* level) noexcept;
@@ -162,6 +172,16 @@ public:
 private:
 	actors_type _actors;
 };
+
+////////////////////////////////////////////////////////////////////////////////
+// object
+//
+
+template <class T>
+inline T* object::create_instance() {
+	static_assert(std::is_base_of<object, T>::value, "T is not derived from object");
+	return static_cast<T*>(object_factory::create(T::static_type()));
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // actor_component
@@ -296,6 +316,24 @@ inline size_t actor::find_components_by_type(const type_index& type, std::vector
 	traverse_components([&](actor_component* component) -> bool {
 		if (component->generic_type() == type)
 			components.push_back(component);
+		return true;
+	});
+	
+	return components.size() - initial_size;
+}
+
+template <typename T>
+T* actor::find_component() noexcept {
+	return static_cast<T*>(find_component_by_type(T::static_type()));
+}
+
+template <typename T, typename Container>
+size_t actor::find_components(Container& components) noexcept {
+	size_t initial_size = components.size();
+	
+	traverse_components([&](actor_component* component) -> bool {
+		if (component->generic_type() == T::static_type())
+			components.push_back(static_cast<T*>(component));
 		return true;
 	});
 	

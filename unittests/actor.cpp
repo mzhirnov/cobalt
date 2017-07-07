@@ -2,28 +2,29 @@
 #include <cobalt/actor.hpp>
 #include <cobalt/utility/factory.hpp>
 
+#include <boost/container/small_vector.hpp>
+
 using namespace cobalt;
 
-using component_factory = auto_factory<actor_component(), const char*>;
-using component_factory2 = auto_factory<actor_component(int), type_index>;
+using my_component_factory = auto_factory<actor_component(int), const char*>;
 
-#define REGISTER_FACTORY(F, C) REGISTER_FACTORY_WITH_KEY(F, C, #C)
-#define REGISTER_FACTORY2(F, C) REGISTER_FACTORY_WITH_KEY(F, C, C::static_type())
+#define REGISTER_FACTORY2(F, C) REGISTER_FACTORY_WITH_KEY(F, C, #C)
 
 class sample_component : public actor_component {
 	IMPLEMENT_OBJECT_TYPE(sample_component)
 public:
-	explicit sample_component(int& instances) : _instances(instances) { ++_instances; }
+	sample_component() { ++_instances; }
 	~sample_component() { --_instances; }
 	
-private:
-	int& _instances;
+public:
+	static int _instances;
 };
+
+int sample_component::_instances = 0;
 
 class audio_component : public actor_component {
 	IMPLEMENT_OBJECT_TYPE(audio_component)
-	REGISTER_FACTORY(component_factory, audio_component)
-	REGISTER_FACTORY2(component_factory2, audio_component)
+	REGISTER_FACTORY2(my_component_factory, audio_component)	
 public:
 	audio_component() = default;
 	audio_component(int) {}
@@ -34,13 +35,11 @@ public:
 
 class mesh_component : public transform_component {
 	IMPLEMENT_OBJECT_TYPE(mesh_component)
-	REGISTER_FACTORY_WITH_KEY(component_factory, mesh_component, "mesh")
 public:
 };
 
 class bone_component : public transform_component {
 	IMPLEMENT_OBJECT_TYPE(bone_component)
-	REGISTER_FACTORY_WITH_KEY(component_factory, bone_component, "bone")
 
 public:
 	bone_component() = default;	
@@ -64,7 +63,7 @@ ref_ptr<actor> create_actor() {
 	body->add_child(new bone_component("right_fin"));
 	body->add_child(new bone_component("tail"));
 	
-	body->add_child(new mesh_component());
+	body->add_child(object::create_instance<mesh_component>());
 	
 	ac->transform(body);
 	
@@ -84,17 +83,16 @@ TEST_CASE("actor") {
 		auto actor1 = make_ref<actor>();
 		actor1->transform(new transform_component());
 	
-		int sample_instances = 0;
-		sample_component* sample = new sample_component(sample_instances);
+		sample_component* sample = object::create_instance<sample_component>();
 		
-		REQUIRE(sample_instances == 1);
+		REQUIRE(sample_component::_instances == 1);
 		REQUIRE(sample->actor() == nullptr);
 		
 		actor1->add_component(sample);
 		
 		REQUIRE(sample->actor() == actor1.get());
 		
-		actor_component* audio = component_factory2::create(audio_component::static_type(), 1);
+		actor_component* audio = my_component_factory::create("audio_component", 1);
 		
 		REQUIRE(audio != nullptr);
 		REQUIRE(audio->actor() == nullptr);
@@ -106,22 +104,22 @@ TEST_CASE("actor") {
 		//sample->detach();
 		actor1.reset();
 		
-		REQUIRE(sample_instances == 0);
+		REQUIRE(sample_component::_instances == 0);
 	}
 	
 	SECTION("find component") {
 		auto actor1 = create_actor();
 		
-		auto audio1 = actor1->find_component_by_type(audio_component::static_type());
+		auto audio1 = actor1->find_component<audio_component>();
 		REQUIRE(audio1);
 		REQUIRE(audio1->actor() == actor1);
 		
-		auto mesh1 = actor1->find_component_by_type(mesh_component::static_type());
+		auto mesh1 = actor1->find_component<mesh_component>();
 		REQUIRE(mesh1);
 		REQUIRE(mesh1->actor() == actor1);
 		
-		std::vector<actor_component*> components;
-		auto num = actor1->find_components_by_type(bone_component::static_type(), components);
+		boost::container::small_vector<bone_component*, 256> components;
+		auto num = actor1->find_components<bone_component>(components);
 		REQUIRE(num == 8);
 		REQUIRE(num == components.size());
 	}
