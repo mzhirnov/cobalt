@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include <cobalt/utility/identifier.hpp>
-
 #include <boost/intrusive/slist.hpp>
 
 namespace cobalt {
@@ -17,18 +15,18 @@ class auto_factory<R(Args...)> {
 public:
 	using result_type = R*;
 	
-	static bool can_create(const identifier& id) {
+	static bool can_create(const char* name) {
 		for (auto&& factory : s_instances()) {
-			if (factory.id == id)
+			if (factory.name == name)
 				return true;
 		}
 		
 		return false;
 	}
 
-	static result_type create(const identifier& id, Args&&... args) {
+	static result_type create(const char* name, Args&&... args) {
 		for (auto&& factory : s_instances()) {
-			if (factory.id == id)
+			if (factory.name == name)
 				return factory.create(std::forward<Args&&>(args)...);
 		}
 		
@@ -42,7 +40,7 @@ private:
 	using factory_list = boost::intrusive::slist<factory_node, boost::intrusive::base_hook<factory_list_hook>, boost::intrusive::constant_time_size<false>>;
 	
 	struct factory_node : factory_list_hook {
-		identifier id;
+		std::string name;
 		
 		factory_node() noexcept {
 			s_instances().push_front(*this);
@@ -61,10 +59,6 @@ public:
 	class registrar {
 		struct factory_impl : factory_node {
 			factory_impl() {
-				// So as this code performs during static objects initialization,
-				// we need to initialize boost::flyweight's static storage first.
-				identifier::init();
-				
 				T::register_factory();
 			}
 			
@@ -83,7 +77,7 @@ typename auto_factory<R(Args...)>::template registrar<T, I>::factory_impl auto_f
 
 #define REGISTER_AUTO_FACTORY_WITH_NAME(Factory, Class, Name) \
 	struct Factory##_registrar : Factory::registrar<Factory##_registrar, Class> { \
-		static void register_factory() { _factory.id = Name; } \
+		static void register_factory() { _factory.name = Name; } \
 	};
 	
 #define REGISTER_AUTO_FACTORY(Factory, Class) \

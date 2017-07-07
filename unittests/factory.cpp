@@ -1,5 +1,6 @@
 #include "catch.hpp"
 #include <cobalt/utility/factory.hpp>
+#include <cobalt/utility/identifier.hpp>
 
 using namespace cobalt;
 
@@ -37,20 +38,18 @@ private:
 };
 
 TEST_CASE("factory") {
-	identifier id("my_component");
+	REQUIRE(component_factory::can_create("my_component"));
 	
-	REQUIRE(component_factory::can_create(id));
-	
-	std::unique_ptr<component> c(component_factory::create(id, "comp1"));
+	std::unique_ptr<component> c(component_factory::create("my_component", "comp1"));
 	REQUIRE(c);
 	
 	REQUIRE(c->name() == "comp1");
 	
-	std::unique_ptr<component> c2(component_factory::create(identifier("my_component2"), "comp2"));
+	std::unique_ptr<component> c2(component_factory::create("my_component2", "comp2"));
 	REQUIRE(c2);
 	
 	REQUIRE(c2->name() == "comp2");
 	
-	std::unique_ptr<component> c3(component_factory::create(identifier("my_component3"), "comp3"));
+	std::unique_ptr<component> c3(component_factory::create("my_component3", "comp3"));
 	REQUIRE_FALSE(c3);
 }

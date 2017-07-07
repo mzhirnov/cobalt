@@ -91,7 +91,7 @@ TEST_CASE("actor") {
 		
 		REQUIRE(sample->actor() == actor1.get());
 		
-		actor_component* audio = component_factory2::create(identifier("audio"), 1);
+		actor_component* audio = component_factory2::create("audio", 1);
 		
 		REQUIRE(audio != nullptr);
 		REQUIRE(audio->actor() == nullptr);
