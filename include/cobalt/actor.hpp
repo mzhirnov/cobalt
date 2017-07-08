@@ -4,7 +4,6 @@
 #pragma once
 
 // Classes in this file:
-//     object
 //     actor_component
 //     transform_component
 //     actor
@@ -13,23 +12,16 @@
 // Functions in this file:
 //
 
-#include <cobalt/utility/identifier.hpp>
-#include <cobalt/utility/type_index.hpp>
+#include <cobalt/object.hpp>
 #include <cobalt/utility/intrusive.hpp>
-#include <cobalt/utility/factory.hpp>
+#include <cobalt/utility/type_index.hpp>
+#include <cobalt/utility/identifier.hpp>
 #include <cobalt/utility/enum_traits.hpp>
 
 #include <boost/utility/string_view.hpp>
 
 #include <type_traits>
 #include <deque>
-
-#define IMPLEMENT_OBJECT_TYPE(ThisClass) \
-private: \
-	REGISTER_FACTORY_WITH_KEY(object_factory, ThisClass, ThisClass::static_type()) \
-public: \
-	static const type_index& static_type() noexcept { static auto type = type_id<ThisClass>(); return type; } \
-	virtual const type_index& generic_type() const noexcept override { return static_type(); }
 
 DEFINE_ENUM(
 	traverse_order, uint8_t,
@@ -38,33 +30,6 @@ DEFINE_ENUM(
 );
 
 namespace cobalt {
-
-///
-/// Object
-///
-class object : public ref_counter<object> {
-public:
-	object() = default;
-	
-	object(const object&) = delete;
-	object& operator=(const object&) = delete;
-	
-	virtual ~object() = default;
-	
-	virtual const type_index& generic_type() const noexcept = 0;
-	
-	const identifier& name() const noexcept { return _name; }
-	void name(const identifier& name) noexcept { _name = name; }
-	
-	static object* create_instance(const type_index& type);
-	template <class T> static T* create_instance();
-	
-protected:
-	using object_factory = auto_factory<object(), type_index>;
-	
-private:
-	identifier _name;
-};
 
 struct basic_list_tag { };
 
@@ -187,20 +152,6 @@ public:
 private:
 	actors_type _actors;
 };
-
-////////////////////////////////////////////////////////////////////////////////
-// object
-//
-
-inline object* object::create_instance(const type_index& type) {
-	return object_factory::create(type);
-}
-
-template <class T>
-inline T* object::create_instance() {
-	static_assert(std::is_base_of<object, T>::value, "T is not derived from object");
-	return static_cast<T*>(object_factory::create(T::static_type()));
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // actor_component
