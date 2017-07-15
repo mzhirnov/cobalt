@@ -3,9 +3,12 @@
 
 using namespace cobalt;
 
-CO_DEFINE_EVENT(simple_event)
+class simple_event : public event {
+	IMPLEMENT_EVENT_TARGET("simple_event")
+};
 
-CO_DEFINE_EVENT_CLASS(test_event) {
+class test_event : public event {
+	IMPLEMENT_EVENT_TARGET("test_event")
 public:
 	explicit test_event(const char* name)
 		: _name(name)
@@ -16,16 +19,12 @@ public:
 	
 private:
 	std::string _name;
-	bool _handled = false;
 };
 
 struct my_subscriber : event_handler<my_subscriber> {
-	typedef my_subscriber self;
-	
-	explicit my_subscriber(event_dispatcher& dispatcher)
-		: event_handler(dispatcher)
-	{
-		subscribe(&self::on_test_event);
+	explicit my_subscriber(event_dispatcher& dispatcher) : event_handler(dispatcher) {
+		// Subscribe custom method
+		subscribe(&this_type::on_test_event);
 	}
 	
 	void on_test_event(test_event* event) {
@@ -34,9 +33,8 @@ struct my_subscriber : event_handler<my_subscriber> {
 };
 
 struct my_subscriber2 : event_handler<my_subscriber2> {
-	explicit my_subscriber2(event_dispatcher& dispatcher)
-		: event_handler(dispatcher)
-	{
+	explicit my_subscriber2(event_dispatcher& dispatcher) : event_handler(dispatcher) {
+		// Subscribe default method
 		subscribe<test_event>();
 	}
 	
@@ -45,22 +43,19 @@ struct my_subscriber2 : event_handler<my_subscriber2> {
 	}
 };
 
-struct my_event_target : event_handler<my_event_target>
-{
-	typedef my_event_target self;
-	
-	explicit my_event_target(event_dispatcher& dispatcher)
-		: event_handler(dispatcher)
-	{
+struct my_event_target : event_handler<my_event_target> {
+	explicit my_event_target(event_dispatcher& dispatcher) : event_handler(dispatcher) {
+		// Respond with default method
 		respond<test_event>(identifier("do a test"));
-		respond<simple_event>(identifier("do another test"));
+		// Respond with custom method
+		respond(identifier("do another test"), &this_type::on_simple_event);
 	}
 	
 	void on_target_event(test_event* event) {
 		event->handled(true);
 	}
 	
-	void on_target_event(simple_event* event) {
+	void on_simple_event(simple_event* event) {
 		event->handled(true);
 	}
 };
@@ -151,7 +146,7 @@ TEST_CASE("event_dispatcher") {
 		SECTION("invoke with created custom target") {
 			REQUIRE(target.responds<test_event>(identifier("do a test")));
 			REQUIRE_FALSE(target.responds<test_event>(identifier("do another test")));
-			REQUIRE_FALSE(target.responds<simple_event>(identifier("do a test")));
+			REQUIRE_FALSE(target.responds(identifier("do a test"), &my_event_target::on_simple_event));
 		
 			REQUIRE(event->handled() == false);
 			

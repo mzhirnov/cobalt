@@ -44,17 +44,10 @@ private:
 	bool _handled = false;
 };
 
-#define CO_DEFINE_EVENT(Event) CO_DEFINE_EVENT_CLASS(Event) {};
-#define CO_DEFINE_EVENT_WITH_TARGET_NAME(Event, TargetName) CO_DEFINE_EVENT_CLASS_WITH_TARGET_NAME(Event, TargetName) {};
-
-#define CO_DEFINE_EVENT_CLASS(Event) CO_DEFINE_EVENT_CLASS_WITH_TARGET_NAME(Event, #Event)
-#define CO_DEFINE_EVENT_CLASS_WITH_TARGET_NAME(Event, TargetName) \
-class Event##_base : public event { \
+#define IMPLEMENT_EVENT_TARGET(TargetName) \
 public: \
 	static const identifier& static_target() noexcept { static identifier target(TargetName); return target; } \
-	virtual const identifier& target() const noexcept override { return static_target(); } \
-}; \
-class Event : public Event##_base
+	virtual const identifier& target() const noexcept override { return static_target(); }
 
 /// Event dispatcher
 ///
@@ -116,23 +109,25 @@ public:
 	size_t pending_count(const identifier& target) const noexcept;
 	
 	/// Remove event with this target from event queue
-	/// @return True if event was removed, false otherwise
+	/// @return True if event was aborted, false otherwise, or number of aborted events
 	bool abort_first(const identifier& target);
 	bool abort_last(const identifier& target);
-	bool abort_all(const identifier& target);
+	size_t abort_all(const identifier& target);
 
 	/// Invoke pending events with timeout
-	void dispatch(clock_type::duration timeout = clock_type::duration());
+	/// @return Number of invoked handlers
+	size_t dispatch(clock_type::duration timeout = clock_type::duration());
 
 	/// Invoke event immediately
-	void invoke(const ref_ptr<event>& event);
+	/// @return Number of invoked handlers
+	size_t invoke(const ref_ptr<event>& event);
 
 	/// Invoke event for specified event target immediately
-	void invoke(const identifier& target, const ref_ptr<event>& event);
+	/// @return Number of invoked handlers
+	size_t invoke(const identifier& target, const ref_ptr<event>& event);
 
 private:
-	using ObjectHandler = std::pair<const void*, handler_type>;
-	using Subscriptions =  std::unordered_multimap<identifier, ObjectHandler, boost::hash<identifier>>;
+	using Subscriptions =  std::unordered_multimap<identifier, std::pair<const void*, handler_type>, boost::hash<identifier>>;
 	using Connections = std::unordered_multimap<const void*, identifier>;
 	using EventQueue = std::deque<std::pair<identifier, ref_ptr<event>>>;
 	
@@ -145,6 +140,8 @@ private:
 template <typename T>
 class event_handler {
 public:
+	using this_type = T;
+	
 	template <typename E> using handler = void(T::*)(E*);
 	
 	explicit event_handler(event_dispatcher& dispatcher) noexcept;

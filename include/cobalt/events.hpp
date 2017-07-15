@@ -51,7 +51,7 @@ template <typename T, typename E>
 inline void event_dispatcher::subscribe(void(T::*mf)(E*), const T* obj, const identifier& target) {
 	static_assert(std::is_base_of<event, E>::value, "`E` must be derived from event");
 	
-	_subscriptions.emplace(target, ObjectHandler{obj, detail::rebind_method<T, E>(mf, obj)});
+	_subscriptions.emplace(target, std::make_pair(obj, detail::rebind_method<T, E>(mf, obj)));
 	_connections.emplace(obj, target);
 }
 
@@ -190,8 +190,8 @@ inline bool event_dispatcher::abort_last(const identifier& target) {
 	return false;
 }
 
-inline bool event_dispatcher::abort_all(const identifier& target) {
-	auto old_count = _queue.size();
+inline size_t event_dispatcher::abort_all(const identifier& target) {
+	auto initial_count = _queue.size();
 	
 	_queue.erase(std::remove_if(_queue.begin(), _queue.end(),
 		[&](auto&& v) {
@@ -199,37 +199,43 @@ inline bool event_dispatcher::abort_all(const identifier& target) {
 		}),
 		_queue.end());
 	
-	return _queue.size() != old_count;
+	return initial_count - _queue.size();
 }
 
-inline void event_dispatcher::dispatch(clock_type::duration timeout) {
+inline size_t event_dispatcher::dispatch(clock_type::duration timeout) {
 	EventQueue queue;
-	
 	std::swap(_queue, queue);
 	
-	auto start = clock_type::now();
+	size_t count = 0;
 	
+	auto start = clock_type::now();
 	while (!queue.empty() && (timeout == clock_type::duration() || clock_type::now() - start < timeout)) {
 		auto&& p = queue.front();
-		invoke(p.first, p.second);
+		count += invoke(p.first, p.second);
 		queue.pop_front();
 	}
 	
-	// Return not processed events to the queue
+	// Place unprocessed events back to the queue
 	if (!queue.empty())
 		_queue.insert(_queue.begin(), std::make_move_iterator(queue.begin()), std::make_move_iterator(queue.end()));
+	
+	return count;
 }
 
-inline void event_dispatcher::invoke(const ref_ptr<event>& event) {
+inline size_t event_dispatcher::invoke(const ref_ptr<event>& event) {
+	size_t count = 0;
 	auto subscriptions = _subscriptions.equal_range(event->target());
-	for (auto it = subscriptions.first; it != subscriptions.second; ++it)
+	for (auto it = subscriptions.first; it != subscriptions.second; ++it, ++count)
 		(*it).second.second(event.get());
+	return count;
 }
 
-inline void event_dispatcher::invoke(const identifier& target, const ref_ptr<event>& event) {
+inline size_t event_dispatcher::invoke(const identifier& target, const ref_ptr<event>& event) {
+	size_t count = 0;
 	auto subscriptions = _subscriptions.equal_range(target);
-	for (auto it = subscriptions.first; it != subscriptions.second; ++it)
+	for (auto it = subscriptions.first; it != subscriptions.second; ++it, ++count)
 		(*it).second.second(event.get());
+	return count;
 }
 	
 ////////////////////////////////////////////////////////////////////////////////
