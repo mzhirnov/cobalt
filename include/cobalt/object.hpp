@@ -27,7 +27,7 @@ public:
 	
 	virtual ~object() = default;
 	
-	virtual const type_index& generic_type() const noexcept = 0;
+	virtual const type_index& object_type() const noexcept = 0;
 	
 	const identifier& name() const noexcept { return _name; }
 	void name(const identifier& name) noexcept { _name = name; }
@@ -53,15 +53,15 @@ inline object* object::create_instance(const type_index& type) {
 template <class T>
 inline T* object::create_instance() {
 	static_assert(std::is_base_of<object, T>::value, "T is not derived from object");
-	return static_cast<T*>(object_factory::create(T::static_type()));
+	return static_cast<T*>(object_factory::create(T::class_type()));
 }
 
 #define IMPLEMENT_OBJECT_TYPE(ThisClass) \
 private: \
-	REGISTER_FACTORY_WITH_KEY(object_factory, ThisClass, ThisClass::static_type()) \
+	REGISTER_FACTORY_WITH_KEY(object_factory, ThisClass, ThisClass::class_type()) \
 public: \
-	static const type_index& static_type() noexcept { static auto type = type_id<ThisClass>(); return type; } \
-	virtual const type_index& generic_type() const noexcept override { return static_type(); }
+	static const type_index& class_type() noexcept { static auto type = type_id<ThisClass>(); return type; } \
+	virtual const type_index& object_type() const noexcept override { return class_type(); }
 
 } // namespace cobalt
 

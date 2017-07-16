@@ -317,7 +317,7 @@ inline actor_component* actor::find_component_by_type(const type_index& type, tr
 	actor_component* result = nullptr;
 	
 	traverse_components(order, [&](actor_component* component) -> bool {
-		if (component->generic_type() == type) {
+		if (component->object_type() == type) {
 			result = component;
 			return false;
 		}
@@ -331,7 +331,7 @@ inline size_t actor::find_components_by_type(const type_index& type, std::vector
 	size_t initial_size = components.size();
 	
 	traverse_components(order, [&](actor_component* component) -> bool {
-		if (component->generic_type() == type)
+		if (component->object_type() == type)
 			components.push_back(component);
 		return true;
 	});
@@ -341,7 +341,7 @@ inline size_t actor::find_components_by_type(const type_index& type, std::vector
 
 template <typename T>
 inline T* actor::find_component(traverse_order order) noexcept {
-	return static_cast<T*>(find_component_by_type(T::static_type(), order));
+	return static_cast<T*>(find_component_by_type(T::class_type(), order));
 }
 
 template <typename T, typename OutputIterator>
@@ -349,7 +349,7 @@ inline size_t actor::find_components(OutputIterator components, traverse_order o
 	size_t count = 0;
 	
 	traverse_components(order, [&](actor_component* component) -> bool {
-		if (component->generic_type() == T::static_type()) {
+		if (component->object_type() == T::class_type()) {
 			*components = static_cast<T*>(component);
 			count++;
 		}
