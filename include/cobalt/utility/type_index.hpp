@@ -8,6 +8,7 @@
 
 namespace cobalt {
 
+using boost::typeindex::type_info;
 using boost::typeindex::type_index;
 using boost::typeindex::type_id;
 using boost::typeindex::type_id_runtime;
