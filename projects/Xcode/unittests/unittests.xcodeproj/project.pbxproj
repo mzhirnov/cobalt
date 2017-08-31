@@ -18,6 +18,7 @@
 		176E8C231E86926E00ADF5AC /* factory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 176E8C221E86926E00ADF5AC /* factory.cpp */; };
 		179820531E3BBA5800EA8102 /* fsm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 179820511E3BBA5800EA8102 /* fsm.cpp */; };
 		1798205D1E4CDD9E00EA8102 /* platform.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1798205C1E4CDD9E00EA8102 /* platform.cpp */; };
+		17B13ACC1F584BD2000DDB91 /* com.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 17B13ACB1F584BD2000DDB91 /* com.cpp */; };
 		17CD21631DBFD8C40046201F /* boost.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 17CD21621DBFD8C40046201F /* boost.framework */; };
 		17D56ED21DFA66CF00A36AFA /* tasks.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 17D56ED11DFA66CF00A36AFA /* tasks.cpp */; };
 /* End PBXBuildFile section */
@@ -49,6 +50,7 @@
 		179820511E3BBA5800EA8102 /* fsm.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = fsm.cpp; sourceTree = "<group>"; };
 		1798205C1E4CDD9E00EA8102 /* platform.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = platform.cpp; sourceTree = "<group>"; };
 		179BBB661DC7BA59005DF931 /* include */ = {isa = PBXFileReference; lastKnownFileType = folder; name = include; path = ../../../include; sourceTree = "<group>"; };
+		17B13ACB1F584BD2000DDB91 /* com.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = com.cpp; sourceTree = "<group>"; };
 		17CD21621DBFD8C40046201F /* boost.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = boost.framework; path = ../frameworks/boost.framework; sourceTree = "<group>"; };
 		17D56ED11DFA66CF00A36AFA /* tasks.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = tasks.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -68,6 +70,7 @@
 		1763ED861DF33F9A001F279B /* unittests */ = {
 			isa = PBXGroup;
 			children = (
+				17B13ACB1F584BD2000DDB91 /* com.cpp */,
 				176E8C221E86926E00ADF5AC /* factory.cpp */,
 				1798205C1E4CDD9E00EA8102 /* platform.cpp */,
 				179820511E3BBA5800EA8102 /* fsm.cpp */,
@@ -170,6 +173,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				1763ED901DF33F9A001F279B /* events.cpp in Sources */,
+				17B13ACC1F584BD2000DDB91 /* com.cpp in Sources */,
 				174472BE1E06787700A2097E /* geometry.cpp in Sources */,
 				1763ED911DF33F9A001F279B /* hash.cpp in Sources */,
 				1763ED8E1DF33F9A001F279B /* enum_traits.cpp in Sources */,
