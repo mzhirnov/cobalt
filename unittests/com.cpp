@@ -1,7 +1,12 @@
 #include "catch.hpp"
 #include <cobalt/com.hpp>
+#include <cobalt/utility/intrusive.hpp>
+
+#include <memory>
 
 using namespace cobalt;
+
+// Interfaces
 
 class updatable : public com::unknown {
 public:
@@ -13,6 +18,13 @@ public:
 	virtual void draw() = 0;
 };
 
+class lifetime : public com::unknown {
+public:
+	virtual std::weak_ptr<void> get_object() = 0;
+};
+
+// Implementation
+
 class updatable_impl : public updatable {
 public:
 	virtual void update(float dt) override {}
@@ -23,16 +35,26 @@ public:
 	virtual void draw() override {}
 };
 
+class lifetime_impl : public lifetime {
+public:
+	virtual std::weak_ptr<void> get_object() override { return _object; }
+
+private:
+	std::shared_ptr<void> _object = std::make_shared<int>(1);
+};
+
 class my_object
 	: public com::object_base
 	, public com::coclass<my_object>
 	, public updatable_impl
 	, public drawable_impl
+	, public lifetime_impl
 {
 public:
 	BEGIN_CAST_MAP(my_object)
 		CAST_ENTRY(updatable)
 		CAST_ENTRY(drawable)
+		CAST_ENTRY(lifetime)
 	END_CAST_MAP()
 };
 
@@ -42,19 +64,6 @@ public:
 		OBJECT_ENTRY(my_object)
 	END_OBJECT_MAP()
 };
-
-//	if (auto o = com::object<my_object>::create_instance()) {
-//		o->retain();
-//		
-//		if (boost::intrusive_ptr<updatable> u = o->cast<updatable>()) {
-//			u->update(0);
-//		}
-//		
-//		if (auto d = o->cast<drawable>())
-//			d->draw();
-//		
-//		o->release();
-//	}
 
 //	if (boost::intrusive_ptr<drawable> d = my_object::create_instance<drawable>()) {
 //		d->draw();
@@ -66,23 +75,71 @@ public:
 TEST_CASE("module") {
 	my_module m;
 	
+	std::weak_ptr<void> obj;
+	
 	SECTION("get_class_object") {
-		boost::intrusive_ptr<com::unknown> cf_unk = m.get_class_object(IIDOF(my_object));
-		REQUIRE(cf_unk);
+		ref_ptr<com::unknown> unk = m.get_class_object(IIDOF(my_object));
+		REQUIRE(unk);
 		
-		boost::intrusive_ptr<com::class_factory> cf = cf_unk->cast<com::class_factory>();
+		auto cf = unk->cast<com::class_factory>();
 		REQUIRE(cf);
 		
-		boost::intrusive_ptr<com::unknown> upd_unk = cf->create_instance(nullptr, IIDOF(updatable));
-		REQUIRE(upd_unk);
+		auto lft = cf->create_instance<lifetime>();
+		REQUIRE(lft);
 		
-		boost::intrusive_ptr<updatable> upd = upd_unk->cast<updatable>();
-		REQUIRE(upd);
+		obj = lft->get_object();
+		REQUIRE_FALSE(obj.expired());
+		
+		lft.reset();
+		REQUIRE(obj.expired());
 	}
 	
 	SECTION("create_instance") {
-		boost::intrusive_ptr<drawable> drw = m.create_instance<drawable>(IIDOF(my_object));
-		REQUIRE(drw);
+		auto lft = m.create_instance<lifetime>(IIDOF(my_object));
+		REQUIRE(lft);
+		
+		obj = lft->get_object();
+		REQUIRE_FALSE(obj.expired());
+		
+		lft.reset();
+		REQUIRE(obj.expired());
 	}
 }
 
+TEST_CASE("stack_object") {
+	std::weak_ptr<void> obj;
+	
+	{
+		com::stack_object<my_object> object;
+		
+		auto lft = object.cast<lifetime>();
+		REQUIRE(lft);
+		
+		obj = lft->get_object();
+		REQUIRE_FALSE(obj.expired());
+	}
+	
+	REQUIRE(obj.expired());
+}
+
+TEST_CASE("object") {
+	std::weak_ptr<void> obj;
+	
+	{
+		auto object = com::object<my_object>::create_instance();
+		
+		auto upd = object->cast<updatable>();
+		REQUIRE(upd);
+		
+		auto drw = object->cast<drawable>();
+		REQUIRE(drw);
+		
+		auto lft = object->cast<lifetime>();
+		REQUIRE(lft);
+		
+		obj = lft->get_object();
+		REQUIRE_FALSE(obj.expired());
+	}
+	
+	REQUIRE(obj.expired());
+}

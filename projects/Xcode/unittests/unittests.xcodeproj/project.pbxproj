@@ -70,20 +70,20 @@
 		1763ED861DF33F9A001F279B /* unittests */ = {
 			isa = PBXGroup;
 			children = (
-				17B13ACB1F584BD2000DDB91 /* com.cpp */,
-				176E8C221E86926E00ADF5AC /* factory.cpp */,
-				1798205C1E4CDD9E00EA8102 /* platform.cpp */,
-				179820511E3BBA5800EA8102 /* fsm.cpp */,
-				174472BF1E06CE7C00A2097E /* io.cpp */,
-				174472BD1E06787700A2097E /* geometry.cpp */,
-				17D56ED11DFA66CF00A36AFA /* tasks.cpp */,
+				1763ED8D1DF33F9A001F279B /* actor.cpp */,
 				1763ED871DF33F9A001F279B /* catch.hpp */,
+				17B13ACB1F584BD2000DDB91 /* com.cpp */,
 				1763ED881DF33F9A001F279B /* enum_traits.cpp */,
 				1763ED891DF33F9A001F279B /* enumerator.cpp */,
 				1763ED8A1DF33F9A001F279B /* events.cpp */,
+				176E8C221E86926E00ADF5AC /* factory.cpp */,
+				179820511E3BBA5800EA8102 /* fsm.cpp */,
+				174472BD1E06787700A2097E /* geometry.cpp */,
 				1763ED8B1DF33F9A001F279B /* hash.cpp */,
+				174472BF1E06CE7C00A2097E /* io.cpp */,
 				1763ED8C1DF33F9A001F279B /* main.cpp */,
-				1763ED8D1DF33F9A001F279B /* actor.cpp */,
+				1798205C1E4CDD9E00EA8102 /* platform.cpp */,
+				17D56ED11DFA66CF00A36AFA /* tasks.cpp */,
 			);
 			name = unittests;
 			path = ../../../unittests;

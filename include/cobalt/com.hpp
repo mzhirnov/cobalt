@@ -20,6 +20,7 @@
 //     module
 
 #include <cobalt/utility/type_index.hpp>
+#include <cobalt/utility/intrusive.hpp>
 
 #include <boost/smart_ptr/intrusive_ptr.hpp>
 #include <boost/assert.hpp>
@@ -27,10 +28,10 @@
 namespace cobalt {
 namespace com {
 
-using iid = boost::typeindex::type_info;
+using iid = type_info;
 using clsid = iid;
 
-#define IIDOF(x) boost::typeindex::type_id<x>().type_info()
+#define IIDOF(x) type_id<x>().type_info()
 
 class unknown {
 public:
@@ -39,7 +40,7 @@ public:
 	virtual size_t release() = 0;
 	virtual unknown* cast(const iid& iid) = 0;
 	
-	template <typename Q> Q* cast() { return static_cast<Q*>(cast(IIDOF(Q))); }
+	template <typename Q> ref_ptr<Q> cast() { return static_cast<Q*>(cast(IIDOF(Q))); }
 	
 	friend void intrusive_ptr_add_ref(unknown* p) { p->retain(); }
 	friend void intrusive_ptr_release(unknown* p) { p->release(); }
@@ -48,6 +49,8 @@ public:
 class class_factory : public unknown {
 public:
 	virtual unknown* create_instance(unknown* outer, const iid& iid) = 0;
+	
+	template <typename Q> ref_ptr<Q> create_instance(unknown* outer = nullptr) { return static_cast<Q*>(create_instance(outer, IIDOF(Q))); }
 };
 
 using creator_fn = unknown* (*)(unknown* outer, const iid& iid);
@@ -212,7 +215,7 @@ public:
 	virtual size_t retain() override { return this->internal_retain(); }
 	virtual size_t release() override { return this->internal_release(); }
 	virtual unknown* cast(const iid& iid) override { return this->internal_cast(iid); }
-	template <typename Q> Q* cast() { return static_cast<Q*>(cast(IIDOF(Q))); }
+	template <typename Q> ref_ptr<Q> cast() { return static_cast<Q*>(cast(IIDOF(Q))); }
 };
 
 template <typename T>
@@ -228,7 +231,7 @@ public:
 		return ref_count;
 	}
 	virtual unknown* cast(const iid& iid) override { return this->internal_cast(iid); }
-	template <typename Q> Q* cast() { return static_cast<Q*>(cast(IIDOF(Q))); }
+	template <typename Q> ref_ptr<Q> cast() { return static_cast<Q*>(cast(IIDOF(Q))); }
 	
 	static object<T>* create_instance(unknown* outer = nullptr) {
 		BOOST_ASSERT(outer == nullptr);
@@ -465,12 +468,12 @@ public:
 	static void object_main(bool starting) {}
 	
 	template <typename Q>
-	static Q* create_instance(unknown* outer) {
+	static ref_ptr<Q> create_instance(unknown* outer) {
 		return static_cast<Q*>(T::creator_type::create_instance(outer, IIDOF(Q)));
 	}
 	
 	template <typename Q>
-	static Q* create_instance() {
+	static ref_ptr<Q> create_instance() {
 		return static_cast<Q*>(T::creator_type::create_instance(nullptr, IIDOF(Q)));
 	}
 };
@@ -558,12 +561,12 @@ public:
 	}
 	
 	template <typename Q>
-	Q* create_instance(unknown* outer, const clsid& clsid) {
+	ref_ptr<Q> create_instance(unknown* outer, const clsid& clsid) {
 		return static_cast<Q*>(create_instance(outer, clsid, IIDOF(Q)));
 	}
 	
 	template <typename Q>
-	Q* create_instance(const clsid& clsid) {
+	ref_ptr<Q> create_instance(const clsid& clsid) {
 		return static_cast<Q*>(create_instance(nullptr, clsid, IIDOF(Q)));
 	}
 };
