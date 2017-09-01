@@ -72,7 +72,7 @@ public:
 //			u->update(0);
 //	}
 
-TEST_CASE("module") {
+TEST_CASE("module", "[com]") {
 	my_module m;
 	
 	std::weak_ptr<void> obj;
@@ -106,7 +106,7 @@ TEST_CASE("module") {
 	}
 }
 
-TEST_CASE("stack_object") {
+TEST_CASE("stack_object", "[com]") {
 	std::weak_ptr<void> obj;
 	
 	{
@@ -122,7 +122,7 @@ TEST_CASE("stack_object") {
 	REQUIRE(obj.expired());
 }
 
-TEST_CASE("object") {
+TEST_CASE("object", "[com]") {
 	std::weak_ptr<void> obj;
 	
 	{

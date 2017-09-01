@@ -3,7 +3,7 @@
 
 using namespace cobalt;
 
-TEST_CASE("geometry") {
+TEST_CASE("geometry", "[geometry]") {
 	rect r{1, 1, 10, 10};
 	
 	SECTION("rect extents") {

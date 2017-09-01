@@ -39,7 +39,7 @@ private:
 	identifier _name;
 };
 
-TEST_CASE("factory") {
+TEST_CASE("factory", "[factory]") {
 	REQUIRE(component_factory::can_create("my_component"));
 	
 	std::unique_ptr<component> c(component_factory::create("my_component", "comp1"));

@@ -60,7 +60,7 @@ struct my_event_target : event_handler<my_event_target> {
 	}
 };
 
-TEST_CASE("event_dispatcher") {
+TEST_CASE("event_dispatcher", "[events]") {
 	event_dispatcher dispatcher;
 	
 	auto event = make_ref<test_event>("inst1");

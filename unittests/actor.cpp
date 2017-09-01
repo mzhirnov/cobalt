@@ -70,13 +70,13 @@ ref_ptr<actor> create_actor() {
 	return ac;
 }
 
-TEST_CASE("information") {
+TEST_CASE("information", "[actor]") {
 	printf("sizeof(void*) := %zu\n", sizeof(void*));
 	printf("sizeof(actor) := %zu (%zu x void*)\n", sizeof(actor), sizeof(actor) / sizeof(void*));
 	printf("sizeof(actor_component) := %zu (%zu x void*)\n", sizeof(actor_component), sizeof(actor_component) / sizeof(void*));
 }
 
-TEST_CASE("actor") {
+TEST_CASE("actor", "[actor]") {
 	SECTION("attach component") {
 		auto actor1 = make_ref<actor>();
 		actor1->transform(new transform_component());

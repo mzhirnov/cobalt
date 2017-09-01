@@ -18,7 +18,7 @@ DEFINE_ENUM_FLAGS(
 	value4 = value2 | value3
 )
 
-TEST_CASE("enum class") {
+TEST_CASE("enum class", "[enum_traits]") {
 	SECTION("enum traits") {
 		REQUIRE(cobalt::enum_traits<enum_class>::is_enum == true);
 		REQUIRE(cobalt::enum_traits<enum_class>::is_flags == false);
@@ -54,7 +54,7 @@ TEST_CASE("enum class") {
 	}
 }
 
-TEST_CASE("enum flags") {
+TEST_CASE("enum flags", "[enum_traits]") {
 	SECTION("flags traits") {
 		REQUIRE(cobalt::enum_traits<enum_flags>::is_enum == true);
 		REQUIRE(cobalt::enum_traits<enum_flags>::is_flags == true);

@@ -101,7 +101,7 @@ static void test_write_stream(io::stream* stream) {
 	REQUIRE(ec);
 }
 
-TEST_CASE("io") {
+TEST_CASE("io", "[io]") {
 	SECTION("dynamic memory_stream") {
 		io::memory_stream stream;
 		

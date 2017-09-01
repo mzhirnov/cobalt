@@ -55,7 +55,7 @@ private:
 	size_t _state = 0;
 };
 
-TEST_CASE("tasks") {
+TEST_CASE("tasks", "[tasks]") {
 	task_scheduler scheduler;
 	
 	SECTION("schedule one step task") {

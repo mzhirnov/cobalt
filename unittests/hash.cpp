@@ -3,7 +3,7 @@
 
 using namespace cobalt;
 
-TEST_CASE("hash") {
+TEST_CASE("hash", "[hash]") {
 	SECTION("compile time") {
 		static_assert(compiletime::murmur3_32("Hello, world!", 0) == 3224780355, "");
 		static_assert("Hello, world!"_hash == 3224780355, "");

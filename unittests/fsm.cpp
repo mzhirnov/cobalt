@@ -63,7 +63,7 @@ struct event_next {};
 struct event_prev {};
 struct event_up {};
 
-TEST_CASE("fsm") {
+TEST_CASE("fsm", "[fsm]") {
 	state_machine machine{
 		fsm::make_state<state_a>({
 			fsm::make_transition<event_next, state_b>(),
