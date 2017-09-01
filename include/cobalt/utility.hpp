@@ -11,6 +11,6 @@
 #include <cobalt/utility/type_index.hpp>
 #include <cobalt/utility/identifier.hpp>
 #include <cobalt/utility/intrusive.hpp>
-#include <cobalt/utility/throw_if_error.hpp>
+#include <cobalt/utility/throw_error.hpp>
 
 #endif // COBALT_UTILITY_HPP_INCLUDED
