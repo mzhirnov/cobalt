@@ -80,9 +80,9 @@ TEST_CASE("module") {
 		REQUIRE(upd);
 	}
 	
-	//SECTION("create_instance") {
+	SECTION("create_instance") {
 		boost::intrusive_ptr<drawable> drw = m.create_instance<drawable>(IIDOF(my_object));
 		REQUIRE(drw);
-	//}
+	}
 }
 

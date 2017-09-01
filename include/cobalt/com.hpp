@@ -510,8 +510,10 @@ protected:
 		for (auto entry = entries; entry->clsid; ++entry) {
 			entry->object_main(starting);
 			// Release factory
-			if (!starting && entry->factory)
+			if (!starting && entry->factory) {
 				entry->factory->release();
+				entry->factory = nullptr;
+			}
 		}
 	}
 	
