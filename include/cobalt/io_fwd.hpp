@@ -48,7 +48,7 @@ DEFINE_ENUM(
 namespace cobalt { namespace io {
 
 /// Stream
-class stream : public ref_counter<stream> {
+class stream : public local_ref_counter<stream> {
 public:
 	using value_type = uint8_t;
 	

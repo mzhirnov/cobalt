@@ -12,7 +12,7 @@
 namespace cobalt {
 
 template <typename T>
-using ref_counter = boost::intrusive_ref_counter<T, boost::thread_unsafe_counter>;
+using local_ref_counter = boost::intrusive_ref_counter<T, boost::thread_unsafe_counter>;
 
 template <typename T>
 using atomic_ref_counter = boost::intrusive_ref_counter<T, boost::thread_safe_counter>;

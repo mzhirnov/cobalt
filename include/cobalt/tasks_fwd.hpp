@@ -36,7 +36,7 @@ DEFINE_ENUM(
 namespace cobalt {
 
 /// task
-class task : public ref_counter<task> {
+class task : public local_ref_counter<task> {
 public:
 	task() = default;
 	

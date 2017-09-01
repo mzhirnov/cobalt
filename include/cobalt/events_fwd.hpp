@@ -21,7 +21,7 @@
 namespace cobalt {
 
 /// Event
-class event : public ref_counter<event> {
+class event : public local_ref_counter<event> {
 public:
 	event() noexcept = default;
 	

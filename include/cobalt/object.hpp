@@ -18,7 +18,7 @@ namespace cobalt {
 ///
 /// Object
 ///
-class object : public ref_counter<object> {
+class object : public local_ref_counter<object> {
 public:
 	object() = default;
 	
