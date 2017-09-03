@@ -20,7 +20,7 @@
 //     module
 //
 // Functions in this file:
-//     are_same_objects
+//     same_objects
 
 #include <cobalt/utility/type_index.hpp>
 #include <cobalt/utility/intrusive.hpp>
@@ -56,25 +56,66 @@ public:
 		{ return static_cast<Q*>(create_instance(outer, IIDOF(Q))); }
 };
 
-bool are_same_objects(unknown* obj1, unknown* obj2) noexcept {
+bool same_objects(unknown* obj1, unknown* obj2) noexcept {
 	if (!obj1 || !obj2)
 		return obj1 == obj2;		
 	return obj1->cast<unknown>() == obj2->cast<unknown>();
 }
 
-using creator_fn = unknown* (*)(unknown* outer, const iid& iid);
-using cast_fn = unknown* (*)(void* this_, const iid& iid, size_t data);
+#define OFFSETOFCLASS(base, derived) \
+	(reinterpret_cast<size_t>(static_cast<base*>((derived*)8)) - 8)
+	
+#define OFFSETOFCLASS2(base, base2, derived) \
+	(reinterpret_cast<size_t>(static_cast<base*>(static_cast<base2*>((derived*)8))) - 8)
+	
+#define SIMPLE_CAST_ENTRY (::cobalt::com::cast_fn)1
 
-struct creator_data {
+using creator_fn = unknown* (*)(unknown* outer, const iid& iid);
+using cast_fn = unknown* (*)(void* pv, const iid& iid, size_t data);
+
+struct cast_entry {
+	const iid* iid;
+	size_t data;
+	cast_fn func;
+};
+
+struct creator_thunk {
 	creator_fn func;
 };
 
-struct cache_data {
+template <class Creator>
+struct creator_thunk_data {
+	static creator_thunk data;
+};
+
+template <class Creator>
+creator_thunk creator_thunk_data<Creator>::data = { Creator::create_instance };
+
+struct cache_thunk {
 	size_t offset;
 	creator_fn func;
 };
 
-#define SIMPLE_CAST_ENTRY (::cobalt::com::cast_fn)1
+template <typename Creator, size_t Offset>
+struct cache_thunk_data {
+	static cache_thunk data;
+};
+
+template <typename Creator, size_t Offset>
+cache_thunk cache_thunk_data<Creator, Offset>::data = { Offset, Creator::create_instance };
+
+struct chain_thunk {
+	size_t offset;
+	const cast_entry* (*func)() noexcept;
+};
+
+template <typename Base, typename Derived>
+struct chain_thunk_data {
+	static chain_thunk data;
+};
+
+template <typename Base, typename Derived>
+chain_thunk chain_thunk_data<Base, Derived>::data = { OFFSETOFCLASS(Base, Derived), Base::entries };
 
 class object_base {
 public:
@@ -89,31 +130,25 @@ protected:
 	size_t outer_retain() noexcept { return _outer->retain(); }
 	size_t outer_release() noexcept { return _outer->release(); }
 	unknown* outer_cast(const iid& iid) noexcept { return _outer->cast(iid); }
-
-	struct cast_entry {
-		const iid* iid;
-		size_t data;
-		cast_fn func;
-	};
 	
-	static unknown* s_internal_cast(void* this_, const cast_entry* entries, const iid& iid) noexcept {
-		BOOST_ASSERT(this_);
+	static unknown* s_internal_cast(void* pv, const cast_entry* entries, const iid& iid) noexcept {
+		BOOST_ASSERT(pv);
 		BOOST_ASSERT(entries);
-		if (!this_ || !entries)
+		if (!pv || !entries)
 			return nullptr;
 		
 		BOOST_ASSERT(entries[0].func == SIMPLE_CAST_ENTRY);
 		if (iid == IIDOF(unknown))
-			return reinterpret_cast<unknown*>(reinterpret_cast<size_t>(this_) + entries[0].data);
+			return reinterpret_cast<unknown*>(reinterpret_cast<size_t>(pv) + entries[0].data);
 		
 		for (auto entry = entries; entry->func; ++entry) {
 			bool blind = !entries->iid;
 			if (blind || entry->iid == &iid) {
 				if (entry->func == SIMPLE_CAST_ENTRY) {
 					BOOST_ASSERT(!blind);
-					return reinterpret_cast<unknown*>(reinterpret_cast<size_t>(this_) + entry->data);
+					return reinterpret_cast<unknown*>(reinterpret_cast<size_t>(pv) + entry->data);
 				} else {
-					auto unknown_ = entry->func(this_, iid, entry->data);
+					auto unknown_ = entry->func(pv, iid, entry->data);
 					if (unknown_ || (!blind && !unknown_))
 						return unknown_;
 				}
@@ -123,17 +158,40 @@ protected:
 		return nullptr;
 	}
 	
-	static unknown* s_creator(void* this_, const iid& iid, size_t data) noexcept {
-		creator_data* p = reinterpret_cast<creator_data*>(data);
-		return p->func((unknown*)this_, iid);
+	static unknown* s_break(void* pv, const iid& iid, size_t data) noexcept {
+		(void)pv;
+		(void)iid;
+		(void)data;
+		// TODO: DebugBreak
+		return nullptr;
 	}
 	
-	static unknown* s_cache(void* this_, const iid& iid, size_t data) noexcept {
-		cache_data* p = reinterpret_cast<cache_data*>(data);
-		unknown** unk = reinterpret_cast<unknown**>((reinterpret_cast<size_t>(this_) + p->offset));
-		if (*unk || (*unk = p->func(reinterpret_cast<unknown*>(this_), IIDOF(unknown))))
+	static unknown* s_nointerface(void* pv, const iid& iid, size_t data) noexcept {
+		return nullptr;
+	}
+	
+	static unknown* s_creator(void* pv, const iid& iid, size_t data) noexcept {
+		creator_thunk* thunk = reinterpret_cast<creator_thunk*>(data);
+		return thunk->func(reinterpret_cast<unknown*>(pv), iid);
+	}
+	
+	static unknown* s_cache(void* pv, const iid& iid, size_t data) noexcept {
+		cache_thunk* thunk = reinterpret_cast<cache_thunk*>(data);
+		unknown** unk = reinterpret_cast<unknown**>((reinterpret_cast<size_t>(pv) + thunk->offset));
+		if (*unk || (*unk = thunk->func(reinterpret_cast<unknown*>(pv), IIDOF(unknown))))
 			return (*unk)->cast(iid);
 		return nullptr;
+	}
+	
+	static unknown* s_delegate(void* pv, const iid& iid, size_t data) noexcept {
+		unknown* unk = *reinterpret_cast<unknown**>(reinterpret_cast<size_t>(pv) + data);
+		return unk ? unk->cast(iid) : nullptr;
+	}
+	
+	static unknown* s_chain(void* pv, const iid& iid, size_t data) noexcept {
+		chain_thunk* thunk = reinterpret_cast<chain_thunk*>(data);
+		void* p = reinterpret_cast<void*>((reinterpret_cast<size_t>(pv) + thunk->offset));
+		return s_internal_cast(p, thunk->func(),iid);
 	}
 	
 protected:
@@ -142,22 +200,6 @@ protected:
 		unknown* _outer;
 	};
 };
-
-template <class T>
-struct creator_data_thunk {
-	static creator_data data;
-};
-
-template <class T>
-creator_data creator_data_thunk<T>::data = { T::create_instance };
-
-template <typename T, size_t Offset>
-struct cache_data_thunk {
-	static cache_data data;
-};
-
-template <typename T, size_t Offset>
-cache_data cache_data_thunk<T, Offset>::data = { Offset, T::create_instance };
 
 template <typename T>
 class tear_off_object_base {
@@ -171,34 +213,49 @@ private:
 	owner_type* _owner = nullptr;
 };
 
-#define OFFSETOFCLASS(x, class) \
-	(reinterpret_cast<size_t>(static_cast<x*>((class*)8)) - 8)
-	
-#define OFFSETOFCLASS2(x, x2, class) \
-	(reinterpret_cast<size_t>(static_cast<x*>(static_cast<x2*>((class*)8))) - 8)
-
 #define BEGIN_CAST_MAP(x) protected: \
-	static const cast_entry* entries() noexcept { \
-		using base_class = x; \
-		static const cast_entry entries[] = {
+	static const ::cobalt::com::cast_entry* entries() noexcept { \
+		using cast_map_class = x; \
+		static const ::cobalt::com::cast_entry entries[] = {
+
+#define CAST_ENTRY_BREAK(x) \
+			{ &IIDOF(x), nullptr, s_break },
+	
+#define CAST_ENTRY_NOINTERFACE(x) \
+			{ &IIDOF(x), nullptr, s_nointerface },
 
 #define CAST_ENTRY(x) \
-			{ &IIDOF(x), OFFSETOFCLASS(x, base_class), SIMPLE_CAST_ENTRY },
+			{ &IIDOF(x), OFFSETOFCLASS(x, cast_map_class), SIMPLE_CAST_ENTRY },
 	
 #define CAST_ENTRY_IID(iid, x) \
-			{ &iid, OFFSETOFCLASS(x, base_class), SIMPLE_CAST_ENTRY },
+			{ &iid, OFFSETOFCLASS(x, cast_map_class), SIMPLE_CAST_ENTRY },
 
 #define CAST_ENTRY2(x, x2) \
-			{ &IIDOF(x), OFFSETOFCLASS2(x, x2, base_class), SIMPLE_CAST_ENTRY },
+			{ &IIDOF(x), OFFSETOFCLASS2(x, x2, cast_map_class), SIMPLE_CAST_ENTRY },
 
 #define CAST_ENTRY2_IID(iid, x, x2) \
-			{ &iid, OFFSETOFCLASS2(x, x2, base_class), SIMPLE_CAST_ENTRY },
+			{ &iid, OFFSETOFCLASS2(x, x2, cast_map_class), SIMPLE_CAST_ENTRY },
+	
+#define CAST_ENTRY_FUNC(iid, data, func) \
+			{ &iid, data, func },
+
+#define CAST_ENTRY_FUNC_BLIND(data, func) \
+			{ nullptr, data, func }
 	
 #define CAST_ENTRY_TEAR_OFF(iid, x) \
-			{ &iid, reinterpret_cast<size_t>(&creator_data_thunk<internal_creator<tear_off_object<x>>>::data), s_creator },
+			{ &iid, reinterpret_cast<size_t>(&creator_thunk_data<internal_creator<tear_off_object<x>>>::data), s_creator },
 	
-#define CAST_ENTRY_CACHED_TEAR_OFF(iid, x, punk) \
-			{ &iid, reinterpret_cast<size_t>(&cache_data_thunk<creator<cached_tear_off_object<x>>, OFFSETOFCLASS(base_class, punk)>::data), s_cache },
+#define CAST_ENTRY_CACHED_TEAR_OFF(iid, x, unk) \
+			{ &iid, reinterpret_cast<size_t>(&cache_thunk_data<creator<cached_tear_off_object<x>>, offsetof(cast_map_class, unk)>::data), s_cache },
+	
+#define CAST_ENTRY_AGGREGATE(iid, punk) \
+			{ &iid, offsetof(cast_map_class, punk), s_delegate },
+	
+#define CAST_ENTRY_AGGREGATE_BLIND(punk) \
+			{ nullptr, offsetof(cast_map_class, punk), s_delegate },
+	
+#define CAST_ENTRY_CHAIN(class) \
+			{ nullptr, reinterpret_cast<size_t>(&chain_thunk_data<class, cast_map_class>::data), s_chain },
 
 #define END_CAST_MAP() \
 			{ nullptr, 0, nullptr } \

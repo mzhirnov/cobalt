@@ -111,7 +111,7 @@ TEST_CASE("stack_object", "[com]") {
 		auto lft = object.get_unknown()->cast<lifetime>();
 		REQUIRE(lft);
 		
-		REQUIRE(com::are_same_objects(drw.get(), drw.get()));
+		REQUIRE(com::same_objects(drw.get(), drw.get()));
 		
 		obj = lft->get_object();
 		REQUIRE_FALSE(obj.expired());
@@ -132,7 +132,7 @@ TEST_CASE("object", "[com]") {
 		auto drw = object->get_unknown()->cast<drawable>();
 		REQUIRE(drw);
 		
-		REQUIRE(com::are_same_objects(upd.get(), drw.get()));
+		REQUIRE(com::same_objects(upd.get(), drw.get()));
 		
 		auto lft = object->get_unknown()->cast<lifetime>();
 		REQUIRE(lft);
@@ -157,7 +157,7 @@ TEST_CASE("coclass", "[com]") {
 		auto lft = upd->cast<lifetime>();
 		REQUIRE(lft);
 		
-		REQUIRE(com::are_same_objects(upd.get(), lft.get()));
+		REQUIRE(com::same_objects(upd.get(), lft.get()));
 		
 		obj = lft->get_object();
 		REQUIRE_FALSE(obj.expired());
