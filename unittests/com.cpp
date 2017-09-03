@@ -65,13 +65,6 @@ public:
 	END_OBJECT_MAP()
 };
 
-//	if (boost::intrusive_ptr<drawable> d = my_object::create_instance<drawable>()) {
-//		d->draw();
-//		
-//		if (auto u = d->cast<updatable>())
-//			u->update(0);
-//	}
-
 TEST_CASE("module", "[com]") {
 	my_module m;
 	
@@ -112,8 +105,13 @@ TEST_CASE("stack_object", "[com]") {
 	{
 		com::stack_object<my_object> object;
 		
-		auto lft = object.cast<lifetime>();
+		auto drw = object.get_unknown()->cast<drawable>();
+		REQUIRE(drw);
+		
+		auto lft = object.get_unknown()->cast<lifetime>();
 		REQUIRE(lft);
+		
+		REQUIRE(com::are_same_objects(drw.get(), drw.get()));
 		
 		obj = lft->get_object();
 		REQUIRE_FALSE(obj.expired());
@@ -128,14 +126,38 @@ TEST_CASE("object", "[com]") {
 	{
 		auto object = com::object<my_object>::create_instance();
 		
-		auto upd = object->cast<updatable>();
+		auto upd = object->get_unknown()->cast<updatable>();
 		REQUIRE(upd);
 		
-		auto drw = object->cast<drawable>();
+		auto drw = object->get_unknown()->cast<drawable>();
 		REQUIRE(drw);
 		
-		auto lft = object->cast<lifetime>();
+		REQUIRE(com::are_same_objects(upd.get(), drw.get()));
+		
+		auto lft = object->get_unknown()->cast<lifetime>();
 		REQUIRE(lft);
+		
+		obj = lft->get_object();
+		REQUIRE_FALSE(obj.expired());
+	}
+	
+	REQUIRE(obj.expired());
+}
+
+TEST_CASE("coclass", "[com]") {
+	std::weak_ptr<void> obj;
+	
+	{
+		auto drw = my_object::create_instance<drawable>();
+		REQUIRE(drw);
+			
+		auto upd = drw->cast<updatable>();
+		REQUIRE(upd);
+		
+		auto lft = upd->cast<lifetime>();
+		REQUIRE(lft);
+		
+		REQUIRE(com::are_same_objects(upd.get(), lft.get()));
 		
 		obj = lft->get_object();
 		REQUIRE_FALSE(obj.expired());
