@@ -43,18 +43,38 @@ private:
 	std::shared_ptr<void> _object = std::make_shared<int>(1);
 };
 
-class my_object
+class my_object_base
 	: public com::object_base
-	, public com::coclass<my_object>
 	, public updatable_impl
-	, public drawable_impl
 	, public lifetime_impl
+{
+public:
+	BEGIN_CAST_MAP(my_object_base)
+		CAST_ENTRY(updatable)
+		CAST_ENTRY(lifetime)
+	END_CAST_MAP()
+};
+
+class my_object
+	: public my_object_base
+	, public com::coclass<my_object>
 {
 public:
 	BEGIN_CAST_MAP(my_object)
 		CAST_ENTRY(updatable)
+		CAST_ENTRY_CHAIN(my_object_base)
+	END_CAST_MAP()
+};
+
+class my_object2
+	: public my_object_base
+	, public com::coclass<my_object2>
+	, public drawable_impl
+{
+public:
+	BEGIN_CAST_MAP(my_object2)
 		CAST_ENTRY(drawable)
-		CAST_ENTRY(lifetime)
+		CAST_ENTRY_CHAIN(my_object_base)
 	END_CAST_MAP()
 };
 
@@ -62,6 +82,7 @@ class my_module : public com::module<my_module> {
 public:
 	BEGIN_OBJECT_MAP(my_module)
 		OBJECT_ENTRY(my_object)
+		OBJECT_ENTRY(my_object2)
 	END_OBJECT_MAP()
 };
 
@@ -91,6 +112,11 @@ TEST_CASE("module", "[com]") {
 		auto lft = m.create_instance<lifetime>(IIDOF(my_object));
 		REQUIRE(lft);
 		
+		auto lft2 = m.create_instance<lifetime>(IIDOF(my_object2));
+		REQUIRE(lft2);
+		
+		REQUIRE_FALSE(com::same_objects(lft.get(), lft2.get()));
+		
 		obj = lft->get_object();
 		REQUIRE_FALSE(obj.expired());
 		
@@ -105,13 +131,13 @@ TEST_CASE("stack_object", "[com]") {
 	{
 		com::stack_object<my_object> object;
 		
-		auto drw = object.get_unknown()->cast<drawable>();
-		REQUIRE(drw);
+		auto upd = object.get_unknown()->cast<updatable>();
+		REQUIRE(upd);
 		
 		auto lft = object.get_unknown()->cast<lifetime>();
 		REQUIRE(lft);
 		
-		REQUIRE(com::same_objects(drw.get(), drw.get()));
+		REQUIRE(com::same_objects(upd.get(), lft.get()));
 		
 		obj = lft->get_object();
 		REQUIRE_FALSE(obj.expired());
@@ -125,17 +151,14 @@ TEST_CASE("object", "[com]") {
 	
 	{
 		auto object = com::object<my_object>::create_instance();
-		
+
 		auto upd = object->get_unknown()->cast<updatable>();
 		REQUIRE(upd);
 		
-		auto drw = object->get_unknown()->cast<drawable>();
-		REQUIRE(drw);
-		
-		REQUIRE(com::same_objects(upd.get(), drw.get()));
-		
 		auto lft = object->get_unknown()->cast<lifetime>();
 		REQUIRE(lft);
+		
+		REQUIRE(com::same_objects(upd.get(), lft.get()));
 		
 		obj = lft->get_object();
 		REQUIRE_FALSE(obj.expired());
@@ -148,10 +171,7 @@ TEST_CASE("coclass", "[com]") {
 	std::weak_ptr<void> obj;
 	
 	{
-		auto drw = my_object::create_instance<drawable>();
-		REQUIRE(drw);
-			
-		auto upd = drw->cast<updatable>();
+		auto upd = my_object::create_instance<updatable>();
 		REQUIRE(upd);
 		
 		auto lft = upd->cast<lifetime>();

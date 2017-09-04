@@ -122,6 +122,9 @@ public:
 	explicit object_base(unknown* outer = nullptr) noexcept : _outer(outer) {}
 	
 	void set_void(void* p) noexcept {}
+	
+	bool initialize() noexcept { return true; }
+	void uninitialize() noexcept {}
 
 protected:
 	size_t internal_retain() noexcept { return ++_ref_count; }
@@ -142,7 +145,7 @@ protected:
 			return reinterpret_cast<unknown*>(reinterpret_cast<size_t>(pv) + entries[0].data);
 		
 		for (auto entry = entries; entry->func; ++entry) {
-			bool blind = !entries->iid;
+			bool blind = !entry->iid;
 			if (blind || entry->iid == &iid) {
 				if (entry->func == SIMPLE_CAST_ENTRY) {
 					BOOST_ASSERT(!blind);
@@ -201,10 +204,10 @@ protected:
 	};
 };
 
-template <typename T>
-class tear_off_object_base {
+template <typename Owner>
+class tear_off_object_base : public object_base {
 public:
-	using owner_type = T;
+	using owner_type = Owner;
 	
 	void owner(owner_type* owner) noexcept { _owner = owner; }
 	owner_type* owner() noexcept { return _owner; }
@@ -213,7 +216,7 @@ private:
 	owner_type* _owner = nullptr;
 };
 
-#define BEGIN_CAST_MAP(x) protected: \
+#define BEGIN_CAST_MAP(x) public: \
 	static const ::cobalt::com::cast_entry* entries() noexcept { \
 		using cast_map_class = x; \
 		static const ::cobalt::com::cast_entry entries[] = {
@@ -255,14 +258,13 @@ private:
 			{ nullptr, offsetof(cast_map_class, punk), s_delegate },
 	
 #define CAST_ENTRY_CHAIN(class) \
-			{ nullptr, reinterpret_cast<size_t>(&chain_thunk_data<class, cast_map_class>::data), s_chain },
+			{ nullptr, reinterpret_cast<size_t>(&::cobalt::com::chain_thunk_data<class, cast_map_class>::data), s_chain },
 
 #define END_CAST_MAP() \
 			{ nullptr, 0, nullptr } \
 		}; \
 		return entries; \
 	} \
-public: \
 	::cobalt::com::unknown* internal_cast(const ::cobalt::com::iid& iid) noexcept { \
 		return s_internal_cast(this, entries(), iid); \
 	} \
@@ -277,7 +279,8 @@ public: \
 template <typename T>
 class stack_object : public T {
 public:
-	~stack_object() { BOOST_ASSERT(this->_ref_count == 0); }
+	stack_object() { BOOST_VERIFY(this->initialize()); }
+	~stack_object() { this->uninitialize(); BOOST_ASSERT(this->_ref_count == 0); }
 	virtual size_t retain() noexcept override { return this->internal_retain(); }
 	virtual size_t release() noexcept override { return this->internal_release(); }
 	virtual unknown* cast(const iid& iid) noexcept override { return this->internal_cast(iid); }
@@ -287,6 +290,7 @@ template <typename T>
 class object : public T {
 public:
 	explicit object(unknown* outer) noexcept {}
+	~object() { this->uninitialize(); }
 	
 	virtual size_t retain() noexcept override { return this->internal_retain(); }
 	virtual size_t release() noexcept override {
@@ -302,6 +306,13 @@ public:
 		if (outer)
 			return nullptr;
 		auto obj = new(std::nothrow) object<T>(nullptr);
+		if (obj) {
+			obj->set_void(nullptr);
+			if (!obj->initialize()) {
+				delete obj;
+				obj = nullptr;
+			}
+		}
 		return obj;
 	}
 };
@@ -320,6 +331,19 @@ template <class T>
 class aggregatable_object : public unknown, public object_base {
 public:
 	explicit aggregatable_object(unknown* outer) noexcept : _contained(outer ? outer : this) {}
+	~aggregatable_object() {
+		this->uninitialize();
+	}
+	
+	bool initialize() noexcept {
+		object_base::initialize();
+		return _contained.initialize();
+	}
+	
+	void uninitialize() noexcept {
+		object_base::uninitialize();
+		_contained.uninitialize();
+	}
 	
 	virtual size_t retain() noexcept override { return this->internal_retain(); }
 	virtual size_t release() noexcept override {
@@ -336,6 +360,13 @@ public:
 	
 	static aggregatable_object<T>* create_instance(unknown* outer) noexcept {
 		auto obj = new(std::nothrow) aggregatable_object<T>(outer);
+		if (obj) {
+			obj->set_void(nullptr);
+			if (!obj->initialize()) {
+				delete obj;
+				obj = nullptr;
+			}
+		}
 		return obj;
 	}
 
@@ -352,7 +383,7 @@ public:
 		this->owner(reinterpret_cast<typename T::owner_type*>(outer));
 		this->_owner->retain();
 	}
-	~tear_off_object() { this->_owner->release(); }
+	~tear_off_object() { this->uninitialize(); this->_owner->release(); }
 	
 	virtual size_t retain() noexcept override { return this->internal_retain(); }
 	virtual size_t release() noexcept override {
@@ -363,11 +394,6 @@ public:
 	}
 	virtual unknown* cast(const iid& iid) noexcept override {
 		return this->_owner->cast(iid);
-	}
-	
-	static tear_off_object<T>* create_instance(unknown* outer) noexcept {
-		auto obj = new(std::nothrow) tear_off_object<T>(outer);
-		return obj;
 	}
 };
 
@@ -382,6 +408,17 @@ public:
 		this->owner(reinterpret_cast<typename T::owner_type*>(outer));
 		this->_owner->retain();
 	}
+	~cached_tear_off_object() { this->uninitialize(); }
+	
+	bool initialize() noexcept {
+		object_base::initialize();
+		return _contained.initialize();
+	}
+	
+	void uninitialize() noexcept {
+		object_base::uninitialize();
+		_contained.uninitialize();
+	}
 	
 	virtual size_t retain() noexcept override { return this->internal_retain(); }
 	virtual size_t release() noexcept override {
@@ -395,11 +432,6 @@ public:
 			return this;
 		return _contained.internal_cast(iid);
 	}
-	
-	static cached_tear_off_object<T>* create_instance(unknown* outer) noexcept {
-		auto obj = new(std::nothrow) cached_tear_off_object<T>(outer);
-		return obj;
-	}
 
 private:
 	contained_object<T> _contained;
@@ -410,7 +442,12 @@ class creator {
 public:
 	static unknown* create_instance(unknown* outer, const iid& iid) noexcept {
 		auto p = new(std::nothrow) T(outer);
+		if (!p) return nullptr;
 		p->set_void(outer);
+		if (!p->initialize()) {
+			delete p;
+			return nullptr;
+		}
 		unknown* unk = p->cast(iid);
 		if (!unk)
 			delete p;
@@ -423,7 +460,12 @@ class internal_creator {
 public:
 	static unknown* create_instance(unknown* outer, const iid& iid) noexcept {
 		auto p = new(std::nothrow) T(outer);
+		if (!p) return nullptr;
 		p->set_void(outer);
+		if (!p->initialize()) {
+			delete p;
+			return nullptr;
+		}
 		unknown* unk = p->internal_cast(iid);
 		if (!unk)
 			delete p;
@@ -476,6 +518,9 @@ public:
 	void set_void(void* p) noexcept { _creator_fn = reinterpret_cast<creator_fn>(p); }
 	
 	virtual unknown* create_instance(unknown* outer, const iid& iid) noexcept override {
+		BOOST_ASSERT(_creator_fn);
+		BOOST_ASSERT(!outer || (outer && &iid == &IIDOF(unknown)));
+		if (outer && &iid != &IIDOF(unknown)) return nullptr;
 		return _creator_fn(outer, iid);
 	}
 	
@@ -485,12 +530,7 @@ private:
 
 class class_factory_singleton_impl : public object_base, public class_factory {
 public:
-	explicit class_factory_singleton_impl(unknown* outer = nullptr) noexcept
-		: object_base(nullptr)
-		, _creator_fn(reinterpret_cast<creator_fn>(outer))
-	{
-		BOOST_ASSERT(!!_creator_fn);
-	}
+	explicit class_factory_singleton_impl(unknown* outer = nullptr) noexcept {}
 	
 	BEGIN_CAST_MAP(class_factory_singleton_impl)
 		CAST_ENTRY(class_factory)
@@ -499,9 +539,12 @@ public:
 	void set_void(void* p) noexcept { _creator_fn = reinterpret_cast<creator_fn>(p); }
 	
 	virtual unknown* create_instance(unknown* outer, const iid& iid) noexcept override {
+		BOOST_ASSERT(!outer);
+		if (outer) return nullptr;
 		if (!_object) {
+			BOOST_ASSERT(_creator_fn);
 			_object = _creator_fn(outer, iid);
-			BOOST_ASSERT(!!_object);
+			BOOST_ASSERT(_object);
 		}
 		return _object->cast(iid);
 	}
