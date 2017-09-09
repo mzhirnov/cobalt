@@ -35,6 +35,21 @@ public:
 	virtual void draw() override {}
 };
 
+class drawable_tear_off
+	: public com::tear_off_object_base<drawable_tear_off>
+	, public drawable
+{
+public:
+	drawable_tear_off() { puts(__PRETTY_FUNCTION__); }
+	~drawable_tear_off() { puts(__PRETTY_FUNCTION__); }
+
+	BEGIN_CAST_MAP(drawable_tear_off)
+		CAST_ENTRY(drawable)
+	END_CAST_MAP()
+	
+	virtual void draw() override { puts(__PRETTY_FUNCTION__); }
+};
+
 class lifetime_impl : public lifetime {
 public:
 	virtual std::weak_ptr<void> get_object() override { return _object; }
@@ -45,12 +60,10 @@ private:
 
 class my_object_base
 	: public com::object_base
-	, public updatable_impl
 	, public lifetime_impl
 {
 public:
 	BEGIN_CAST_MAP(my_object_base)
-		CAST_ENTRY(updatable)
 		CAST_ENTRY(lifetime)
 	END_CAST_MAP()
 };
@@ -58,6 +71,7 @@ public:
 class my_object
 	: public my_object_base
 	, public com::coclass<my_object>
+	, public updatable_impl
 {
 public:
 	BEGIN_CAST_MAP(my_object)
@@ -69,13 +83,30 @@ public:
 class my_object2
 	: public my_object_base
 	, public com::coclass<my_object2>
-	, public drawable_impl
+	, public updatable_impl
 {
 public:
 	BEGIN_CAST_MAP(my_object2)
-		CAST_ENTRY(drawable)
+		CAST_ENTRY(updatable)
+		CAST_ENTRY_TEAR_OFF(IIDOF(drawable), drawable_tear_off)
 		CAST_ENTRY_CHAIN(my_object_base)
 	END_CAST_MAP()
+};
+
+class my_object3
+	: public my_object_base
+	, public com::coclass<my_object3>
+	, public updatable_impl
+{
+public:
+	BEGIN_CAST_MAP(my_object3)
+		CAST_ENTRY(updatable)
+		CAST_ENTRY_CACHED_TEAR_OFF(IIDOF(drawable), drawable_tear_off, _drawable)
+		CAST_ENTRY_CHAIN(my_object_base)
+	END_CAST_MAP()
+	
+private:
+	ref_ptr<drawable> _drawable;
 };
 
 class my_module : public com::module<my_module> {
@@ -92,13 +123,13 @@ TEST_CASE("module", "[com]") {
 	std::weak_ptr<void> obj;
 	
 	SECTION("get_class_object") {
-		ref_ptr<com::unknown> unk = m.get_class_object(IIDOF(my_object));
+		auto unk = m.get_class_object(IIDOF(my_object));
 		REQUIRE(unk);
 		
-		auto cf = unk->cast<com::class_factory>();
+		auto cf = com::cast<com::class_factory>(unk);
 		REQUIRE(cf);
 		
-		auto lft = cf->create_instance<lifetime>();
+		auto lft = com::cast<lifetime>(cf->create_instance(nullptr, IIDOF(lifetime)));
 		REQUIRE(lft);
 		
 		obj = lft->get_object();
@@ -115,7 +146,7 @@ TEST_CASE("module", "[com]") {
 		auto lft2 = m.create_instance<lifetime>(IIDOF(my_object2));
 		REQUIRE(lft2);
 		
-		REQUIRE_FALSE(com::same_objects(lft.get(), lft2.get()));
+		REQUIRE_FALSE(com::same_objects(lft, lft2));
 		
 		obj = lft->get_object();
 		REQUIRE_FALSE(obj.expired());
@@ -131,13 +162,13 @@ TEST_CASE("stack_object", "[com]") {
 	{
 		com::stack_object<my_object> object;
 		
-		auto upd = object.get_unknown()->cast<updatable>();
+		auto upd = com::cast<updatable>(object.get_unknown());
 		REQUIRE(upd);
 		
-		auto lft = object.get_unknown()->cast<lifetime>();
+		auto lft = com::cast<lifetime>(object.get_unknown());
 		REQUIRE(lft);
 		
-		REQUIRE(com::same_objects(upd.get(), lft.get()));
+		REQUIRE(com::same_objects(upd, lft));
 		
 		obj = lft->get_object();
 		REQUIRE_FALSE(obj.expired());
@@ -152,13 +183,13 @@ TEST_CASE("object", "[com]") {
 	{
 		auto object = com::object<my_object>::create_instance();
 
-		auto upd = object->get_unknown()->cast<updatable>();
+		auto upd = com::cast<updatable>(object->get_unknown());
 		REQUIRE(upd);
 		
-		auto lft = object->get_unknown()->cast<lifetime>();
+		auto lft = com::cast<lifetime>(object->get_unknown());
 		REQUIRE(lft);
 		
-		REQUIRE(com::same_objects(upd.get(), lft.get()));
+		REQUIRE(com::same_objects(upd, lft));
 		
 		obj = lft->get_object();
 		REQUIRE_FALSE(obj.expired());
@@ -174,12 +205,74 @@ TEST_CASE("coclass", "[com]") {
 		auto upd = my_object::create_instance<updatable>();
 		REQUIRE(upd);
 		
-		auto lft = upd->cast<lifetime>();
+		auto lft = com::cast<lifetime>(upd);
 		REQUIRE(lft);
 		
-		REQUIRE(com::same_objects(upd.get(), lft.get()));
+		REQUIRE(com::same_objects(upd, lft));
 		
 		obj = lft->get_object();
+		REQUIRE_FALSE(obj.expired());
+	}
+	
+	REQUIRE(obj.expired());
+}
+
+TEST_CASE("tear_off", "[com]") {
+	std::weak_ptr<void> obj;
+	
+	{
+		auto upd = my_object2::create_instance<updatable>();
+		REQUIRE(upd);
+		
+		auto lft = com::cast<lifetime>(upd);
+		REQUIRE(lft);
+		
+		auto drw = com::cast<drawable>(lft);
+		REQUIRE(drw);
+		
+		drw->draw();
+		
+		REQUIRE(com::same_objects(upd, lft));
+		REQUIRE(com::same_objects(lft, drw));
+		REQUIRE(com::same_objects(drw, upd));
+		
+		obj = lft->get_object();
+		REQUIRE_FALSE(obj.expired());
+		
+		upd.reset();
+		lft.reset();
+		
+		REQUIRE_FALSE(obj.expired());
+	}
+	
+	REQUIRE(obj.expired());
+}
+
+TEST_CASE("cached_tear_off", "[com]") {
+	std::weak_ptr<void> obj;
+	
+	{
+		auto upd = my_object3::create_instance<updatable>();
+		REQUIRE(upd);
+		
+		auto lft = com::cast<lifetime>(upd);
+		REQUIRE(lft);
+		
+		auto drw = com::cast<drawable>(lft);
+		REQUIRE(drw);
+		
+		drw->draw();
+		
+		REQUIRE(com::same_objects(upd, lft));
+		REQUIRE(com::same_objects(lft, drw));
+		REQUIRE(com::same_objects(drw, upd));
+		
+		obj = lft->get_object();
+		REQUIRE_FALSE(obj.expired());
+		
+		upd.reset();
+		lft.reset();
+		
 		REQUIRE_FALSE(obj.expired());
 	}
 	
