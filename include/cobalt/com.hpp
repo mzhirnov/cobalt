@@ -56,16 +56,15 @@ template <typename T>
 inline ref_ptr<T> cast(unknown* unk) noexcept { return static_cast<T*>(unk->cast(IIDOF(T))); }
 
 template <typename T>
-inline ref_ptr<T> cast(const ref_ptr<unknown>& unk) noexcept { return static_cast<T*>(unk->cast(IIDOF(T))); }
+inline ref_ptr<T> cast(const ref_ptr<unknown>& unk) noexcept { return cast<T>(unk.get()); }
 
 inline bool same_objects(unknown* obj1, unknown* obj2) noexcept {
 	if (!obj1 || !obj2) return obj1 == obj2;		
-	return cast<unknown>(obj1) == cast<unknown>(obj2);
+	return obj1->cast(IIDOF(unknown)) == obj2->cast(IIDOF(unknown));
 }
 
 inline bool same_objects(const ref_ptr<unknown>& obj1, const ref_ptr<unknown>& obj2) noexcept {
-	if (!obj1 || !obj2) return obj1 == obj2;		
-	return cast<unknown>(obj1) == cast<unknown>(obj2);
+	return same_objects(obj1.get(), obj2.get());
 }
 
 #define OFFSETOFCLASS(base, derived) \
