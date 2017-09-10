@@ -36,8 +36,7 @@ using clsid = iid;
 
 #define IIDOF(x) type_id<x>().type_info()
 
-class unknown {
-public:
+struct unknown {
 	virtual ~unknown() = default;
 	virtual size_t retain() noexcept = 0;
 	virtual size_t release() noexcept = 0;
@@ -47,31 +46,30 @@ public:
 	friend void intrusive_ptr_release(unknown* p) noexcept { p->release(); }
 };
 
-class class_factory : public unknown {
-public:
+struct class_factory : unknown {
 	virtual unknown* create_instance(unknown* outer, const iid& iid) noexcept = 0;
 };
 
-template <typename T>
-inline ref_ptr<T> cast(unknown* unk) noexcept { return static_cast<T*>(unk->cast(IIDOF(T))); }
-
-template <typename T>
-inline ref_ptr<T> cast(const ref_ptr<unknown>& unk) noexcept { return cast<T>(unk.get()); }
+template <typename T> inline ref_ptr<T> cast(unknown* unk) noexcept { return static_cast<T*>(unk->cast(IIDOF(T))); }
+template <typename T> inline ref_ptr<T> cast(const ref_ptr<unknown>& unk) noexcept { return cast<T>(unk.get()); }
 
 inline bool same_objects(unknown* obj1, unknown* obj2) noexcept {
-	if (!obj1 || !obj2) return obj1 == obj2;		
+	if (!obj1 || !obj2) return obj1 == obj2;
+	// Called from any implemented interface, `cast` *must* return the same pointer to `unknown`
 	return obj1->cast(IIDOF(unknown)) == obj2->cast(IIDOF(unknown));
 }
 
-inline bool same_objects(const ref_ptr<unknown>& obj1, const ref_ptr<unknown>& obj2) noexcept {
-	return same_objects(obj1.get(), obj2.get());
-}
+inline bool same_objects(const ref_ptr<unknown>& obj1, const ref_ptr<unknown>& obj2) noexcept { return same_objects(obj1.get(), obj2.get()); }
+inline bool same_objects(const ref_ptr<unknown>& obj1, unknown* obj2) noexcept { return same_objects(obj1.get(), obj2); }
+inline bool same_objects(unknown* obj1, const ref_ptr<unknown>& obj2) noexcept { return same_objects(obj1, obj2.get()); }
+
+#define _PACKSZ 8
 
 #define OFFSETOFCLASS(base, derived) \
-	(reinterpret_cast<size_t>(static_cast<base*>((derived*)8)) - 8)
+	(reinterpret_cast<size_t>(static_cast<base*>((derived*)_PACKSZ))-_PACKSZ)
 	
 #define OFFSETOFCLASS2(base, base2, derived) \
-	(reinterpret_cast<size_t>(static_cast<base*>(static_cast<base2*>((derived*)8))) - 8)
+	(reinterpret_cast<size_t>(static_cast<base*>(static_cast<base2*>((derived*)_PACKSZ)))-_PACKSZ)
 	
 #define SIMPLE_CAST_ENTRY (::cobalt::com::cast_fn)1
 
@@ -84,49 +82,49 @@ struct cast_entry {
 	cast_fn func;
 };
 
-struct creator_thunk {
+struct creator_data {
 	create_fn func;
 };
 
 template <class Creator>
-struct creator_thunk_data {
-	static creator_thunk data;
+struct creator_thunk {
+	static creator_data data;
 };
 
 template <class Creator>
-creator_thunk creator_thunk_data<Creator>::data = { Creator::create_instance };
+creator_data creator_thunk<Creator>::data = { Creator::create_instance };
 
-struct cache_thunk {
+struct cache_data {
 	size_t offset;
 	create_fn func;
 };
 
 template <typename Creator, size_t Offset>
-struct cache_thunk_data {
-	static cache_thunk data;
+struct cache_thunk {
+	static cache_data data;
 };
 
 template <typename Creator, size_t Offset>
-cache_thunk cache_thunk_data<Creator, Offset>::data = { Offset, Creator::create_instance };
+cache_data cache_thunk<Creator, Offset>::data = { Offset, Creator::create_instance };
 
-struct chain_thunk {
+struct chain_data {
 	size_t offset;
 	const cast_entry* (*func)() noexcept;
 };
 
 template <typename Base, typename Derived>
-struct chain_thunk_data {
-	static chain_thunk data;
+struct chain_thunk {
+	static chain_data data;
 };
 
 template <typename Base, typename Derived>
-chain_thunk chain_thunk_data<Base, Derived>::data = { OFFSETOFCLASS(Base, Derived), Base::entries };
+chain_data chain_thunk<Base, Derived>::data = { OFFSETOFCLASS(Base, Derived), Base::cast_entries };
 
 class object_base {
 public:
 	explicit object_base(unknown* outer = nullptr) noexcept : _outer(outer) {}
 	
-	void set_void(void* p) noexcept {}
+	void set_void(void* pv) noexcept {}
 	
 	bool initialize() noexcept { return true; }
 	void shutdown() noexcept {}
@@ -180,14 +178,14 @@ protected:
 	}
 	
 	static unknown* s_create(void* pv, const iid& iid, size_t data) noexcept {
-		creator_thunk* thunk = reinterpret_cast<creator_thunk*>(data);
-		return thunk->func(reinterpret_cast<unknown*>(pv), iid);
+		creator_data* cd = reinterpret_cast<creator_data*>(data);
+		return cd->func(reinterpret_cast<unknown*>(pv), iid);
 	}
 	
 	static unknown* s_cache(void* pv, const iid& iid, size_t data) noexcept {
-		cache_thunk* thunk = reinterpret_cast<cache_thunk*>(data);
-		unknown** unk = reinterpret_cast<unknown**>((reinterpret_cast<size_t>(pv) + thunk->offset));
-		if (!*unk && (*unk = thunk->func(reinterpret_cast<unknown*>(pv), IIDOF(unknown))))
+		cache_data* cd = reinterpret_cast<cache_data*>(data);
+		unknown** unk = reinterpret_cast<unknown**>((reinterpret_cast<size_t>(pv) + cd->offset));
+		if (!*unk && (*unk = cd->func(reinterpret_cast<unknown*>(pv), IIDOF(unknown))))
 			(*unk)->retain();
 		return *unk ? (*unk)->cast(iid) : nullptr;
 	}
@@ -198,9 +196,9 @@ protected:
 	}
 	
 	static unknown* s_chain(void* pv, const iid& iid, size_t data) noexcept {
-		chain_thunk* thunk = reinterpret_cast<chain_thunk*>(data);
-		void* p = reinterpret_cast<void*>((reinterpret_cast<size_t>(pv) + thunk->offset));
-		return s_internal_cast(p, thunk->func(), iid);
+		chain_data* cd = reinterpret_cast<chain_data*>(data);
+		void* p = reinterpret_cast<void*>((reinterpret_cast<size_t>(pv) + cd->offset));
+		return s_internal_cast(p, cd->func(), iid);
 	}
 	
 protected:
@@ -223,15 +221,21 @@ private:
 };
 
 #define BEGIN_CAST_MAP(x) public: \
-	static const ::cobalt::com::cast_entry* entries() noexcept { \
+	static const ::cobalt::com::cast_entry* cast_entries() noexcept { \
 		using cast_map_class = x; \
 		static const ::cobalt::com::cast_entry entries[] = {
 
 #define CAST_ENTRY_BREAK(x) \
-			{ &IIDOF(x), nullptr, s_break },
+			{ &IIDOF(x), 0, s_break },
 	
 #define CAST_ENTRY_NOINTERFACE(x) \
-			{ &IIDOF(x), nullptr, s_nointerface },
+			{ &IIDOF(x), 0, s_nointerface },
+	
+#define CAST_ENTRY_FUNC(iid, data, func) \
+			{ &iid, data, func },
+
+#define CAST_ENTRY_FUNC_BLIND(data, func) \
+			{ nullptr, data, func }
 
 #define CAST_ENTRY(x) \
 			{ &IIDOF(x), OFFSETOFCLASS(x, cast_map_class), SIMPLE_CAST_ENTRY },
@@ -245,18 +249,12 @@ private:
 #define CAST_ENTRY2_IID(iid, x, x2) \
 			{ &iid, OFFSETOFCLASS2(x, x2, cast_map_class), SIMPLE_CAST_ENTRY },
 	
-#define CAST_ENTRY_FUNC(iid, data, func) \
-			{ &iid, data, func },
-
-#define CAST_ENTRY_FUNC_BLIND(data, func) \
-			{ nullptr, data, func }
-	
 #define CAST_ENTRY_TEAR_OFF(iid, x) \
-			{ &iid, reinterpret_cast<size_t>(&::cobalt::com::creator_thunk_data< \
+			{ &iid, reinterpret_cast<size_t>(&::cobalt::com::creator_thunk< \
 				::cobalt::com::internal_creator<::cobalt::com::tear_off_object<x>>>::data), s_create },
 	
 #define CAST_ENTRY_CACHED_TEAR_OFF(iid, x, punk) \
-			{ &iid, reinterpret_cast<size_t>(&::cobalt::com::cache_thunk_data< \
+			{ &iid, reinterpret_cast<size_t>(&::cobalt::com::cache_thunk< \
 				::cobalt::com::creator<::cobalt::com::cached_tear_off_object<x>>, offsetof(cast_map_class, punk)>::data), s_cache },
 	
 #define CAST_ENTRY_AGGREGATE(iid, punk) \
@@ -266,7 +264,7 @@ private:
 			{ nullptr, offsetof(cast_map_class, punk), s_delegate },
 	
 #define CAST_ENTRY_CHAIN(class) \
-			{ nullptr, reinterpret_cast<size_t>(&::cobalt::com::chain_thunk_data<class, cast_map_class>::data), s_chain },
+			{ nullptr, reinterpret_cast<size_t>(&::cobalt::com::chain_thunk<class, cast_map_class>::data), s_chain },
 
 #define END_CAST_MAP() \
 			{ nullptr, 0, nullptr } \
@@ -274,13 +272,13 @@ private:
 		return entries; \
 	} \
 	::cobalt::com::unknown* internal_cast(const ::cobalt::com::iid& iid) noexcept { \
-		return s_internal_cast(this, entries(), iid); \
+		return s_internal_cast(this, cast_entries(), iid); \
 	} \
-	::cobalt::com::unknown* get_unknown() noexcept { \
-		BOOST_ASSERT(entries()->func == SIMPLE_CAST_ENTRY); \
-		return reinterpret_cast<::cobalt::com::unknown*>(reinterpret_cast<size_t>(this) + entries()->data); \
+	::cobalt::com::unknown* get_unknown() const noexcept { \
+		BOOST_ASSERT(cast_entries()->func == SIMPLE_CAST_ENTRY); \
+		return reinterpret_cast<::cobalt::com::unknown*>(reinterpret_cast<size_t>(this) + cast_entries()->data); \
 	} \
-	virtual ::cobalt::com::unknown* outer_object() noexcept { \
+	virtual ::cobalt::com::unknown* controlling_unknown() const noexcept { \
 		return get_unknown(); \
 	}
 
@@ -332,7 +330,7 @@ public:
 	virtual size_t retain() noexcept override { return this->outer_retain(); }
 	virtual size_t release() noexcept override { return this->outer_release(); }
 	virtual unknown* cast(const iid& iid) noexcept override { return this->outer_cast(iid); }
-	virtual unknown* outer_object() noexcept override { return this->_outer; }
+	virtual unknown* controlling_unknown() const noexcept override { return this->_outer; }
 };
 
 template <class T>
@@ -407,7 +405,7 @@ template <class T>
 class cached_tear_off_object : public unknown, public object_base {
 public:
 	explicit cached_tear_off_object(unknown* outer) noexcept
-		: _contained(static_cast<typename T::owner_type*>(outer)->outer_object())
+		: _contained(static_cast<typename T::owner_type*>(outer)->controlling_unknown())
 	{
 		BOOST_ASSERT(!_contained.owner());
 		BOOST_ASSERT(!!outer);
