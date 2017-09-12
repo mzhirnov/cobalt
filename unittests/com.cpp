@@ -231,12 +231,67 @@ TEST_CASE("cached_tear_off", "[com]") {
 	REQUIRE(obj.expired());
 }
 
+class my_object4
+	: public com::object_base
+	, public lifetime_impl
+	, public com::coclass<my_object4>
+{
+public:
+	BEGIN_CAST_MAP(my_object4)
+		CAST_ENTRY(lifetime)
+		CAST_ENTRY_AGGREGATE_BLIND(_drawable)
+	END_CAST_MAP()
+	
+	bool initialize() noexcept {
+		_drawable = my_object3::create_instance<unknown>(get_unknown());
+		return !!_drawable;
+	}
+	
+	void shutdown() noexcept {
+	}
+
+private:
+	ref_ptr<unknown> _drawable;
+};
+
+TEST_CASE("aggregate", "[com]") {
+	std::weak_ptr<void> obj;
+	
+	{
+		auto lft = my_object4::create_instance<lifetime>();
+		REQUIRE(lft);
+		
+		auto drw = com::cast<drawable>(lft);
+		REQUIRE(drw);
+		
+		auto upd = com::cast<drawable>(drw);
+		REQUIRE(upd);
+		
+		drw->draw();
+		
+		REQUIRE(com::same_objects(upd, lft));
+		REQUIRE(com::same_objects(lft, drw));
+		REQUIRE(com::same_objects(drw, upd));
+		
+		obj = lft->get_object();
+		REQUIRE_FALSE(obj.expired());
+		
+		lft.reset();
+		upd.reset();
+		
+		REQUIRE_FALSE(obj.expired());
+	}
+	
+	REQUIRE(obj.expired());
+}
+
 class my_module : public com::module<my_module> {
 public:
 	BEGIN_OBJECT_MAP(my_module)
 		OBJECT_ENTRY(my_object)
 		OBJECT_ENTRY(my_object2)
 		OBJECT_ENTRY_NON_CREATEABLE(my_object3)
+		OBJECT_ENTRY_NON_CREATEABLE(my_object4)
 	END_OBJECT_MAP()
 };
 

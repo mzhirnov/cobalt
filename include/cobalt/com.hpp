@@ -71,6 +71,8 @@ inline bool same_objects(unknown* obj1, const ref_ptr<unknown>& obj2) noexcept {
 #define OFFSETOFCLASS2(base, base2, derived) \
 	(reinterpret_cast<size_t>(static_cast<base*>(static_cast<base2*>((derived*)_PACKSZ)))-_PACKSZ)
 	
+#define OFFSETOF(type, member) ((size_t)&(((type*)0)->member))
+	
 #define SIMPLE_CAST_ENTRY (::cobalt::com::cast_fn)1
 
 using create_fn = unknown* (*)(unknown* outer, const iid& iid);
@@ -258,10 +260,10 @@ private:
 				::cobalt::com::creator<::cobalt::com::cached_tear_off_object<x>>, offsetof(cast_map_class, punk)>::data), s_cache },
 	
 #define CAST_ENTRY_AGGREGATE(iid, punk) \
-			{ &iid, offsetof(cast_map_class, punk), s_delegate },
+			{ &iid, OFFSETOF(cast_map_class, punk), s_delegate },
 	
 #define CAST_ENTRY_AGGREGATE_BLIND(punk) \
-			{ nullptr, offsetof(cast_map_class, punk), s_delegate },
+			{ nullptr, OFFSETOF(cast_map_class, punk), s_delegate },
 	
 #define CAST_ENTRY_CHAIN(class) \
 			{ nullptr, reinterpret_cast<size_t>(&::cobalt::com::chain_thunk<class, cast_map_class>::data), s_chain },
