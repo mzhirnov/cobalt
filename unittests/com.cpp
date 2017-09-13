@@ -84,6 +84,7 @@ TEST_CASE("stack_object", "[com]") {
 	
 	{
 		com::stack_object<my_object> object;
+		REQUIRE(object.initialization_result());
 		
 		auto upd = com::cast<updatable>(object.get_unknown());
 		REQUIRE(upd);

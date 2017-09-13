@@ -124,7 +124,7 @@ chain_data chain_thunk<Base, Derived>::data = { OFFSETOFCLASS(Base, Derived), Ba
 
 class object_base {
 public:
-	explicit object_base(unknown* outer = nullptr) noexcept : _outer(outer) {}
+	object_base() noexcept = default;
 	
 	void set_void(void* pv) noexcept {}
 	
@@ -252,12 +252,12 @@ private:
 			{ &iid, OFFSETOFCLASS2(x, x2, cast_map_class), SIMPLE_CAST_ENTRY },
 	
 #define CAST_ENTRY_TEAR_OFF(iid, x) \
-			{ &iid, reinterpret_cast<size_t>(&::cobalt::com::creator_thunk< \
-				::cobalt::com::internal_creator<::cobalt::com::tear_off_object<x>>>::data), s_create },
+			{ &iid, reinterpret_cast<size_t>(&::cobalt::com::creator_thunk<::cobalt::com::internal_creator< \
+				::cobalt::com::tear_off_object<x>>>::data), s_create },
 	
 #define CAST_ENTRY_CACHED_TEAR_OFF(iid, x, punk) \
-			{ &iid, reinterpret_cast<size_t>(&::cobalt::com::cache_thunk< \
-				::cobalt::com::creator<::cobalt::com::cached_tear_off_object<x>>, offsetof(cast_map_class, punk)>::data), s_cache },
+			{ &iid, reinterpret_cast<size_t>(&::cobalt::com::cache_thunk<::cobalt::com::creator< \
+				::cobalt::com::cached_tear_off_object<x>>, offsetof(cast_map_class, punk)>::data), s_cache },
 	
 #define CAST_ENTRY_AGGREGATE(iid, punk) \
 			{ &iid, OFFSETOF(cast_map_class, punk), s_delegate },
@@ -287,11 +287,37 @@ private:
 template <typename T>
 class stack_object : public T {
 public:
-	stack_object() { BOOST_VERIFY(this->initialize()); }
-	~stack_object() { this->shutdown(); BOOST_ASSERT(this->_ref_count == 0); }
-	virtual size_t retain() noexcept override { return this->internal_retain(); }
-	virtual size_t release() noexcept override { return this->internal_release(); }
+	explicit stack_object(unknown* outer = nullptr) noexcept {
+		BOOST_ASSERT(!outer);
+		this->set_void(nullptr);
+		BOOST_VERIFY(_initialization_result = this->initialize());
+	}
+	~stack_object() {
+		this->shutdown();
+		BOOST_ASSERT(this->_ref_count == 0);
+	}
+	
+	bool initialization_result() const noexcept { return _initialization_result; }
+	
+	virtual size_t retain() noexcept override {
+#ifdef BOOST_ASSERT_IS_VOID
+		return 0;
+#else
+		return this->internal_retain();
+#endif
+	}
+	virtual size_t release() noexcept override {
+#ifdef BOOST_ASSERT_IS_VOID
+		return 0;
+#else
+		return this->internal_release();
+#endif
+	}
+	
 	virtual unknown* cast(const iid& iid) noexcept override { return this->internal_cast(iid); }
+	
+private:
+	bool _initialization_result;
 };
 
 template <typename T>
@@ -342,8 +368,8 @@ public:
 	~aggregatable_object() { this->shutdown(); }
 	
 	bool initialize() noexcept {
-		object_base::initialize();
-		return _contained.initialize();
+		return object_base::initialize()
+			&& _contained.initialize();
 	}
 	
 	void shutdown() noexcept {
@@ -389,7 +415,10 @@ public:
 		this->owner(static_cast<typename T::owner_type*>(outer));
 		this->owner()->retain();
 	}
-	~tear_off_object() { this->shutdown(); this->owner()->release(); }
+	~tear_off_object() {
+		this->shutdown();
+		this->owner()->release();
+	}
 	
 	virtual size_t retain() noexcept override { return this->internal_retain(); }
 	virtual size_t release() noexcept override {
@@ -416,8 +445,8 @@ public:
 	~cached_tear_off_object() { this->shutdown(); }
 	
 	bool initialize() noexcept {
-		object_base::initialize();
-		return _contained.initialize();
+		return object_base::initialize()
+			&& _contained.initialize();
 	}
 	
 	void shutdown() noexcept {
@@ -443,8 +472,7 @@ private:
 };
 
 template <typename T>
-class creator {
-public:
+struct creator {
 	static unknown* create_instance(unknown* outer, const iid& iid) noexcept {
 		auto p = new(std::nothrow) T(outer);
 		if (!p) return nullptr;
@@ -461,8 +489,7 @@ public:
 };
 
 template <typename T>
-class internal_creator {
-public:
+struct internal_creator {
 	static unknown* create_instance(unknown* outer, const iid& iid) noexcept {
 		auto p = new(std::nothrow) T(outer);
 		if (!p) return nullptr;
@@ -479,16 +506,14 @@ public:
 };
 
 template <typename T1, typename T2>
-class creator2 {
-public:
+struct creator2 {
 	static unknown* create_instance(unknown* outer, const iid& iid) noexcept {
 		return !outer ? T1::create_instance(nullptr, iid) :
 		                T2::create_instance(outer, iid);
 	}
 };
 
-class fail_creator {
-public:
+struct fail_creator {
 	static unknown* create_instance(unknown* outer, const iid& iid) noexcept {
 		return nullptr;
 	}
@@ -514,7 +539,7 @@ public:
 
 class class_factory_impl : public object_base, public class_factory {
 public:
-	explicit class_factory_impl(unknown* outer = nullptr) noexcept {}
+	class_factory_impl() noexcept = default;
 	
 	BEGIN_CAST_MAP(class_factory_impl)
 		CAST_ENTRY(class_factory)
@@ -535,7 +560,7 @@ private:
 
 class class_factory_singleton_impl : public object_base, public class_factory {
 public:
-	explicit class_factory_singleton_impl(unknown* outer = nullptr) noexcept {}
+	class_factory_singleton_impl() noexcept = default;
 	
 	BEGIN_CAST_MAP(class_factory_singleton_impl)
 		CAST_ENTRY(class_factory)
@@ -560,10 +585,12 @@ private:
 };
 
 #define DECLARE_CLASSFACTORY() \
-	using class_factory_creator_type = ::cobalt::com::creator<::cobalt::com::object<::cobalt::com::class_factory_impl>>;
+	using class_factory_creator_type = \
+		::cobalt::com::creator<::cobalt::com::object<::cobalt::com::class_factory_impl>>;
 	
 #define DECLARE_CLASSFACTORY_SINGLETON() \
-	using class_factory_creator_type = ::cobalt::com::creator<::cobalt::com::object<::cobalt::com::class_factory_singleton_impl>>;
+	using class_factory_creator_type = \
+		::cobalt::com::creator<::cobalt::com::object<::cobalt::com::class_factory_singleton_impl>>;
 
 template <typename T>
 class coclass {
