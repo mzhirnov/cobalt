@@ -76,7 +76,7 @@ inline bool stream::can_seek() noexcept {
 }
 
 inline void stream::copy_to(stream& stream, std::error_code& ec) noexcept {
-	ec = std::error_code();
+	ec.clear();
 	
 	constexpr size_t buffer_size = 65536;
 	stream::value_type buffer[buffer_size];
@@ -103,7 +103,7 @@ inline void stream::copy_to(stream& stream, size_t max_bytes, std::error_code& e
 		return;
 	}
 	
-	ec = std::error_code();
+	ec.clear();
 	
 	constexpr size_t buffer_size = 65536;
 	stream::value_type buffer[buffer_size];
@@ -200,7 +200,7 @@ inline size_t memory_stream::write(const void* buffer, size_t size, std::error_c
 }
 
 inline void memory_stream::flush(std::error_code& ec) const noexcept {
-	ec = std::error_code();
+	ec.clear();
 }
 
 inline int64_t memory_stream::seek(int64_t offset, seek_origin origin, std::error_code& ec) noexcept {
@@ -208,7 +208,7 @@ inline int64_t memory_stream::seek(int64_t offset, seek_origin origin, std::erro
 }
 
 inline int64_t memory_stream::tell(std::error_code& ec) const noexcept {
-	ec = std::error_code();
+	ec.clear();
 	return _position;
 }
 
@@ -219,7 +219,7 @@ inline bool memory_stream::eof(std::error_code& ec) const noexcept {
 }
 
 inline size_t memory_stream::read_impl(void* buffer, size_t size, std::error_code& ec, std::true_type) noexcept {
-	ec = std::error_code();
+	ec.clear();
 	
 	size_t count = std::min(_vec->size() - _position, size);
 	if (count > 0) {
@@ -232,7 +232,7 @@ inline size_t memory_stream::read_impl(void* buffer, size_t size, std::error_cod
 }
 
 inline size_t memory_stream::read_impl(void* buffer, size_t size, std::error_code& ec, std::false_type) noexcept {
-	ec = std::error_code();
+	ec.clear();
 	
 	size_t count = std::min(_size - _position, size);
 	if (count > 0) {
@@ -266,7 +266,7 @@ inline size_t memory_stream::write_impl(const void* buffer, size_t size, std::er
 
 	_position += size;
 	
-	ec = std::error_code();
+	ec.clear();
 	
 	return size;
 }
@@ -287,7 +287,7 @@ inline size_t memory_stream::write_impl(const void* buffer, size_t size, std::er
 }
 
 inline int64_t memory_stream::seek_impl(int64_t offset, seek_origin origin, size_t size, std::error_code& ec) noexcept {
-	ec = std::error_code();
+	ec.clear();
 	
 	switch (origin) {
 	case seek_origin::begin:
@@ -337,7 +337,7 @@ inline void file_stream::open(const char* filename, open_mode mode, access_mode 
 	
 	_access = access;
 	
-	ec = std::error_code();
+	ec.clear();
 	
 	switch (access) {
 	case access_mode::read_only:
@@ -392,7 +392,7 @@ inline void file_stream::open(const char* filename, open_mode open_mode, access_
 }
 
 inline void file_stream::close(std::error_code& ec) noexcept {
-	ec = std::error_code();
+	ec.clear();
 	if (_fp) {
 		if (std::fclose(_fp) != 0)
 			ec = std::make_error_code(std::errc::bad_file_descriptor);
@@ -421,7 +421,7 @@ inline size_t file_stream::read(void* buffer, size_t size, std::error_code& ec) 
 		return 0;
 	}
 	
-	ec = std::error_code();
+	ec.clear();
 	
 	auto read = std::fread(buffer, 1, size, _fp);
 	if (read < size && std::ferror(_fp))
@@ -442,7 +442,7 @@ inline size_t file_stream::write(const void* buffer, size_t size, std::error_cod
 		return 0;
 	}
 	
-	ec = std::error_code();
+	ec.clear();
 	
 	auto written = std::fwrite(buffer, 1, size, _fp);
 	if (written < size)
@@ -458,7 +458,7 @@ inline void file_stream::flush(std::error_code& ec) const noexcept {
 		return;
 	}
 	
-	ec = std::error_code();
+	ec.clear();
 	
 	if (std::fflush(_fp) != 0)
 		ec = std::make_error_code(std::errc::io_error);
@@ -503,7 +503,7 @@ inline int64_t file_stream::seek(int64_t offset, seek_origin origin, std::error_
 		}
 	}
 	
-	ec = std::error_code();
+	ec.clear();
 	
 	// Clear error and EOF flags to make rewinding possible
 	std::clearerr(_fp);
@@ -525,7 +525,7 @@ inline int64_t file_stream::tell(std::error_code& ec) const noexcept {
 		return 0;
 	}
 	
-	ec = std::error_code();
+	ec.clear();
 	
 	auto pos = std::ftell(_fp);
 	if (pos == -1)
@@ -541,7 +541,7 @@ inline bool file_stream::eof(std::error_code& ec) const noexcept {
 		return 0;
 	}
 	
-	ec = std::error_code();
+	ec.clear();
 	
 	auto ret = std::feof(_fp);
 	if (std::ferror(_fp))
@@ -669,7 +669,7 @@ inline bool stream_view::eof(std::error_code& ec) const noexcept {
 
 template <typename OutputIterator>
 inline size_t copy(stream& stream, OutputIterator it, std::error_code& ec) noexcept {
-	ec = std::error_code();
+	ec.clear();
 	
 	size_t count = 0;
 	constexpr size_t buffer_size = 65536;
@@ -690,7 +690,7 @@ inline size_t copy(stream& stream, OutputIterator it, std::error_code& ec) noexc
 
 template <typename OutputIterator>
 inline size_t copy(stream& stream, OutputIterator it, size_t max_bytes, std::error_code& ec) noexcept {
-	ec = std::error_code();
+	ec.clear();
 	
 	size_t count = 0;
 	constexpr size_t buffer_size = 65536;
@@ -713,7 +713,7 @@ inline size_t copy(stream& stream, OutputIterator it, size_t max_bytes, std::err
 
 template <typename InputIterator>
 inline size_t copy(InputIterator begin, InputIterator end, stream& stream, std::error_code& ec) noexcept {
-	ec = std::error_code();
+	ec.clear();
 	
 	size_t count = 0;
 	
