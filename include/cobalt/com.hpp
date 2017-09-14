@@ -130,6 +130,9 @@ public:
 	
 	bool initialize() noexcept { return true; }
 	void shutdown() noexcept {}
+	
+	static void s_initialize() noexcept {}
+	static void s_shutdown() noexcept {}
 
 protected:
 	size_t internal_retain() noexcept { return ++_ref_count; }
@@ -264,6 +267,14 @@ private:
 	
 #define CAST_ENTRY_AGGREGATE_BLIND(punk) \
 			{ nullptr, OFFSETOF(cast_map_class, punk), s_delegate },
+	
+#define CAST_ENTRY_AUTOAGGREGATE(iid, x, punk) \
+			{ &iid, reinterpret_cast<size_t>(&::cobalt::com::cache_thunk<::cobalt::com::creator< \
+				::cobalt::com::aggregatable_object<x>>, offsetof(cast_map_class, punk)>::data), s_cache },
+	
+#define CAST_ENTRY_AUTOAGGREGATE_BLIND(x, punk) \
+			{ nullptr, reinterpret_cast<size_t>(&::cobalt::com::cache_thunk<::cobalt::com::creator< \
+				::cobalt::com::aggregatable_object<x>>, offsetof(cast_map_class, punk)>::data), s_cache },
 	
 #define CAST_ENTRY_CHAIN(class) \
 			{ nullptr, reinterpret_cast<size_t>(&::cobalt::com::chain_thunk<class, cast_map_class>::data), s_chain },
@@ -598,10 +609,7 @@ public:
 	DECLARE_AGGREGATABLE(T)
 	DECLARE_CLASSFACTORY()
 	
-	static const clsid& s_class_id() noexcept { return IIDOF(T); }
-	
-	static void s_initialize() noexcept {}
-	static void s_shutdown() noexcept {}
+	static const clsid& s_object_clsid() noexcept { return IIDOF(T); }
 	
 	template <typename Q>
 	static ref_ptr<Q> create_instance(unknown* outer = nullptr) noexcept {
@@ -615,7 +623,7 @@ public:
 		static const object_entry entries[] = {
 	
 #define OBJECT_ENTRY(class) {\
-			&class::s_class_id(), \
+			&class::s_object_clsid(), \
 			&class::class_factory_creator_type::create_instance, \
 			&class::creator_type::create_instance, \
 			nullptr, \
@@ -623,7 +631,7 @@ public:
 			&class::s_shutdown },
 	
 #define OBJECT_ENTRY_NON_CREATEABLE(class) \
-			{ &class::s_class_id(), nullptr, nullptr, nullptr, &class::s_initialize, &class::s_shutdown },
+			{ &class::s_object_clsid(), nullptr, nullptr, nullptr, &class::s_initialize, &class::s_shutdown },
 
 #define END_OBJECT_MAP() \
 			{ nullptr, nullptr, nullptr, nullptr, nullptr, nullptr } \

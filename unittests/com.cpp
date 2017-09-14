@@ -240,22 +240,14 @@ class my_object4
 public:
 	BEGIN_CAST_MAP(my_object4)
 		CAST_ENTRY(lifetime)
-		CAST_ENTRY_AGGREGATE_BLIND(_drawable)
+		CAST_ENTRY_AUTOAGGREGATE(IIDOF(drawable), my_object3, _drawable)
 	END_CAST_MAP()
-	
-	bool initialize() noexcept {
-		_drawable = my_object3::create_instance<unknown>(get_unknown());
-		return !!_drawable;
-	}
-	
-	void shutdown() noexcept {
-	}
 
 private:
 	ref_ptr<unknown> _drawable;
 };
 
-TEST_CASE("aggregate", "[com]") {
+TEST_CASE("auto_aggregate", "[com]") {
 	std::weak_ptr<void> obj;
 	
 	{
@@ -265,7 +257,50 @@ TEST_CASE("aggregate", "[com]") {
 		auto drw = com::cast<drawable>(lft);
 		REQUIRE(drw);
 		
-		auto upd = com::cast<drawable>(drw);
+		auto upd = com::cast<updatable>(drw);
+		REQUIRE_FALSE(upd);
+		
+		drw->draw();
+		
+		REQUIRE(com::same_objects(lft, drw));
+		
+		obj = lft->get_object();
+		REQUIRE_FALSE(obj.expired());
+		
+		lft.reset();
+		
+		REQUIRE_FALSE(obj.expired());
+	}
+	
+	REQUIRE(obj.expired());
+}
+
+class my_object5
+	: public com::object_base
+	, public lifetime_impl
+	, public com::coclass<my_object5>
+{
+public:
+	BEGIN_CAST_MAP(my_object5)
+		CAST_ENTRY(lifetime)
+		CAST_ENTRY_AUTOAGGREGATE_BLIND(my_object3, _drawable)
+	END_CAST_MAP()
+
+private:
+	ref_ptr<unknown> _drawable;
+};
+
+TEST_CASE("auto_aggregate_blind", "[com]") {
+	std::weak_ptr<void> obj;
+	
+	{
+		auto lft = my_object5::create_instance<lifetime>();
+		REQUIRE(lft);
+		
+		auto drw = com::cast<drawable>(lft);
+		REQUIRE(drw);
+		
+		auto upd = com::cast<updatable>(drw);
 		REQUIRE(upd);
 		
 		drw->draw();
@@ -293,6 +328,7 @@ public:
 		OBJECT_ENTRY(my_object2)
 		OBJECT_ENTRY_NON_CREATEABLE(my_object3)
 		OBJECT_ENTRY_NON_CREATEABLE(my_object4)
+		OBJECT_ENTRY_NON_CREATEABLE(my_object5)
 	END_OBJECT_MAP()
 };
 
