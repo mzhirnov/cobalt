@@ -9,27 +9,27 @@ using namespace cobalt;
 // Interfaces
 
 struct updatable : com::unknown {
-	virtual void update(float dt) = 0;
+	virtual void update(float dt) noexcept = 0;
 };
 
 struct drawable : com::unknown {
-	virtual void draw() = 0;
+	virtual void draw() noexcept = 0;
 };
 
 struct lifetime : com::unknown {
-	virtual std::weak_ptr<void> get_object() = 0;
+	virtual std::weak_ptr<void> guard() noexcept = 0;
 };
 
 // Implementation
 
 class updatable_impl : public updatable {
 public:
-	virtual void update(float dt) override { puts(__PRETTY_FUNCTION__); }
+	virtual void update(float dt) noexcept override { puts(__PRETTY_FUNCTION__); }
 };
 
 class drawable_impl : public drawable {
 public:
-	virtual void draw() override { puts(__PRETTY_FUNCTION__); }
+	virtual void draw() noexcept override { puts(__PRETTY_FUNCTION__); }
 };
 
 class drawable_tear_off_impl
@@ -37,19 +37,19 @@ class drawable_tear_off_impl
 	, public drawable
 {
 public:
-	drawable_tear_off_impl() { puts(__PRETTY_FUNCTION__); }
-	~drawable_tear_off_impl() { puts(__PRETTY_FUNCTION__); }
+	drawable_tear_off_impl() { /*puts(__PRETTY_FUNCTION__);*/ }
+	~drawable_tear_off_impl() { /*puts(__PRETTY_FUNCTION__);*/ }
 
 	BEGIN_CAST_MAP(drawable_tear_off_impl)
 		CAST_ENTRY(drawable)
 	END_CAST_MAP()
 	
-	virtual void draw() override { puts(__PRETTY_FUNCTION__); }
+	virtual void draw() noexcept override { puts(__PRETTY_FUNCTION__); }
 };
 
 class lifetime_impl : public lifetime {
 public:
-	virtual std::weak_ptr<void> get_object() override { return _object; }
+	virtual std::weak_ptr<void> guard() noexcept override { return _object; }
 
 private:
 	std::shared_ptr<void> _object = std::make_shared<int>(1);
@@ -77,53 +77,59 @@ public:
 		CAST_ENTRY(updatable)
 		CAST_ENTRY_CHAIN(my_object_base)
 	END_CAST_MAP()
+	
+	void hello_world() noexcept {}
 };
 
-TEST_CASE("stack_object", "[com]") {
-	std::weak_ptr<void> obj;
+TEST_CASE("stack_object/chain_cast", "[com]") {
+	std::weak_ptr<void> guard;
 	
 	{
 		com::stack_object<my_object> object;
 		REQUIRE(object.initialization_result());
 		
+		object.hello_world();
+		
 		auto upd = com::cast<updatable>(object.get_unknown());
 		REQUIRE(upd);
 		
-		auto lft = com::cast<lifetime>(object.get_unknown());
+		auto lft = com::cast<lifetime>(upd);
 		REQUIRE(lft);
 		
 		REQUIRE(com::same_objects(upd, lft));
 		
-		obj = lft->get_object();
-		REQUIRE_FALSE(obj.expired());
+		guard = lft->guard();
+		REQUIRE_FALSE(guard.expired());
 	}
 	
-	REQUIRE(obj.expired());
+	REQUIRE(guard.expired());
 }
 
-TEST_CASE("object", "[com]") {
-	std::weak_ptr<void> obj;
+TEST_CASE("object/chain_cast", "[com]") {
+	std::weak_ptr<void> guard;
 	
 	{
 		auto object = com::object<my_object>::create_instance();
+		
+		object->hello_world();
 
 		auto upd = com::cast<updatable>(object->get_unknown());
 		REQUIRE(upd);
 		
-		auto lft = com::cast<lifetime>(object->get_unknown());
+		auto lft = com::cast<lifetime>(upd);
 		REQUIRE(lft);
 		
 		REQUIRE(com::same_objects(upd, lft));
 		
-		obj = lft->get_object();
-		REQUIRE_FALSE(obj.expired());
+		guard = lft->guard();
+		REQUIRE_FALSE(guard.expired());
 	}
 	
-	REQUIRE(obj.expired());
+	REQUIRE(guard.expired());
 }
 
-TEST_CASE("coclass", "[com]") {
-	std::weak_ptr<void> obj;
+TEST_CASE("coclass/chain_cast", "[com]") {
+	std::weak_ptr<void> guard;
 	
 	{
 		auto upd = my_object::create_instance<updatable>();
@@ -134,66 +140,67 @@ TEST_CASE("coclass", "[com]") {
 		
 		REQUIRE(com::same_objects(upd, lft));
 		
-		obj = lft->get_object();
-		REQUIRE_FALSE(obj.expired());
+		guard = lft->guard();
+		REQUIRE_FALSE(guard.expired());
 	}
 	
-	REQUIRE(obj.expired());
+	REQUIRE(guard.expired());
 }
 
 class my_object2
-	: public my_object_base
+	: public com::object_base
+	, public lifetime_impl
 	, public updatable_impl
 	, public com::coclass<my_object2>
 {
 public:
 	BEGIN_CAST_MAP(my_object2)
-		CAST_ENTRY(updatable)
+		CAST_ENTRY(lifetime)
 		CAST_ENTRY_TEAR_OFF(IIDOF(drawable), drawable_tear_off_impl)
-		CAST_ENTRY_CHAIN(my_object_base)
+		CAST_ENTRY(updatable)
 	END_CAST_MAP()
 };
 
-TEST_CASE("tear_off", "[com]") {
-	std::weak_ptr<void> obj;
+TEST_CASE("coclass/tear_off", "[com]") {
+	std::weak_ptr<void> guard;
 	
 	{
-		auto upd = my_object2::create_instance<updatable>();
-		REQUIRE(upd);
-		
-		auto lft = com::cast<lifetime>(upd);
-		REQUIRE(lft);
-		
-		auto drw = com::cast<drawable>(lft);
+		auto drw = my_object2::create_instance<drawable>();
 		REQUIRE(drw);
 		
-		drw->draw();
+		auto lft = com::cast<lifetime>(drw);
+		REQUIRE(lft);
+		
+		auto upd = com::cast<updatable>(lft);
+		REQUIRE(upd);
 		
 		REQUIRE(com::same_objects(upd, lft));
 		REQUIRE(com::same_objects(lft, drw));
 		REQUIRE(com::same_objects(drw, upd));
 		
-		obj = lft->get_object();
-		REQUIRE_FALSE(obj.expired());
+		guard = lft->guard();
+		REQUIRE_FALSE(guard.expired());
 		
 		upd.reset();
 		lft.reset();
 		
-		REQUIRE_FALSE(obj.expired());
+		REQUIRE_FALSE(guard.expired());
+		
+		drw.reset();
+		REQUIRE(guard.expired());
 	}
-	
-	REQUIRE(obj.expired());
 }
 
 class my_object3
-	: public my_object_base
+	: public com::object_base
+	, public lifetime_impl
 	, public updatable_impl
 	, public com::coclass<my_object3>
 {
 public:
 	BEGIN_CAST_MAP(my_object3)
 		CAST_ENTRY(updatable)
-		CAST_ENTRY_CHAIN(my_object_base)
+		CAST_ENTRY(lifetime)
 		CAST_ENTRY_CACHED_TEAR_OFF(IIDOF(drawable), drawable_tear_off_impl, _drawable)
 	END_CAST_MAP()
 	
@@ -201,8 +208,8 @@ private:
 	ref_ptr<drawable> _drawable;
 };
 
-TEST_CASE("cached_tear_off", "[com]") {
-	std::weak_ptr<void> obj;
+TEST_CASE("coclass/cached_tear_off", "[com]") {
+	std::weak_ptr<void> guard;
 	
 	{
 		auto upd = my_object3::create_instance<updatable>();
@@ -214,22 +221,21 @@ TEST_CASE("cached_tear_off", "[com]") {
 		auto drw = com::cast<drawable>(lft);
 		REQUIRE(drw);
 		
-		drw->draw();
-		
 		REQUIRE(com::same_objects(upd, lft));
 		REQUIRE(com::same_objects(lft, drw));
 		REQUIRE(com::same_objects(drw, upd));
 		
-		obj = lft->get_object();
-		REQUIRE_FALSE(obj.expired());
+		guard = lft->guard();
+		REQUIRE_FALSE(guard.expired());
 		
 		upd.reset();
 		lft.reset();
 		
-		REQUIRE_FALSE(obj.expired());
+		REQUIRE_FALSE(guard.expired());
+		
+		drw.reset();
+		REQUIRE(guard.expired());
 	}
-	
-	REQUIRE(obj.expired());
 }
 
 class my_object4
@@ -240,15 +246,15 @@ class my_object4
 public:
 	BEGIN_CAST_MAP(my_object4)
 		CAST_ENTRY(lifetime)
-		CAST_ENTRY_AUTOAGGREGATE(IIDOF(drawable), my_object3, _drawable)
+		CAST_ENTRY_AUTOAGGREGATE(IIDOF(drawable), my_object3, _object3)
 	END_CAST_MAP()
 
 private:
-	ref_ptr<unknown> _drawable;
+	ref_ptr<unknown> _object3;
 };
 
-TEST_CASE("auto_aggregate", "[com]") {
-	std::weak_ptr<void> obj;
+TEST_CASE("coclass/auto_aggregate", "[com]") {
+	std::weak_ptr<void> guard;
 	
 	{
 		auto lft = my_object4::create_instance<lifetime>();
@@ -260,19 +266,18 @@ TEST_CASE("auto_aggregate", "[com]") {
 		auto upd = com::cast<updatable>(drw);
 		REQUIRE_FALSE(upd);
 		
-		drw->draw();
-		
 		REQUIRE(com::same_objects(lft, drw));
 		
-		obj = lft->get_object();
-		REQUIRE_FALSE(obj.expired());
+		guard = lft->guard();
+		REQUIRE_FALSE(guard.expired());
 		
 		lft.reset();
 		
-		REQUIRE_FALSE(obj.expired());
+		REQUIRE_FALSE(guard.expired());
+		
+		drw.reset();
+		REQUIRE(guard.expired());
 	}
-	
-	REQUIRE(obj.expired());
 }
 
 class my_object5
@@ -283,15 +288,15 @@ class my_object5
 public:
 	BEGIN_CAST_MAP(my_object5)
 		CAST_ENTRY(lifetime)
-		CAST_ENTRY_AUTOAGGREGATE_BLIND(my_object3, _drawable)
+		CAST_ENTRY_AUTOAGGREGATE_BLIND(my_object3, _object3)
 	END_CAST_MAP()
 
 private:
-	ref_ptr<unknown> _drawable;
+	ref_ptr<unknown> _object3;
 };
 
-TEST_CASE("auto_aggregate_blind", "[com]") {
-	std::weak_ptr<void> obj;
+TEST_CASE("coclass/auto_aggregate_blind", "[com]") {
+	std::weak_ptr<void> guard;
 	
 	{
 		auto lft = my_object5::create_instance<lifetime>();
@@ -303,22 +308,118 @@ TEST_CASE("auto_aggregate_blind", "[com]") {
 		auto upd = com::cast<updatable>(drw);
 		REQUIRE(upd);
 		
-		drw->draw();
+		REQUIRE(com::same_objects(upd, lft));
+		REQUIRE(com::same_objects(lft, drw));
+		REQUIRE(com::same_objects(drw, upd));
+		
+		guard = lft->guard();
+		REQUIRE_FALSE(guard.expired());
+		
+		lft.reset();
+		upd.reset();
+		
+		REQUIRE_FALSE(guard.expired());
+		
+		drw.reset();
+		REQUIRE(guard.expired());
+	}
+}
+
+class my_object6
+	: public com::object_base
+	, public lifetime_impl
+	, public com::coclass<my_object6>
+{
+public:
+	BEGIN_CAST_MAP(my_object6)
+		CAST_ENTRY(lifetime)
+		CAST_ENTRY_AGGREGATE(IIDOF(drawable), _object3)
+	END_CAST_MAP()
+	
+	bool initialize() noexcept {
+		_object3 = my_object3::create_instance<unknown>(controlling_unknown());
+		return !!_object3;
+	}
+
+private:
+	ref_ptr<unknown> _object3;
+};
+
+TEST_CASE("coclass/aggregate", "[com]") {
+	std::weak_ptr<void> guard;
+	
+	{
+		auto lft = my_object6::create_instance<lifetime>();
+		REQUIRE(lft);
+		
+		auto drw = com::cast<drawable>(lft);
+		REQUIRE(drw);
+		
+		auto upd = com::cast<updatable>(drw);
+		REQUIRE_FALSE(upd);
+		
+		REQUIRE(com::same_objects(lft, drw));
+		
+		guard = lft->guard();
+		REQUIRE_FALSE(guard.expired());
+		
+		lft.reset();
+		
+		REQUIRE_FALSE(guard.expired());
+		
+		drw.reset();
+		REQUIRE(guard.expired());
+	}
+}
+
+class my_object7
+	: public com::object_base
+	, public lifetime_impl
+	, public com::coclass<my_object7>
+{
+public:
+	BEGIN_CAST_MAP(my_object7)
+		CAST_ENTRY(lifetime)
+		CAST_ENTRY_AGGREGATE_BLIND(_object3)
+	END_CAST_MAP()
+	
+	bool initialize() noexcept {
+		_object3 = my_object3::create_instance<unknown>(controlling_unknown());
+		return !!_object3;
+	}
+
+private:
+	ref_ptr<unknown> _object3;
+};
+
+TEST_CASE("coclass/aggregate_blind", "[com]") {
+	std::weak_ptr<void> guard;
+	
+	{
+		auto lft = my_object7::create_instance<lifetime>();
+		REQUIRE(lft);
+		
+		auto drw = com::cast<drawable>(lft);
+		REQUIRE(drw);
+		
+		auto upd = com::cast<updatable>(drw);
+		REQUIRE(upd);
 		
 		REQUIRE(com::same_objects(upd, lft));
 		REQUIRE(com::same_objects(lft, drw));
 		REQUIRE(com::same_objects(drw, upd));
 		
-		obj = lft->get_object();
-		REQUIRE_FALSE(obj.expired());
+		guard = lft->guard();
+		REQUIRE_FALSE(guard.expired());
 		
 		lft.reset();
 		upd.reset();
 		
-		REQUIRE_FALSE(obj.expired());
+		REQUIRE_FALSE(guard.expired());
+		
+		drw.reset();
+		REQUIRE(guard.expired());
 	}
-	
-	REQUIRE(obj.expired());
 }
 
 class my_module : public com::module<my_module> {
@@ -329,29 +430,28 @@ public:
 		OBJECT_ENTRY_NON_CREATEABLE(my_object3)
 		OBJECT_ENTRY_NON_CREATEABLE(my_object4)
 		OBJECT_ENTRY_NON_CREATEABLE(my_object5)
+		OBJECT_ENTRY_NON_CREATEABLE(my_object6)
+		OBJECT_ENTRY(my_object7)
 	END_OBJECT_MAP()
 };
 
 TEST_CASE("module", "[com]") {
 	my_module m;
 	
-	std::weak_ptr<void> obj;
+	std::weak_ptr<void> guard;
 	
 	SECTION("get_class_object") {
-		auto unk = m.get_class_object(IIDOF(my_object));
-		REQUIRE(unk);
-		
-		auto cf = com::cast<com::class_factory>(unk);
+		auto cf = com::cast<com::class_factory>(my_module::instance()->get_class_object(IIDOF(my_object7)));
 		REQUIRE(cf);
 		
 		auto lft = com::cast<lifetime>(cf->create_instance(nullptr, IIDOF(lifetime)));
 		REQUIRE(lft);
 		
-		obj = lft->get_object();
-		REQUIRE_FALSE(obj.expired());
+		guard = lft->guard();
+		REQUIRE_FALSE(guard.expired());
 		
 		lft.reset();
-		REQUIRE(obj.expired());
+		REQUIRE(guard.expired());
 	}
 	
 	SECTION("create_instance") {
@@ -366,10 +466,10 @@ TEST_CASE("module", "[com]") {
 		
 		REQUIRE_FALSE(com::same_objects(lft, lft2));
 		
-		obj = lft->get_object();
-		REQUIRE_FALSE(obj.expired());
+		guard = lft->guard();
+		REQUIRE_FALSE(guard.expired());
 		
 		lft.reset();
-		REQUIRE(obj.expired());
+		REQUIRE(guard.expired());
 	}
 }
