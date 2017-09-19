@@ -86,7 +86,7 @@ TEST_CASE("stack_object/chain_cast", "[com]") {
 	
 	{
 		com::stack_object<my_object> object;
-		REQUIRE(object.initialization_result());
+		REQUIRE(object.init_result());
 		
 		object.hello_world();
 		
