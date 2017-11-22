@@ -26,21 +26,21 @@ using clsid = iid;
 struct unknown {
 	virtual size_t retain() noexcept = 0;
 	virtual size_t release() noexcept = 0;
-	virtual unknown* cast(const iid& iid, std::error_code& ec = last_error()) noexcept = 0;
+	virtual unknown* cast(const iid& iid) noexcept = 0;
 };
 
 struct class_factory : unknown {
-	virtual unknown* create_instance(unknown* outer, const iid& iid, std::error_code& ec = last_error()) noexcept = 0;
+	virtual unknown* create_instance(unknown* outer, const iid& iid) noexcept = 0;
 };
 
-extern unknown* get_class_object(const clsid& clsid, std::error_code& ec = last_error()) noexcept;
-extern unknown* create_instance(unknown* outer, const clsid& clsid, const iid& iid, std::error_code& ec = last_error()) noexcept;
+extern unknown* get_class_object(const clsid& clsid) noexcept;
+extern unknown* create_instance(unknown* outer, const clsid& clsid, const iid& iid) noexcept;
 
-template <typename Q> inline ref_ptr<Q> create_instance(const clsid& clsid, std::error_code& ec = last_error()) noexcept
-	{ return static_cast<Q*>(create_instance(nullptr, clsid, IIDOF(Q), ec)); }
+template <typename Q> inline ref_ptr<Q> create_instance(const clsid& clsid) noexcept
+	{ return static_cast<Q*>(create_instance(nullptr, clsid, IIDOF(Q))); }
 
-template <typename Q> inline ref_ptr<Q> create_instance(unknown* outer, const clsid& clsid, std::error_code& ec = last_error()) noexcept
-	{ return static_cast<Q*>(create_instance(outer, clsid, IIDOF(Q), ec)); }
+template <typename Q> inline ref_ptr<Q> create_instance(unknown* outer, const clsid& clsid) noexcept
+	{ return static_cast<Q*>(create_instance(outer, clsid, IIDOF(Q))); }
 
 } // namespace com
 } // namespace cobalt

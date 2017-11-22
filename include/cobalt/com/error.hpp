@@ -18,8 +18,10 @@ enum class errc {
 	no_such_class,
 	aggregation_not_supported,
 	class_disabled,
-	not_implemented
+	unimplemented
 };
+
+namespace detail {
 
 class com_category_impl : public std::error_category {
 public:
@@ -39,8 +41,8 @@ public:
 			return "aggregation not supported";
 		case errc::class_disabled:
 			return "class disabled";
-		case errc::not_implemented:
-			return "not implemented";
+		case errc::unimplemented:
+			return "unimplemented";
 		}
 		
 		std::ostringstream oss;
@@ -49,8 +51,10 @@ public:
 	}
 };
 
+} // namespace detail
+
 inline const std::error_category& com_category() noexcept {
-	static com_category_impl instance;
+	static detail::com_category_impl instance;
 	return instance;
 }
 
@@ -62,10 +66,17 @@ inline std::error_condition make_error_condition(errc e) noexcept {
 	return std::error_condition(static_cast<int>(e), com_category());
 }
 
+namespace detail {
+
 inline std::error_code& last_error() noexcept {
 	thread_local static std::error_code ec;
 	return ec;
 }
+
+} // namespace detail
+
+inline const std::error_code& last_error() noexcept { return detail::last_error(); }
+inline void last_error(const std::error_code& ec) noexcept { detail::last_error() = ec; }
 
 } // namespace com
 } // namespace cobalt

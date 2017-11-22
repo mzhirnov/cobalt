@@ -132,7 +132,7 @@ TEST_CASE("coclass/chain_cast", "[com]") {
 	std::weak_ptr<void> guard;
 	
 	{
-		auto upd = my_object::create_instance<updatable>();
+		auto upd = my_object::s_create_instance<updatable>();
 		REQUIRE(upd);
 		
 		auto lft = com::cast<lifetime>(upd);
@@ -165,7 +165,7 @@ TEST_CASE("coclass/tear_off", "[com]") {
 	std::weak_ptr<void> guard;
 	
 	{
-		auto drw = my_object2::create_instance<drawable>();
+		auto drw = my_object2::s_create_instance<drawable>();
 		REQUIRE(drw);
 		
 		auto lft = com::cast<lifetime>(drw);
@@ -212,7 +212,7 @@ TEST_CASE("coclass/cached_tear_off", "[com]") {
 	std::weak_ptr<void> guard;
 	
 	{
-		auto upd = my_object3::create_instance<updatable>();
+		auto upd = my_object3::s_create_instance<updatable>();
 		REQUIRE(upd);
 		
 		auto lft = com::cast<lifetime>(upd);
@@ -257,7 +257,7 @@ TEST_CASE("coclass/auto_aggregate", "[com]") {
 	std::weak_ptr<void> guard;
 	
 	{
-		auto lft = my_object4::create_instance<lifetime>();
+		auto lft = my_object4::s_create_instance<lifetime>();
 		REQUIRE(lft);
 		
 		auto drw = com::cast<drawable>(lft);
@@ -299,7 +299,7 @@ TEST_CASE("coclass/auto_aggregate_blind", "[com]") {
 	std::weak_ptr<void> guard;
 	
 	{
-		auto lft = my_object5::create_instance<lifetime>();
+		auto lft = my_object5::s_create_instance<lifetime>();
 		REQUIRE(lft);
 		
 		auto drw = com::cast<drawable>(lft);
@@ -336,8 +336,8 @@ public:
 		CAST_ENTRY_AGGREGATE(IIDOF(drawable), _object3)
 	END_CAST_MAP()
 	
-	bool initialize() noexcept {
-		_object3 = my_object3::create_instance<unknown>(controlling_unknown());
+	bool init() noexcept {
+		_object3 = my_object3::s_create_instance<unknown>(controlling_unknown());
 		return !!_object3;
 	}
 
@@ -349,7 +349,7 @@ TEST_CASE("coclass/aggregate", "[com]") {
 	std::weak_ptr<void> guard;
 	
 	{
-		auto lft = my_object6::create_instance<lifetime>();
+		auto lft = my_object6::s_create_instance<lifetime>();
 		REQUIRE(lft);
 		
 		auto drw = com::cast<drawable>(lft);
@@ -383,8 +383,8 @@ public:
 		CAST_ENTRY_AGGREGATE_BLIND(_object3)
 	END_CAST_MAP()
 	
-	bool initialize() noexcept {
-		_object3 = my_object3::create_instance<unknown>(controlling_unknown());
+	bool init() noexcept {
+		_object3 = my_object3::s_create_instance<unknown>(controlling_unknown());
 		return !!_object3;
 	}
 
@@ -396,7 +396,7 @@ TEST_CASE("coclass/aggregate_blind", "[com]") {
 	std::weak_ptr<void> guard;
 	
 	{
-		auto lft = my_object7::create_instance<lifetime>();
+		auto lft = my_object7::s_create_instance<lifetime>();
 		REQUIRE(lft);
 		
 		auto drw = com::cast<drawable>(lft);
