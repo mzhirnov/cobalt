@@ -8,15 +8,15 @@ using namespace cobalt;
 
 // Interfaces
 
-struct updatable : com::unknown {
+struct updatable : com::any {
 	virtual void update(float dt) noexcept = 0;
 };
 
-struct drawable : com::unknown {
+struct drawable : com::any {
 	virtual void draw() noexcept = 0;
 };
 
-struct lifetime : com::unknown {
+struct lifetime : com::any {
 	virtual std::weak_ptr<void> guard() noexcept = 0;
 };
 
@@ -90,7 +90,7 @@ TEST_CASE("stack_object/chain_cast", "[com]") {
 		
 		object.hello_world();
 		
-		auto upd = com::cast<updatable>(object.get_unknown());
+		auto upd = com::cast<updatable>(object.identity());
 		REQUIRE(upd);
 		
 		auto lft = com::cast<lifetime>(upd);
@@ -109,11 +109,11 @@ TEST_CASE("object/chain_cast", "[com]") {
 	std::weak_ptr<void> guard;
 	
 	{
-		auto object = com::object<my_object>::create_instance();
+		auto object = com::heap_object<my_object>::create_instance();
 		
 		object->hello_world();
 
-		auto upd = com::cast<updatable>(object->get_unknown());
+		auto upd = com::cast<updatable>(object->identity());
 		REQUIRE(upd);
 		
 		auto lft = com::cast<lifetime>(upd);
@@ -250,7 +250,7 @@ public:
 	END_CAST_MAP()
 
 private:
-	ref_ptr<unknown> _object3;
+	ref_ptr<any> _object3;
 };
 
 TEST_CASE("coclass/auto_aggregate", "[com]") {
@@ -292,7 +292,7 @@ public:
 	END_CAST_MAP()
 
 private:
-	ref_ptr<unknown> _object3;
+	ref_ptr<any> _object3;
 };
 
 TEST_CASE("coclass/auto_aggregate_blind", "[com]") {
@@ -337,12 +337,12 @@ public:
 	END_CAST_MAP()
 	
 	bool init() noexcept {
-		_object3 = my_object3::s_create_instance<unknown>(controlling_unknown());
+		_object3 = my_object3::s_create_instance<any>(controlling_object());
 		return !!_object3;
 	}
 
 private:
-	ref_ptr<unknown> _object3;
+	ref_ptr<any> _object3;
 };
 
 TEST_CASE("coclass/aggregate", "[com]") {
@@ -384,12 +384,12 @@ public:
 	END_CAST_MAP()
 	
 	bool init() noexcept {
-		_object3 = my_object3::s_create_instance<unknown>(controlling_unknown());
+		_object3 = my_object3::s_create_instance<any>(controlling_object());
 		return !!_object3;
 	}
 
 private:
-	ref_ptr<unknown> _object3;
+	ref_ptr<any> _object3;
 };
 
 TEST_CASE("coclass/aggregate_blind", "[com]") {
@@ -435,13 +435,13 @@ public:
 	END_OBJECT_MAP()
 };
 
+static my_module m;
+
 TEST_CASE("module", "[com]") {
-	my_module m;
-	
 	std::weak_ptr<void> guard;
 	
 	SECTION("get_class_object") {
-		auto cf = com::cast<com::class_factory>(my_module::instance()->get_class_object(IIDOF(my_object7)));
+		auto cf = com::get_class_object(IIDOF(my_object7)); //my_module::instance()->get_class_object(IIDOF(my_object7));
 		REQUIRE(cf);
 		
 		auto lft = com::cast<lifetime>(cf->create_instance(nullptr, IIDOF(lifetime)));
@@ -455,13 +455,13 @@ TEST_CASE("module", "[com]") {
 	}
 	
 	SECTION("create_instance") {
-		auto lft = m.create_instance<lifetime>(IIDOF(my_object));
+		auto lft = com::create_instance<lifetime>(IIDOF(my_object));
 		REQUIRE(lft);
 		
-		auto lft2 = m.create_instance<lifetime>(IIDOF(my_object2));
+		auto lft2 = com::create_instance<lifetime>(IIDOF(my_object2));
 		REQUIRE(lft2);
 		
-		auto lft3 = m.create_instance<lifetime>(IIDOF(my_object3));
+		auto lft3 = com::create_instance<lifetime>(IIDOF(my_object3));
 		REQUIRE_FALSE(lft3);
 		
 		REQUIRE_FALSE(com::same_objects(lft, lft2));
