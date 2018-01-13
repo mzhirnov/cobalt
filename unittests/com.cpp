@@ -109,7 +109,7 @@ TEST_CASE("object/chain_cast", "[com]") {
 	std::weak_ptr<void> guard;
 	
 	{
-		auto object = com::heap_object<my_object>::create_instance();
+		auto object = com::object<my_object>::create_instance();
 		
 		object->hello_world();
 

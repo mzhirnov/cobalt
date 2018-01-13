@@ -7,7 +7,7 @@
 //     object_base
 //     tear_off_object_base
 //     stack_object
-//     heap_object
+//     object
 //     contained_object
 //     agg_object
 //     poly_object
@@ -19,6 +19,7 @@
 #include <cobalt/com/core.hpp>
 #include <cobalt/com/utility.hpp>
 
+#include <boost/intrusive/slist.hpp>
 #include <boost/assert.hpp>
 
 namespace cobalt {
@@ -320,12 +321,12 @@ private:
 };
 
 template <typename Base>
-class heap_object : public Base {
+class object : public Base {
 public:
 	using base_type = Base;
 	
-	explicit heap_object(void* pv = nullptr) noexcept {}
-	~heap_object() { this->deinit(); }
+	explicit object(void* pv = nullptr) noexcept {}
+	~object() { this->deinit(); }
 	
 	virtual size_t retain() noexcept override { return this->internal_retain(); }
 	virtual size_t release() noexcept override {
@@ -336,11 +337,11 @@ public:
 	}
 	virtual any* cast(const iid& iid) noexcept override { return this->internal_cast(iid); }
 	
-	static heap_object<Base>* create_instance(any* outer = nullptr) noexcept {
+	static object<Base>* create_instance(any* outer = nullptr) noexcept {
 		BOOST_ASSERT(!outer);
 		if (outer)
 			return nullptr;
-		auto p = new(std::nothrow) heap_object<Base>(nullptr);
+		auto p = new(std::nothrow) object<Base>(nullptr);
 		if (!p) {
 			last_error(std::make_error_code(std::errc::not_enough_memory));
 			return nullptr;
@@ -584,12 +585,12 @@ struct fail_creator {
 
 #define DECLARE_AGGREGATABLE(x) public: \
 	using creator_type = ::cobalt::com::creator2< \
-	                         ::cobalt::com::creator<::cobalt::com::heap_object<x>>, \
+	                         ::cobalt::com::creator<::cobalt::com::object<x>>, \
 	                         ::cobalt::com::creator<::cobalt::com::aggregated_object<x>>>;
 	
 #define DECLARE_NOT_AGGREGATABLE(x) public: \
 	using creator_type = ::cobalt::com::creator2< \
-	                         ::cobalt::com::creator<::cobalt::com::heap_object<x>>, \
+	                         ::cobalt::com::creator<::cobalt::com::object<x>>, \
 	                         ::cobalt::com::fail_creator>;
 	
 #define DECLARE_ONLY_AGGREGATABLE(x) public: \
@@ -650,14 +651,14 @@ private:
 };
 
 #define DECLARE_CLASSFACTORY() \
-	using class_factory_creator_type = ::cobalt::com::creator<::cobalt::com::heap_object<::cobalt::com::class_factory_impl>>;
+	using class_factory_creator_type = ::cobalt::com::creator<::cobalt::com::object<::cobalt::com::class_factory_impl>>;
 	
 #define DECLARE_CLASSFACTORY_SINGLETON() \
-	using class_factory_creator_type = ::cobalt::com::creator<::cobalt::com::heap_object<::cobalt::com::class_factory_singleton_impl>>;
+	using class_factory_creator_type = ::cobalt::com::creator<::cobalt::com::object<::cobalt::com::class_factory_singleton_impl>>;
 
 template <typename T>
 class coclass {
-public:
+protected:
 	DECLARE_AGGREGATABLE(T)
 	DECLARE_CLASSFACTORY()
 	
@@ -683,7 +684,7 @@ struct object_entry {
 		using object_map_class = x; \
 		static const ::cobalt::com::object_entry entries[] = {
 	
-#define OBJECT_ENTRY(class) {\
+#define OBJECT_ENTRY(class) { \
 			&class::s_class_uid(), \
 			&class::class_factory_creator_type::create_instance, \
 			&class::creator_type::create_instance, \
@@ -691,8 +692,13 @@ struct object_entry {
 			&class::s_class_init, \
 			&class::s_class_deinit },
 	
-#define OBJECT_ENTRY_NON_CREATEABLE(class) \
-			{ &class::s_class_uid(), nullptr, nullptr, nullptr, &class::s_class_init, &class::s_class_deinit },
+#define OBJECT_ENTRY_NON_CREATEABLE(class) { \
+			&class::s_class_uid(), \
+			nullptr, \
+			nullptr, \
+			nullptr, \
+			&class::s_class_init, \
+			&class::s_class_deinit },
 
 #define END_OBJECT_MAP() \
 			{ nullptr, nullptr, nullptr, nullptr, nullptr, nullptr } \
@@ -700,7 +706,25 @@ struct object_entry {
 		return entries; \
 	}
 	
-class module_base {
+class module_base;
+
+namespace detail {
+
+using namespace boost::intrusive;
+
+using modules_list_hook = slist_base_hook<link_mode<normal_link>>;
+using modules_list = slist<module_base, base_hook<modules_list_hook>, constant_time_size<false>>;
+
+} // namespace detail
+	
+class module_base : public detail::modules_list_hook {
+public:
+	module_base() noexcept { modules().push_front(*this); }
+	virtual ~module_base() = default;
+	
+	virtual class_factory* get_class_object(const clsid& clsid) noexcept = 0;
+	virtual any* create_instance(any* outer, const clsid& clsid, const iid& iid) noexcept = 0;
+
 protected:
 	static void s_init(const object_entry* entries) noexcept {
 		for (auto entry = entries; entry->clsid; ++entry) {
@@ -736,32 +760,29 @@ protected:
 		last_error(errc::no_such_class);
 		return nullptr;
 	}
+	
+	static detail::modules_list& modules() noexcept {
+		static detail::modules_list instance;
+		return instance;
+	}
 };
 
 template <typename T>
 class module : public module_base {
 public:
 	module() noexcept {
-		BOOST_ASSERT(!_instance);
-		_instance = this;
-		
 		s_init(static_cast<T*>(this)->entries());
 	}
 	
-	virtual ~module() {
+	~module() {
 		s_deinit(static_cast<T*>(this)->entries());
-		
-		BOOST_ASSERT(_instance);
-		_instance = nullptr;
 	}
-	
-	static module* instance() noexcept { BOOST_ASSERT(_instance); return _instance; }
-	
-	class_factory* get_class_object(const clsid& clsid) noexcept {
+
+	virtual class_factory* get_class_object(const clsid& clsid) noexcept override {
 		return s_get_class_object(static_cast<T*>(this)->entries(), clsid);
 	}
 	
-	any* create_instance(any* outer, const clsid& clsid, const iid& iid) noexcept {
+	virtual any* create_instance(any* outer, const clsid& clsid, const iid& iid) noexcept override {
 		if (auto cf = get_class_object(clsid))
 			return cf->create_instance(outer, iid);
 		last_error(errc::no_such_class);
@@ -778,21 +799,24 @@ public:
 		return static_cast<Q*>(create_instance(nullptr, clsid, IIDOF(Q)));
 	}
 	
+	// Global functions
+	
 	friend class_factory* get_class_object(const clsid& clsid) noexcept {
-		BOOST_ASSERT(_instance);
-		return _instance ? _instance->get_class_object(clsid) : nullptr;
+		for (auto&& m : modules()) {
+			if (auto p = m.get_class_object(clsid))
+				return p;
+		}
+		return nullptr;
 	}
 
 	friend any* create_instance(any* outer, const clsid& clsid, const iid& iid) noexcept {
-		BOOST_ASSERT(_instance);
-		return _instance ? _instance->create_instance(outer, clsid, iid) : nullptr;
+		for (auto&& m : modules()) {
+			if (auto p = m.create_instance(outer,clsid, iid))
+				return p;
+		}
+		return nullptr;
 	}
-	
-private:
-	static module* _instance;
 };
-
-template <typename T> module<T>* module<T>::_instance = nullptr;
 
 } // namespace com
 } // namespace cobalt

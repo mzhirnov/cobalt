@@ -13,10 +13,10 @@
 namespace cobalt {
 namespace com {
 
-inline void intrusive_ptr_add_ref(any* p) noexcept { p->retain(); }
-inline void intrusive_ptr_release(any* p) noexcept { p->release(); }
+inline void intrusive_ptr_add_ref(any* p) noexcept { BOOST_ASSERT(!!p); p ? p->retain() : (size_t)0; }
+inline void intrusive_ptr_release(any* p) noexcept { BOOST_ASSERT(!!p); p ? p->release() : (size_t)0; }
 
-template <typename Q> inline ref_ptr<Q> cast(any* p) noexcept { return p ? static_cast<Q*>(p->cast(IIDOF(Q))) : nullptr; }
+template <typename Q> inline ref_ptr<Q> cast(any* p) noexcept { BOOST_ASSERT(!!p); return p ? static_cast<Q*>(p->cast(IIDOF(Q))) : nullptr; }
 template <typename Q> inline ref_ptr<Q> cast(const ref_ptr<any>& sp) noexcept { return cast<Q>(sp.get()); }
 
 inline bool same_objects(any* p1, any* p2) noexcept {
