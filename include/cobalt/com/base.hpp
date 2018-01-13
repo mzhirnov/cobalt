@@ -761,9 +761,28 @@ protected:
 		return nullptr;
 	}
 	
+private:
 	static detail::modules_list& modules() noexcept {
 		static detail::modules_list instance;
 		return instance;
+	}
+	
+	// Global functions
+	
+	friend class_factory* get_class_object(const clsid& clsid) noexcept {
+		for (auto&& m : modules()) {
+			if (auto p = m.get_class_object(clsid))
+				return p;
+		}
+		return nullptr;
+	}
+
+	friend any* create_instance(any* outer, const clsid& clsid, const iid& iid) noexcept {
+		for (auto&& m : modules()) {
+			if (auto p = m.create_instance(outer,clsid, iid))
+				return p;
+		}
+		return nullptr;
 	}
 };
 
@@ -797,24 +816,6 @@ public:
 	template <typename Q>
 	ref_ptr<Q> create_instance(const clsid& clsid) noexcept {
 		return static_cast<Q*>(create_instance(nullptr, clsid, IIDOF(Q)));
-	}
-	
-	// Global functions
-	
-	friend class_factory* get_class_object(const clsid& clsid) noexcept {
-		for (auto&& m : modules()) {
-			if (auto p = m.get_class_object(clsid))
-				return p;
-		}
-		return nullptr;
-	}
-
-	friend any* create_instance(any* outer, const clsid& clsid, const iid& iid) noexcept {
-		for (auto&& m : modules()) {
-			if (auto p = m.create_instance(outer,clsid, iid))
-				return p;
-		}
-		return nullptr;
 	}
 };
 
