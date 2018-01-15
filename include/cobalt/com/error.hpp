@@ -4,6 +4,7 @@
 #pragma once
 
 #include <system_error>
+#include <sstream>
 
 // Functions in this file:
 //     last_error
