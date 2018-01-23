@@ -37,11 +37,11 @@ namespace com {
 	
 #define SIMPLE_CAST_ENTRY (::cobalt::com::cast_fn)1
 
-using create_fn = any* (*)(void* pv, const iid& iid);
-using cast_fn = any* (*)(void* pv, const iid& iid, size_t data);
+using create_fn = any* (*)(void* pv, const uid& iid);
+using cast_fn = any* (*)(void* pv, const uid& iid, size_t data);
 
 struct cast_entry {
-	const iid* iid;
+	const uid* iid;
 	size_t data;
 	cast_fn func;
 };
@@ -102,9 +102,9 @@ protected:
 	
 	size_t outer_retain() noexcept { return _outer->retain(); }
 	size_t outer_release() noexcept { return _outer->release(); }
-	any* outer_cast(const iid& iid) noexcept { return _outer->cast(iid); }
+	any* outer_cast(const uid& iid) noexcept { return _outer->cast(iid); }
 	
-	static any* s_internal_cast(void* pv, const cast_entry* entries, const iid& iid) noexcept {
+	static any* s_internal_cast(void* pv, const cast_entry* entries, const uid& iid) noexcept {
 		BOOST_ASSERT(pv);
 		BOOST_ASSERT(entries);
 		if (!pv || !entries) {
@@ -118,7 +118,7 @@ protected:
 			return nullptr;
 		}
 		
-		if (iid == IIDOF(any)) {
+		if (iid == UIDOF(any)) {
 			last_error(errc::success);
 			return reinterpret_cast<any*>(reinterpret_cast<size_t>(pv) + entries[0].data);
 		}
@@ -145,7 +145,7 @@ protected:
 		return nullptr;
 	}
 	
-	static any* s_break(void* pv, const iid& iid, size_t data) noexcept {
+	static any* s_break(void* pv, const uid& iid, size_t data) noexcept {
 		(void)pv;
 		(void)iid;
 		(void)data;
@@ -155,22 +155,22 @@ protected:
 		return nullptr;
 	}
 	
-	static any* s_nointerface(void* pv, const iid& iid, size_t data) noexcept {
+	static any* s_nointerface(void* pv, const uid& iid, size_t data) noexcept {
 		last_error(errc::no_such_interface);
 		return nullptr;
 	}
 	
-	static any* s_create(void* pv, const iid& iid, size_t data) noexcept {
+	static any* s_create(void* pv, const uid& iid, size_t data) noexcept {
 		last_error(errc::success);
 		auto cd = reinterpret_cast<creator_data*>(data);
 		return cd->func(reinterpret_cast<any*>(pv), iid);
 	}
 	
-	static any* s_cache(void* pv, const iid& iid, size_t data) noexcept {
+	static any* s_cache(void* pv, const uid& iid, size_t data) noexcept {
 		last_error(errc::success);
 		auto cd = reinterpret_cast<cache_data*>(data);
 		auto id = reinterpret_cast<any**>((reinterpret_cast<size_t>(pv) + cd->offset));
-		if (!*id && (*id = cd->func(reinterpret_cast<any*>(pv), IIDOF(any)))) {
+		if (!*id && (*id = cd->func(reinterpret_cast<any*>(pv), UIDOF(any)))) {
 			(*id)->retain();
 			if (last_error()) {
 				(*id)->release();
@@ -180,7 +180,7 @@ protected:
 		return *id ? (*id)->cast(iid) : nullptr;
 	}
 	
-	static any* s_delegate(void* pv, const iid& iid, size_t data) noexcept {
+	static any* s_delegate(void* pv, const uid& iid, size_t data) noexcept {
 		last_error(errc::success);
 		auto id = *reinterpret_cast<any**>(reinterpret_cast<size_t>(pv) + data);
 		if (id) return id->cast(iid);
@@ -188,7 +188,7 @@ protected:
 		return nullptr;
 	}
 	
-	static any* s_chain(void* pv, const iid& iid, size_t data) noexcept {
+	static any* s_chain(void* pv, const uid& iid, size_t data) noexcept {
 		last_error(errc::success);
 		auto cd = reinterpret_cast<chain_data*>(data);
 		auto p = reinterpret_cast<void*>((reinterpret_cast<size_t>(pv) + cd->offset));
@@ -221,25 +221,25 @@ private:
 		static const cast_entry entries[] = {
 
 #define CAST_ENTRY_BREAK(x) \
-			{ &IIDOF(x), 0, s_break },
+			{ &UIDOF(x), 0, s_break },
 	
 #define CAST_ENTRY_NOINTERFACE(x) \
-			{ &IIDOF(x), 0, s_nointerface },
+			{ &UIDOF(x), 0, s_nointerface },
 	
 #define CAST_ENTRY_FUNC(iid, data, func) \
-			{ &iid, data, func },
+			{ &Uid, data, func },
 
 #define CAST_ENTRY_FUNC_BLIND(data, func) \
 			{ nullptr, data, func }
 
 #define CAST_ENTRY(x) \
-			{ &IIDOF(x), OFFSETOFCLASS(x, cast_map_class), SIMPLE_CAST_ENTRY },
+			{ &UIDOF(x), OFFSETOFCLASS(x, cast_map_class), SIMPLE_CAST_ENTRY },
 	
 #define CAST_ENTRY_IID(iid, x) \
 			{ &iid, OFFSETOFCLASS(x, cast_map_class), SIMPLE_CAST_ENTRY },
 
 #define CAST_ENTRY2(x, x2) \
-			{ &IIDOF(x), OFFSETOFCLASS2(x, x2, cast_map_class), SIMPLE_CAST_ENTRY },
+			{ &UIDOF(x), OFFSETOFCLASS2(x, x2, cast_map_class), SIMPLE_CAST_ENTRY },
 
 #define CAST_ENTRY2_IID(iid, x, x2) \
 			{ &iid, OFFSETOFCLASS2(x, x2, cast_map_class), SIMPLE_CAST_ENTRY },
@@ -256,10 +256,16 @@ private:
 #define CAST_ENTRY_AGGREGATE_BLIND(pid) \
 			{ nullptr, OFFSETOFMEMBER(cast_map_class, pid), s_delegate },
 	
-#define CAST_ENTRY_AUTOAGGREGATE(iid, x, pid) \
+#define CAST_ENTRY_AUTOAGGREGATE(iid, pid, clsid) \
+			{ &iid, reinterpret_cast<size_t>(&cache_thunk<aggregate_creator<cast_map_class, &clsid>, offsetof(cast_map_class, pid)>::data), s_cache },
+	
+#define CAST_ENTRY_AUTOAGGREGATE_BLIND(pid, clsid) \
+			{ nullptr, reinterpret_cast<size_t>(&cache_thunk<aggregate_creator<cast_map_class, &clsid>, offsetof(cast_map_class, pid)>::data), s_cache },
+	
+#define CAST_ENTRY_AUTOAGGREGATE_CLASS(iid, pid, x) \
 			{ &iid, reinterpret_cast<size_t>(&cache_thunk<creator<aggregated_object<x>>, offsetof(cast_map_class, pid)>::data), s_cache },
 	
-#define CAST_ENTRY_AUTOAGGREGATE_BLIND(x, pid) \
+#define CAST_ENTRY_AUTOAGGREGATE_CLASS_BLIND(pid, x) \
 			{ nullptr, reinterpret_cast<size_t>(&cache_thunk<creator<aggregated_object<x>>, offsetof(cast_map_class, pid)>::data), s_cache },
 	
 #define CAST_ENTRY_CHAIN(class) \
@@ -270,7 +276,7 @@ private:
 		}; \
 		return entries; \
 	} \
-	::cobalt::com::any* internal_cast(const ::cobalt::com::iid& iid) noexcept { \
+	::cobalt::com::any* internal_cast(const ::cobalt::uid& iid) noexcept { \
 		return s_internal_cast(this, cast_entries(), iid); \
 	} \
 	::cobalt::com::any* identity() const noexcept { \
@@ -314,7 +320,7 @@ public:
 #endif
 	}
 	
-	virtual any* cast(const iid& iid) noexcept override { return this->internal_cast(iid); }
+	virtual any* cast(const uid& iid) noexcept override { return this->internal_cast(iid); }
 	
 private:
 	bool _init_result = false;
@@ -335,7 +341,7 @@ public:
 			delete this;
 		return ref_count;
 	}
-	virtual any* cast(const iid& iid) noexcept override { return this->internal_cast(iid); }
+	virtual any* cast(const uid& iid) noexcept override { return this->internal_cast(iid); }
 	
 	static object<Base>* create_instance(any* outer = nullptr) noexcept {
 		BOOST_ASSERT(!outer);
@@ -368,7 +374,7 @@ public:
 	}
 	virtual size_t retain() noexcept override { return this->outer_retain(); }
 	virtual size_t release() noexcept override { return this->outer_release(); }
-	virtual any* cast(const iid& iid) noexcept override { return this->outer_cast(iid); }
+	virtual any* cast(const uid& iid) noexcept override { return this->outer_cast(iid); }
 	virtual any* controlling_object() const noexcept override { return this->_outer; }
 };
 
@@ -390,8 +396,8 @@ public:
 			delete this;
 		return ref_count;
 	}
-	virtual any* cast(const iid& iid) noexcept override {
-		if (iid == IIDOF(any)) {
+	virtual any* cast(const uid& iid) noexcept override {
+		if (iid == UIDOF(any)) {
 			last_error(errc::success);
 			return this;
 		}
@@ -436,8 +442,8 @@ public:
 			delete this;
 		return ref_count;
 	}
-	virtual any* cast(const iid& iid) noexcept override {
-		if (iid == IIDOF(any)) {
+	virtual any* cast(const uid& iid) noexcept override {
+		if (iid == UIDOF(any)) {
 			last_error(errc::success);
 			return this;
 		}
@@ -487,7 +493,7 @@ public:
 			delete this;
 		return ref_count;
 	}
-	virtual any* cast(const iid& iid) noexcept override { return this->owner()->cast(iid); }
+	virtual any* cast(const uid& iid) noexcept override { return this->owner()->cast(iid); }
 };
 
 template <class Contained>
@@ -514,8 +520,8 @@ public:
 			delete this;
 		return ref_count;
 	}
-	virtual any* cast(const iid& iid) noexcept override {
-		if (iid == IIDOF(any)) {
+	virtual any* cast(const uid& iid) noexcept override {
+		if (iid == UIDOF(any)) {
 			last_error(errc::success);
 			return this;
 		}
@@ -528,7 +534,7 @@ private:
 
 template <typename T>
 struct creator {
-	static any* create_instance(void* pv, const iid& iid) noexcept {
+	static any* create_instance(void* pv, const uid& iid) noexcept {
 		auto p = new(std::nothrow) T(pv);
 		if (!p) {
 			last_error(std::make_error_code(std::errc::not_enough_memory));
@@ -549,7 +555,7 @@ struct creator {
 
 template <typename T>
 struct internal_creator {
-	static any* create_instance(void* pv, const iid& iid) noexcept {
+	static any* create_instance(void* pv, const uid& iid) noexcept {
 		auto p = new(std::nothrow) T(pv);
 		if (!p) {
 			last_error(std::make_error_code(std::errc::not_enough_memory));
@@ -568,16 +574,29 @@ struct internal_creator {
 	}
 };
 
+template <typename T, const uid* clsid>
+struct aggregate_creator {
+	static any* create_instance(void* pv, const uid& iid) noexcept {
+		if (!pv) {
+			last_error(std::make_error_code(std::errc::invalid_argument));
+			return nullptr;
+		}
+		last_error(errc::success);
+		T* p = static_cast<T*>(pv);
+		return create_instance(p->controlling_object(), *clsid, UIDOF(any));
+	}
+};
+
 template <typename T1, typename T2>
 struct creator2 {
-	static any* create_instance(void* pv, const iid& iid) noexcept {
+	static any* create_instance(void* pv, const uid& iid) noexcept {
 		return !pv ? T1::create_instance(nullptr, iid) :
 		             T2::create_instance(pv, iid);
 	}
 };
 
 struct fail_creator {
-	static any* create_instance(void* pv, const iid& iid) noexcept {
+	static any* create_instance(void* pv, const uid& iid) noexcept {
 		last_error(errc::failure);
 		return nullptr;
 	}
@@ -609,10 +628,10 @@ public:
 	
 	void set_void(void* pv) noexcept { _creator = reinterpret_cast<create_fn>(pv); }
 	
-	virtual any* create_instance(any* outer, const iid& iid) noexcept override {
+	virtual any* create_instance(any* outer, const uid& iid) noexcept override {
 		BOOST_ASSERT(_creator);
-		BOOST_ASSERT(!outer || (outer && &iid == &IIDOF(any)));
-		if (outer && &iid != &IIDOF(any)) {
+		BOOST_ASSERT(!outer || (outer && iid == UIDOF(any)));
+		if (outer && iid != UIDOF(any)) {
 			last_error(errc::aggregation_not_supported);
 			return nullptr;
 		}
@@ -631,7 +650,7 @@ public:
 	
 	void set_void(void* pv) noexcept { _creator = reinterpret_cast<create_fn>(pv); }
 	
-	virtual any* create_instance(any* outer, const iid& iid) noexcept override {
+	virtual any* create_instance(any* outer, const uid& iid) noexcept override {
 		BOOST_ASSERT(!outer);
 		if (outer) {
 			last_error(errc::aggregation_not_supported);
@@ -662,16 +681,16 @@ protected:
 	DECLARE_AGGREGATABLE(T)
 	DECLARE_CLASSFACTORY()
 	
-	static const clsid& s_class_uid() noexcept { return IIDOF(T); }
+	static const uid& s_class_uid() noexcept { return UIDOF(T); }
 	
 	template <typename Q>
 	static ref_ptr<Q> s_create_instance(any* outer = nullptr) noexcept {
-		return static_cast<Q*>(T::creator_type::create_instance(outer, IIDOF(Q)));
+		return static_cast<Q*>(T::creator_type::create_instance(outer, UIDOF(Q)));
 	}
 };
 
 struct object_entry {
-	const clsid* clsid;
+	const uid* clsid;
 	create_fn get_class_object;
 	create_fn create_instance;
 	mutable class_factory* factory;
@@ -722,8 +741,8 @@ public:
 	module_base() noexcept { modules().push_front(*this); }
 	virtual ~module_base() = default;
 	
-	virtual class_factory* get_class_object(const clsid& clsid) noexcept = 0;
-	virtual any* create_instance(any* outer, const clsid& clsid, const iid& iid) noexcept = 0;
+	virtual class_factory* get_class_object(const uid& clsid) noexcept = 0;
+	virtual any* create_instance(any* outer, const uid& clsid, const uid& iid) noexcept = 0;
 
 protected:
 	static void s_init(const object_entry* entries) noexcept {
@@ -743,11 +762,11 @@ protected:
 		}
 	}
 	
-	static class_factory* s_get_class_object(const object_entry* entries, const clsid& clsid) noexcept {
+	static class_factory* s_get_class_object(const object_entry* entries, const uid& clsid) noexcept {
 		for (auto entry = entries; entry->clsid; ++entry) {
 			if (entry->get_class_object && entry->clsid == &clsid) {
 				if (!entry->factory && (entry->factory = static_cast<class_factory*>(
-					entry->get_class_object(reinterpret_cast<any*>(entry->create_instance), IIDOF(any)))))
+					entry->get_class_object(reinterpret_cast<any*>(entry->create_instance), UIDOF(any)))))
 				{
 					entry->factory->retain();
 				}
@@ -769,7 +788,7 @@ private:
 	
 	// Global functions
 	
-	friend class_factory* get_class_object(const clsid& clsid) noexcept {
+	friend class_factory* get_class_object(const uid& clsid) noexcept {
 		for (auto&& m : modules()) {
 			if (auto p = m.get_class_object(clsid))
 				return p;
@@ -777,9 +796,9 @@ private:
 		return nullptr;
 	}
 
-	friend any* create_instance(any* outer, const clsid& clsid, const iid& iid) noexcept {
+	friend any* create_instance(any* outer, const uid& clsid, const uid& iid) noexcept {
 		for (auto&& m : modules()) {
-			if (auto p = m.create_instance(outer,clsid, iid))
+			if (auto p = m.create_instance(outer, clsid, iid))
 				return p;
 		}
 		return nullptr;
@@ -797,11 +816,11 @@ public:
 		s_deinit(static_cast<T*>(this)->entries());
 	}
 
-	virtual class_factory* get_class_object(const clsid& clsid) noexcept override {
+	virtual class_factory* get_class_object(const uid& clsid) noexcept override {
 		return s_get_class_object(static_cast<T*>(this)->entries(), clsid);
 	}
 	
-	virtual any* create_instance(any* outer, const clsid& clsid, const iid& iid) noexcept override {
+	virtual any* create_instance(any* outer, const uid& clsid, const uid& iid) noexcept override {
 		if (auto cf = get_class_object(clsid))
 			return cf->create_instance(outer, iid);
 		last_error(errc::no_such_class);
@@ -809,13 +828,13 @@ public:
 	}
 	
 	template <typename Q>
-	ref_ptr<Q> create_instance(any* outer, const clsid& clsid) noexcept {
-		return static_cast<Q*>(create_instance(outer, clsid, IIDOF(Q)));
+	ref_ptr<Q> create_instance(any* outer, const uid& clsid) noexcept {
+		return static_cast<Q*>(create_instance(outer, clsid, UIDOF(Q)));
 	}
 	
 	template <typename Q>
-	ref_ptr<Q> create_instance(const clsid& clsid) noexcept {
-		return static_cast<Q*>(create_instance(nullptr, clsid, IIDOF(Q)));
+	ref_ptr<Q> create_instance(const uid& clsid) noexcept {
+		return static_cast<Q*>(create_instance(nullptr, clsid, UIDOF(Q)));
 	}
 };
 
