@@ -11,7 +11,6 @@
 //     get_class_object
 //     create_instance
 
-#include <cobalt/com/error.hpp>
 #include <cobalt/utility/intrusive.hpp>
 #include <cobalt/utility/uid.hpp>
 
@@ -22,12 +21,9 @@ namespace com {
 	struct Interface; \
 	DECLARE_UID_NS(Namespace, Interface)
 	
-#define DECLARE_COCLASS(Namespace, Class) \
+#define DECLARE_CLASS(Namespace, Class) \
 	class Class; \
 	DECLARE_UID_NS(Namespace, Class)
-
-//using uid = type_info;
-//#define UIDOF(x) type_id<x>().type_info()
 
 /// Any is identity of an object
 DECLARE_INTERFACE(com, any)

@@ -19,11 +19,11 @@ public:
 	size_t hash_value() const noexcept { return boost::hash_value(this); }
 	friend size_t hash_value(const uid& uid) noexcept { return uid.hash_value(); }
 	
-	constexpr bool operator==(const uid& rhs) noexcept { return this == &rhs; }
-	constexpr bool operator!=(const uid& rhs) noexcept { return this != &rhs; }
+	constexpr bool operator==(const uid& rhs) const noexcept { return this == &rhs; }
+	constexpr bool operator!=(const uid& rhs) const noexcept { return this != &rhs; }
 	constexpr bool operator<(const uid& rhs) const noexcept { return std::less<const uid*>()(this, &rhs); }
 	
-	constexpr operator bool() const noexcept { return this != &null(); }
+	constexpr explicit operator bool() const noexcept { return this != &null(); }
 	
 	template <typename T>
 	static constexpr const uid& of(const T* = nullptr) noexcept { return data<T>::instance; }
@@ -62,7 +62,8 @@ private:
 inline constexpr const char* uid_name(const std::nullptr_t*) noexcept { return "null"; }
 inline constexpr const uid& uid_value(const std::nullptr_t*) noexcept { return uid::of<std::nullptr_t>(); }
 
-// Make use of ADL name lookup for `uid_name` here
+// Make use of ADL name lookup for `uid_name`
+// Use DECLARE_UID(Type) for your type if got "No matching function for call to 'uid_name'" compilation error here.
 template<typename T> uid uid::data<T>::instance(uid_name(static_cast<const T*>(nullptr)));
 	
 #define DECLARE_UID(Type) \
@@ -76,7 +77,7 @@ template<typename T> uid uid::data<T>::instance(uid_name(static_cast<const T*>(n
 	
 #define DECLARE_UID_WITH_NAME(Type, Name) \
 	inline constexpr const char* uid_name(const Type*) noexcept { return Name; } \
-	inline constexpr const ::cobalt::uid& uid_value(const Type*) noexcept { return ::cobalt::uid::of<Type>(); }
+	inline constexpr const ::cobalt::uid& uid_value(const Type*) noexcept { return UIDOF(Type); }
 	
 #define UIDOF(x) \
 	::cobalt::uid::of<x>()

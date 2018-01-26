@@ -13,20 +13,35 @@
 namespace cobalt {
 namespace com {
 
-inline void intrusive_ptr_add_ref(any* p) noexcept { BOOST_ASSERT(!!p); p ? p->retain() : (size_t)0; }
-inline void intrusive_ptr_release(any* p) noexcept { BOOST_ASSERT(!!p); p ? p->release() : (size_t)0; }
+// Helper functions for boost::intrusive_ptr<> to deal with `any`
 
-template <typename Q> inline ref_ptr<Q> cast(any* p) noexcept { BOOST_ASSERT(!!p); return p ? static_cast<Q*>(p->cast(UIDOF(Q))) : nullptr; }
-template <typename Q> inline ref_ptr<Q> cast(const ref_ptr<any>& sp) noexcept { return cast<Q>(sp.get()); }
+inline void intrusive_ptr_add_ref(any* p) noexcept
+	{ BOOST_ASSERT(!!p); p ? p->retain() : 0; }
 
-/// Checks if two interfaces have the same identity
-inline bool identical(any* p1, any* p2) noexcept {
-	if (!p1 || !p2) return p1 == p2;
+inline void intrusive_ptr_release(any* p) noexcept
+	{ BOOST_ASSERT(!!p); p ? p->release() : 0; }
+
+// Safe functions for casting objects
+
+template <typename Q>
+inline ref_ptr<Q> cast(any* p) noexcept
+	{ BOOST_ASSERT(!!p); return p ? static_cast<Q*>(p->cast(UIDOF(Q))) : nullptr; }
+
+template <typename Q>
+inline ref_ptr<Q> cast(const ref_ptr<any>& sp) noexcept
+	{ return cast<Q>(sp.get()); }
+
+// Functions for checking if two objects have the same identity
+
+inline bool identical(any* lhs, any* rhs) noexcept {
+	// Treat two nullptrs as identical objects
+	if (!lhs || !rhs) return lhs == rhs;
 	// Having been called from any interface, `cast()` must return the same pointer to `any`
-	return p1->cast(UIDOF(any)) == p2->cast(UIDOF(any));
+	return lhs->cast(UIDOF(any)) == rhs->cast(UIDOF(any));
 }
 
-inline bool identical(const ref_ptr<any>& sp1, const ref_ptr<any>& sp2) noexcept { return identical(sp1.get(), sp2.get()); }
+inline bool identical(const ref_ptr<any>& lhs, const ref_ptr<any>& rhs) noexcept
+	{ return identical(lhs.get(), rhs.get()); }
 
 } // namespace com
 } // namespace cobalt

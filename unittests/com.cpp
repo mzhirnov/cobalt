@@ -10,17 +10,17 @@ namespace test {
 
 // Interfaces
 
-DECLARE_INTERFACE(com, updatable)
+DECLARE_INTERFACE(test, updatable)
 struct updatable : com::any {
 	virtual void update(float dt) noexcept = 0;
 };
 
-DECLARE_INTERFACE(com, drawable)
+DECLARE_INTERFACE(test, drawable)
 struct drawable : com::any {
 	virtual void draw() noexcept = 0;
 };
 
-DECLARE_INTERFACE(com, lifetime)
+DECLARE_INTERFACE(test, lifetime)
 struct lifetime : com::any {
 	virtual std::weak_ptr<void> guard() noexcept = 0;
 };
@@ -72,7 +72,7 @@ public:
 	END_CAST_MAP()
 };
 
-DECLARE_COCLASS(com, my_object)
+DECLARE_CLASS(test, my_object)
 class my_object
 	: public my_object_base
 	, public updatable_impl
@@ -88,6 +88,12 @@ public:
 };
 
 } // namespace test
+
+TEST_CASE("uid", "[com]") {
+	INFO(UIDOF(test::updatable).name());
+	INFO(UIDOF(com::any).name());
+	REQUIRE_FALSE(UIDOF(test::updatable) == UIDOF(com::any));
+}
 
 TEST_CASE("stack_object/chain_cast", "[com]") {
 	std::weak_ptr<void> guard;
@@ -157,7 +163,7 @@ TEST_CASE("coclass/chain_cast", "[com]") {
 
 namespace test {
 
-DECLARE_COCLASS(com, my_object2)
+DECLARE_CLASS(test, my_object2)
 class my_object2
 	: public com::object_base
 	, public lifetime_impl
@@ -206,7 +212,7 @@ TEST_CASE("coclass/tear_off", "[com]") {
 
 namespace test {
 
-DECLARE_COCLASS(com, my_object3)
+DECLARE_CLASS(test, my_object3)
 class my_object3
 	: public com::object_base
 	, public lifetime_impl
@@ -258,7 +264,7 @@ TEST_CASE("coclass/cached_tear_off", "[com]") {
 
 namespace test {
 
-DECLARE_COCLASS(com, my_object4)
+DECLARE_CLASS(test, my_object4)
 class my_object4
 	: public com::object_base
 	, public lifetime_impl
@@ -305,7 +311,7 @@ TEST_CASE("coclass/auto_aggregate_class", "[com]") {
 
 namespace test {
 
-DECLARE_COCLASS(com, my_object5)
+DECLARE_CLASS(test, my_object5)
 class my_object5
 	: public com::object_base
 	, public lifetime_impl
@@ -355,7 +361,7 @@ TEST_CASE("coclass/auto_aggregate_class_blind", "[com]") {
 
 namespace test {
 
-DECLARE_COCLASS(com, my_object6)
+DECLARE_CLASS(test, my_object6)
 class my_object6
 	: public com::object_base
 	, public lifetime_impl
@@ -407,7 +413,7 @@ TEST_CASE("coclass/aggregate", "[com]") {
 
 namespace test {
 
-DECLARE_COCLASS(com, my_object7)
+DECLARE_CLASS(test, my_object7)
 class my_object7
 	: public com::object_base
 	, public lifetime_impl
@@ -462,21 +468,21 @@ TEST_CASE("coclass/aggregate_blind", "[com]") {
 
 namespace test {
 
-//DECLAE_COCLASS(test, my_object8)
-//class my_object8
-//	: public com::object_base
-//	, public lifetime_impl
-//	, public com::coclass<my_object8>
-//{
-//public:
-//	BEGIN_CAST_MAP(my_object8)
-//		CAST_ENTRY(lifetime)
-//		CAST_ENTRY_AUTOAGGREGATE_BLIND(_object2, UIDOF(my_object2))
-//	END_CAST_MAP()
-//
-//private:
-//	ref_ptr<any> _object2;
-//};
+DECLARE_CLASS(test, my_object8)
+class my_object8
+	: public com::object_base
+	, public lifetime_impl
+	, public com::coclass<my_object8>
+{
+public:
+	BEGIN_CAST_MAP(my_object8)
+		CAST_ENTRY(lifetime)
+		//CAST_ENTRY_AUTOAGGREGATE_BLIND(_object2, UIDOF(my_object2))
+	END_CAST_MAP()
+
+private:
+	ref_ptr<any> _object2;
+};
 
 class my_module : public com::module<my_module> {
 public:
@@ -488,7 +494,7 @@ public:
 		OBJECT_ENTRY_NON_CREATEABLE(my_object5)
 		OBJECT_ENTRY_NON_CREATEABLE(my_object6)
 		OBJECT_ENTRY(my_object7)
-		//OBJECT_ENTRY_NON_CREATEABLE(my_object8)
+		OBJECT_ENTRY_NON_CREATEABLE(my_object8)
 	END_OBJECT_MAP()
 };
 
