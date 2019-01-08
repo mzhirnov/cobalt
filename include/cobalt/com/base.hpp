@@ -51,11 +51,8 @@ struct creator_data {
 
 template <typename Creator>
 struct creator_thunk {
-	static creator_data data;
+	inline static constexpr creator_data data{Creator::create_instance};
 };
-
-template <typename Creator>
-creator_data creator_thunk<Creator>::data = { Creator::create_instance };
 
 struct cache_data {
 	size_t offset;
@@ -64,11 +61,8 @@ struct cache_data {
 
 template <typename Creator, size_t Offset>
 struct cache_thunk {
-	static cache_data data;
+	inline static constexpr cache_data data{Offset, Creator::create_instance};
 };
-
-template <typename Creator, size_t Offset>
-cache_data cache_thunk<Creator, Offset>::data = { Offset, Creator::create_instance };
 
 struct chain_data {
 	size_t offset;
@@ -77,11 +71,8 @@ struct chain_data {
 
 template <typename Base, typename Derived>
 struct chain_thunk {
-	static chain_data data;
+	inline static const chain_data data{OFFSETOFCLASS(Base, Derived), Base::cast_entries};
 };
-
-template <typename Base, typename Derived>
-chain_data chain_thunk<Base, Derived>::data = { OFFSETOFCLASS(Base, Derived), Base::cast_entries };
 
 class object_base {
 public:
