@@ -33,7 +33,7 @@ public:
 	void name(const identifier& name) noexcept { _name = name; }
 	
 	static object* create_instance(const type_index& type);
-	template <class T> static T* create_instance();
+	template <typename T> static T* create_instance();
 	
 protected:
 	using object_factory = auto_factory<object(), type_index>;
@@ -50,7 +50,7 @@ inline object* object::create_instance(const type_index& type) {
 	return object_factory::create(type);
 }
 
-template <class T>
+template <typename T>
 inline T* object::create_instance() {
 	static_assert(std::is_base_of<object, T>::value, "T is not derived from object");
 	return static_cast<T*>(object_factory::create(T::class_type()));

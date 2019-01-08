@@ -49,12 +49,12 @@ struct creator_data {
 	create_fn func;
 };
 
-template <class Creator>
+template <typename Creator>
 struct creator_thunk {
 	static creator_data data;
 };
 
-template <class Creator>
+template <typename Creator>
 creator_data creator_thunk<Creator>::data = { Creator::create_instance };
 
 struct cache_data {
@@ -379,7 +379,7 @@ public:
 	virtual any* controlling_object() const noexcept override { return this->_outer; }
 };
 
-template <class Contained>
+template <typename Contained>
 class aggregate : public any, public object_base {
 public:
 	using base_type = Contained;
@@ -425,7 +425,7 @@ private:
 	contained_object<Contained> _contained;
 };
 
-template <class Contained>
+template <typename Contained>
 class object_or_aggregate : public any, public object_base {
 public:
 	using base_type = Contained;
@@ -497,7 +497,7 @@ public:
 	virtual any* cast(const uid& iid) noexcept override { return this->owner()->cast(iid); }
 };
 
-template <class Contained>
+template <typename Contained>
 class cached_tear_off_object : public any, public object_base {
 public:
 	using base_type = Contained;
