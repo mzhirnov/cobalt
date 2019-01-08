@@ -4,7 +4,7 @@
 #pragma once
 
 #include <system_error>
-#include <sstream>
+#include <cstdio>
 
 // Functions in this file:
 //     get_last_error
@@ -20,7 +20,7 @@ enum class errc {
 	no_such_class,
 	aggregation_not_supported,
 	class_disabled,
-	unimplemented
+	not_implemented
 };
 
 namespace detail {
@@ -43,13 +43,13 @@ public:
 			return "aggregation not supported";
 		case errc::class_disabled:
 			return "class disabled";
-		case errc::unimplemented:
-			return "unimplemented";
+		case errc::not_implemented:
+			return "not implemented";
 		}
 		
-		std::ostringstream oss;
-		oss << "unknown error code:" << std::hex << std::showbase << ev;
-		return oss.str();
+		char buffer[64];
+		std::snprintf(buffer, sizeof(buffer), "unknown error code: 0x%X", ev);
+		return buffer;
 	}
 };
 
