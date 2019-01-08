@@ -1,4 +1,4 @@
-#include "catch.hpp"
+#include "catch2/catch.hpp"
 #include <cobalt/com.hpp>
 #include <cobalt/utility/intrusive.hpp>
 
@@ -90,8 +90,8 @@ public:
 } // namespace test
 
 TEST_CASE("uid", "[com]") {
-	INFO(UIDOF(test::updatable).name());
-	INFO(UIDOF(com::any).name());
+	REQUIRE(UIDOF(test::updatable).name() == boost::string_view("test::updatable"));
+	REQUIRE(UIDOF(com::any).name() == boost::string_view("com::any"));
 	REQUIRE_FALSE(UIDOF(test::updatable) == UIDOF(com::any));
 }
 

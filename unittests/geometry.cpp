@@ -1,4 +1,4 @@
-#include "catch.hpp"
+#include "catch2/catch.hpp"
 #include <cobalt/geometry.hpp>
 
 using namespace cobalt;

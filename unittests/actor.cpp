@@ -1,4 +1,4 @@
-#include "catch.hpp"
+#include "catch2/catch.hpp"
 #include <cobalt/actor.hpp>
 #include <cobalt/utility/factory.hpp>
 
