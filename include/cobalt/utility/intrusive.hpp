@@ -20,6 +20,11 @@ using atomic_ref_counter = boost::intrusive_ref_counter<T, boost::thread_safe_co
 template <typename T>
 using ref_ptr = boost::intrusive_ptr<T>;
 
+template <typename T, typename... Args>
+inline ref_ptr<T> make_ref(Args&&... args) {
+	return new T(std::forward<Args>(args)...);
+}
+
 template <typename T>
 inline void retain(T* p) {
 	intrusive_ptr_add_ref(p);
@@ -28,11 +33,6 @@ inline void retain(T* p) {
 template <typename T>
 inline void release(T* p) {
 	intrusive_ptr_release(p);
-}
-
-template <typename T, typename... Args>
-inline ref_ptr<T> make_ref(Args&&... args) {
-	return new T(std::forward<Args>(args)...);
 }
 
 template <typename Tag>
