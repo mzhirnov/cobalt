@@ -207,7 +207,7 @@ void skinned_mesh::pre_draw() {
 
 namespace {
 
-template<typename T, typename Collection>
+template <typename T, typename Collection>
 T find_frame_in_collection(const Collection& coll, float time) {
 	BOOST_ASSERT(!coll.empty());
 
@@ -709,7 +709,7 @@ void model::draw() {
 
 namespace {
 
-template<typename T, typename Collection>
+template <typename T, typename Collection>
 T* find_in_sorted_collection(const Collection& coll, const char* name) {
 	typename Collection::const_iterator it = std::lower_bound(std::begin(coll), std::end(coll), name,
 		[](const typename Collection::value_type& val, const char* name) {

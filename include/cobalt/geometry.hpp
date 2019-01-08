@@ -13,7 +13,7 @@
 
 namespace cobalt {
 
-template<typename T, typename = typename std::enable_if_t<std::is_arithmetic<T>::value>>
+template <typename T, typename = typename std::enable_if_t<std::is_arithmetic<T>::value>>
 struct basic_point {
 	T x{};
 	T y{};
@@ -22,7 +22,7 @@ struct basic_point {
 	constexpr basic_point(T x, T y) noexcept
 		: x(x), y(y) {}
 	
-	template<typename U>
+	template <typename U>
 	constexpr basic_point(const basic_point<U>& p) noexcept
 		: x(static_cast<T>(p.x))
 		, y(static_cast<T>(p.y))
@@ -46,7 +46,7 @@ struct basic_point {
 using point = basic_point<int>;
 using pointf = basic_point<float>;
 
-template<typename T, typename = typename std::enable_if_t<std::is_arithmetic<T>::value>>
+template <typename T, typename = typename std::enable_if_t<std::is_arithmetic<T>::value>>
 struct basic_size {
 	T width{};
 	T height{};
@@ -55,7 +55,7 @@ struct basic_size {
 	constexpr basic_size(T width, T height) noexcept
 		: width(width), height(height) {}
 	
-	template<typename U>
+	template <typename U>
 	constexpr basic_size(const basic_size<U>& s) noexcept
 		: width(static_cast<T>(s.width))
 		, height(static_cast<T>(s.height))
@@ -79,7 +79,7 @@ struct basic_size {
 using size = basic_size<int>;
 using sizef = basic_size<float>;
 
-template<typename T, typename = typename std::enable_if_t<std::is_arithmetic<T>::value>>
+template <typename T, typename = typename std::enable_if_t<std::is_arithmetic<T>::value>>
 struct basic_rect {
 	T x{};
 	T y{};
@@ -102,7 +102,7 @@ struct basic_rect {
 	constexpr basic_rect(const basic_point<T>& p, const basic_size<T>& s) noexcept
 		: x(p.x), y(p.y), width(s.width), height(s.height) {}
 
-	template<typename U>
+	template <typename U>
 	constexpr basic_rect(const basic_rect<U>& r) noexcept
 		: x(static_cast<T>(r.x))
 		, y(static_cast<T>(r.y))

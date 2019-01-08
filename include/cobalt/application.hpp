@@ -73,12 +73,12 @@ public:
 	shared_object* get_shared_object(const char* name) const;
 	shared_object_ptr remove_shared_object(const char* name);
 
-	template<typename T>
+	template <typename T>
 	T* add_shared_object(const char* name, shared_object* data) {
 		return static_cast<T*>(add_shared_object(name, data));
 	}
 	
-	template<typename T>
+	template <typename T>
 	T* get_shared_object(const char* name) const {
 		return boost::polymorphic_downcast<T*>(get_shared_object(name));
 	}

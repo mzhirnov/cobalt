@@ -44,7 +44,7 @@ public:
 	logger(priority level);
 	~logger();
 
-	template<class T>
+	template <typename T>
 	std::ostringstream& operator << (const T& t) {
 		_stream << t;
 		return _stream;
