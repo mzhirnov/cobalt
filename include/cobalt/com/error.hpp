@@ -7,7 +7,8 @@
 #include <sstream>
 
 // Functions in this file:
-//     last_error
+//     get_last_error
+//     set_last_error
 
 namespace cobalt {
 namespace com {
@@ -76,8 +77,8 @@ inline std::error_code& last_error() noexcept {
 
 } // namespace detail
 
-inline const std::error_code& last_error() noexcept { return detail::last_error(); }
-inline void last_error(const std::error_code& ec) noexcept { detail::last_error() = ec; }
+inline const std::error_code& get_last_error() noexcept { return detail::last_error(); }
+inline void set_last_error(const std::error_code& ec) noexcept { detail::last_error() = ec; }
 
 } // namespace com
 } // namespace cobalt
