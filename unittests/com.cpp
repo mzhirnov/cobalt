@@ -90,8 +90,8 @@ public:
 } // namespace test
 
 TEST_CASE("uid", "[com]") {
-	REQUIRE(UIDOF(test::updatable).name() == boost::string_view("test::updatable"));
-	REQUIRE(UIDOF(com::any).name() == boost::string_view("com::any"));
+	REQUIRE(UIDOF(test::updatable).name() == std::string_view("test::updatable"));
+	REQUIRE(UIDOF(com::any).name() == std::string_view("com::any"));
 	REQUIRE_FALSE(UIDOF(test::updatable) == UIDOF(com::any));
 }
 

@@ -18,8 +18,7 @@
 #include <cobalt/utility/identifier.hpp>
 #include <cobalt/utility/enum_traits.hpp>
 
-#include <boost/utility/string_view.hpp>
-
+#include <string_view>
 #include <type_traits>
 #include <deque>
 
@@ -516,7 +515,7 @@ inline void level::clear_actors() noexcept {
 //	// Iterate through names in the path
 //	while (*e++) {
 //		if (*e == '/' || !*e) {
-//			boost::string_view name(b, e - b);
+//			std::string_view name(b, e - b);
 //			bool found = false;
 //			
 //			// Compare child name with current path part

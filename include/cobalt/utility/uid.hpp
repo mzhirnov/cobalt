@@ -7,7 +7,8 @@
 //     uid
 
 #include <boost/functional/hash.hpp>
-#include <boost/utility/string_view.hpp>
+
+#include <string_view>
 
 #define DECLARE_UID(Type) \
 	DECLARE_UID_WITH_NAME(Type, #Type)
@@ -44,7 +45,7 @@ public:
 	static constexpr const uid& of(const T* = nullptr) noexcept { return data<T>::instance; }
 	static constexpr const uid& null() noexcept { return data<std::nullptr_t>::instance; }
 	
-	static const uid& from_string(boost::string_view name) noexcept {
+	static const uid& from_string(std::string_view name) noexcept {
 		for (auto p = head(); p; p = p->_next) {
 			if (name == p->_name)
 				return *p;
