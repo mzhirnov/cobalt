@@ -16,17 +16,15 @@
 #include <cobalt/utility/intrusive.hpp>
 #include <cobalt/utility/type_index.hpp>
 #include <cobalt/utility/identifier.hpp>
-#include <cobalt/utility/enum_traits.hpp>
 
 #include <string_view>
 #include <type_traits>
 #include <deque>
 
-DEFINE_ENUM(
-	traverse_order, uint8_t,
+enum class traverse_order {
 	depth_first,
 	breadth_first
-);
+};
 
 namespace cobalt {
 

@@ -16,7 +16,6 @@
 // Functions in this file:
 //     copy
 
-#include <cobalt/utility/enum_traits.hpp>
 #include <cobalt/utility/intrusive.hpp>
 #include <cobalt/utility/throw_error.hpp>
 
@@ -24,26 +23,23 @@
 #include <cstdio>
 #include <cstdint>
 
-DEFINE_ENUM(
-	seek_origin, uint8_t,
+enum class seek_origin {
 	begin,
 	current,
 	end
-)
+};
 
-DEFINE_ENUM(
-	open_mode, uint8_t,
+enum class open_mode {
 	create,              ///< Create if doesn't exist or overwrite otherwise
 	create_new,          ///< Create if doesn't exist
 	open,                ///< Open existing
 	open_or_create       ///< Open if exists or create new otherwise
-)
+};
 
-DEFINE_ENUM(
-	access_mode, uint8_t,
+enum class access_mode {
 	read_only,
 	read_write
-)
+};
 
 namespace cobalt { namespace io {
 

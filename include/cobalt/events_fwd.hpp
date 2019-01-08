@@ -9,7 +9,6 @@
 //     event_handler
 
 #include <cobalt/utility/intrusive.hpp>
-#include <cobalt/utility/enum_traits.hpp>
 #include <cobalt/utility/identifier.hpp>
 
 #include <boost/assert.hpp>

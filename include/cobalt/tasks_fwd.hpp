@@ -7,14 +7,12 @@
 //     task
 //     task_scheduler
 
-#include <cobalt/utility/enum_traits.hpp>
 #include <cobalt/utility/intrusive.hpp>
 #include <cobalt/utility/enumerator.hpp>
 
 #include <deque>
 
-DEFINE_ENUM(
-	task_state, uint8_t,
+enum class task_state : uint8_t {
 	uninitialized,
 	// alive states
 	running,
@@ -24,14 +22,13 @@ DEFINE_ENUM(
 	failed,
 	aborted,
 	removed
-)
+};
 
-DEFINE_ENUM(
-	task_result, uint8_t,
+enum class task_result {
 	success,
 	fail,
 	abort
-)
+};
 
 namespace cobalt {
 
