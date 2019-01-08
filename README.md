@@ -1,2 +1,2 @@
 # Cobalt
-Cobalt is a header-only C++11 library for multimedia applications with component-object architecture.
+Cobalt is a multipurpose proof-of-concept library for applications with component-object architecture.
