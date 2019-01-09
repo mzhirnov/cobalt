@@ -106,10 +106,6 @@ protected:
 	size_t internal_retain() noexcept { return ++_ref_count; }
 	size_t internal_release() noexcept { return --_ref_count; }
 	
-	size_t outer_retain() noexcept { return _outer->retain(); }
-	size_t outer_release() noexcept { return _outer->release(); }
-	any* outer_cast(const uid& iid, std::error_code& ec) noexcept { return _outer->cast(iid, ec); }
-	
 	static any* s_internal_cast(void* pv, const cast_entry* entries, const uid& iid, std::error_code& ec) noexcept {
 		BOOST_ASSERT(pv);
 		BOOST_ASSERT(entries);
@@ -385,9 +381,9 @@ public:
 		BOOST_ASSERT(!!pv);
 		this->_outer = reinterpret_cast<any*>(pv);
 	}
-	virtual size_t retain() noexcept override { return this->outer_retain(); }
-	virtual size_t release() noexcept override { return this->outer_release(); }
-	virtual any* cast(const uid& iid, std::error_code& ec) noexcept override { return this->outer_cast(iid, ec); }
+	virtual size_t retain() noexcept override { return this->_outer->retain(); }
+	virtual size_t release() noexcept override { return this->_outer->release(); }
+	virtual any* cast(const uid& iid, std::error_code& ec) noexcept override { return this->_outer->cast(iid, ec); }
 	virtual any* controlling_object() const noexcept override { return this->_outer; }
 };
 
