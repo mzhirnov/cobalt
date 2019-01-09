@@ -9,11 +9,12 @@
 //     stack_object
 //     object
 //     contained_object
-//     agg_object
-//     poly_object
+//     aggregate
+//     object_or_aggregate
 //     tear_off_object
 //     cached_tear_off_object
 //     coclass
+//     module_base
 //     module
 
 #include <cobalt/com/core.hpp>
@@ -24,13 +25,13 @@
 namespace cobalt {
 namespace com {
 
-#define _PACKSZ 8
+constexpr size_t kPackSize = 8;
 
 #define OFFSETOFCLASS(base, derived) \
-	(reinterpret_cast<size_t>(static_cast<base*>(reinterpret_cast<derived*>(_PACKSZ)))-_PACKSZ)
+	(reinterpret_cast<size_t>(static_cast<base*>(reinterpret_cast<derived*>(kPackSize)))-kPackSize)
 	
 #define OFFSETOFCLASS2(base, base2, derived) \
-	(reinterpret_cast<size_t>(static_cast<base*>(static_cast<base2*>(reinterpret_cast<derived*>(_PACKSZ))))-_PACKSZ)
+	(reinterpret_cast<size_t>(static_cast<base*>(static_cast<base2*>(reinterpret_cast<derived*>(kPackSize))))-kPackSize)
 	
 #define OFFSETOFMEMBER(type, member) (reinterpret_cast<size_t>(&reinterpret_cast<type*>(0)->member))
 	
@@ -74,6 +75,7 @@ struct chain_thunk {
 	inline static const chain_data data{OFFSETOFCLASS(Base, Derived), Base::cast_entries};
 };
 
+// Base for regular objects.
 class object_base {
 public:
 	object_base() noexcept = default;
@@ -104,12 +106,12 @@ protected:
 		
 		BOOST_ASSERT(entries[0].func == SIMPLE_CAST_ENTRY);
 		if (entries[0].func != SIMPLE_CAST_ENTRY) {
-			set_last_error(errc::failure);
+			set_last_error(make_error_code(errc::failure));
 			return nullptr;
 		}
 		
 		if (iid == UIDOF(any)) {
-			set_last_error(errc::success);
+			set_last_error(make_error_code(errc::success));
 			return reinterpret_cast<any*>(reinterpret_cast<size_t>(pv) + entries[0].data);
 		}
 		
@@ -118,20 +120,20 @@ protected:
 			if (blind || entry->iid == &iid) {
 				if (entry->func == SIMPLE_CAST_ENTRY) {
 					BOOST_ASSERT(!blind);
-					set_last_error(errc::success);
+					set_last_error(make_error_code(errc::success));
 					return reinterpret_cast<any*>(reinterpret_cast<size_t>(pv) + entry->data);
 				} else {
 					auto id = entry->func(pv, iid, entry->data);
 					if (get_last_error()) return nullptr;
 					if (id || (!blind && !id)) {
-						set_last_error(errc::success);
+						set_last_error(make_error_code(errc::success));
 						return id;
 					}
 				}
 			}
 		}
 		
-		set_last_error(errc::no_such_interface);
+		set_last_error(make_error_code(errc::no_such_interface));
 		return nullptr;
 	}
 	
@@ -146,18 +148,18 @@ protected:
 	}
 	
 	static any* s_nointerface(void* pv, const uid& iid, size_t data) noexcept {
-		set_last_error(errc::no_such_interface);
+		set_last_error(make_error_code(errc::no_such_interface));
 		return nullptr;
 	}
 	
 	static any* s_create(void* pv, const uid& iid, size_t data) noexcept {
-		set_last_error(errc::success);
+		set_last_error(make_error_code(errc::success));
 		auto cd = reinterpret_cast<creator_data*>(data);
 		return cd->func(reinterpret_cast<any*>(pv), iid);
 	}
 	
 	static any* s_cache(void* pv, const uid& iid, size_t data) noexcept {
-		set_last_error(errc::success);
+		set_last_error(make_error_code(errc::success));
 		auto cd = reinterpret_cast<cache_data*>(data);
 		auto id = reinterpret_cast<any**>((reinterpret_cast<size_t>(pv) + cd->offset));
 		if (!*id && (*id = cd->func(reinterpret_cast<any*>(pv), UIDOF(any)))) {
@@ -171,7 +173,7 @@ protected:
 	}
 	
 	static any* s_delegate(void* pv, const uid& iid, size_t data) noexcept {
-		set_last_error(errc::success);
+		set_last_error(make_error_code(errc::success));
 		auto id = *reinterpret_cast<any**>(reinterpret_cast<size_t>(pv) + data);
 		if (id) return id->cast(iid);
 		set_last_error(make_error_code(std::errc::bad_address));
@@ -179,7 +181,6 @@ protected:
 	}
 	
 	static any* s_chain(void* pv, const uid& iid, size_t data) noexcept {
-		set_last_error(errc::success);
 		auto cd = reinterpret_cast<chain_data*>(data);
 		auto p = reinterpret_cast<void*>((reinterpret_cast<size_t>(pv) + cd->offset));
 		return s_internal_cast(p, cd->func(), iid);
@@ -194,6 +195,7 @@ protected:
 	};
 };
 
+// Base for tear-off objects.
 template <typename Owner>
 class tear_off_object_base : public object_base {
 public:
@@ -279,6 +281,7 @@ private:
 		return identity(); \
 	}
 
+// Object instance on stack.
 template <typename Base>
 class stack_object : public Base {
 public:
@@ -318,6 +321,7 @@ private:
 	bool _init_result = false;
 };
 
+// Object instance on heap.
 template <typename Base>
 class object : public Base {
 public:
@@ -337,24 +341,27 @@ public:
 	
 	static object<Base>* create_instance(any* outer = nullptr) noexcept {
 		BOOST_ASSERT(!outer);
-		if (outer)
+		if (outer) {
+			set_last_error(make_error_code(errc::aggregation_not_supported));
 			return nullptr;
+		}
 		auto p = new(std::nothrow) object<Base>(nullptr);
 		if (!p) {
-			set_last_error(std::make_error_code(std::errc::not_enough_memory));
+			set_last_error(make_error_code(std::errc::not_enough_memory));
 			return nullptr;
 		}
 		p->set_void(nullptr);
 		if (!p->init()) {
 			delete p;
-			set_last_error(errc::failure);
+			set_last_error(make_error_code(errc::failure));
 			return nullptr;
 		}
-		set_last_error(errc::success);
+		set_last_error(make_error_code(errc::success));
 		return p;
 	}
 };
 
+// Object instance as part of aggregate object.
 template <typename Base>
 class contained_object : public Base {
 public:
@@ -370,6 +377,7 @@ public:
 	virtual any* controlling_object() const noexcept override { return this->_outer; }
 };
 
+// Object instance inside another object.
 template <typename Contained>
 class aggregate : public any, public object_base {
 public:
@@ -390,7 +398,7 @@ public:
 	}
 	virtual any* cast(const uid& iid) noexcept override {
 		if (iid == UIDOF(any)) {
-			set_last_error(errc::success);
+			set_last_error(make_error_code(errc::success));
 			return this;
 		}
 		return _contained.internal_cast(iid);
@@ -399,16 +407,16 @@ public:
 	static aggregate<Contained>* create_instance(any* outer) noexcept {
 		auto p = new(std::nothrow) aggregate<Contained>(outer);
 		if (!p) {
-			set_last_error(std::make_error_code(std::errc::not_enough_memory));
+			set_last_error(make_error_code(std::errc::not_enough_memory));
 			return nullptr;
 		}
 		p->set_void(nullptr);
 		if (!p->init()) {
 			delete p;
-			set_last_error(errc::failure);
+			set_last_error(make_error_code(errc::failure));
 			return nullptr;
 		}
-		set_last_error(errc::success);
+		set_last_error(make_error_code(errc::success));
 		return p;
 	}
 
@@ -436,7 +444,7 @@ public:
 	}
 	virtual any* cast(const uid& iid) noexcept override {
 		if (iid == UIDOF(any)) {
-			set_last_error(errc::success);
+			set_last_error(make_error_code(errc::success));
 			return this;
 		}
 		return _contained.internal_cast(iid);
@@ -445,16 +453,16 @@ public:
 	static object_or_aggregate<Contained>* create_instance(any* outer) noexcept {
 		auto p = new(std::nothrow) object_or_aggregate<Contained>(outer);
 		if (!p) {
-			set_last_error(std::make_error_code(std::errc::not_enough_memory));
+			set_last_error(make_error_code(std::errc::not_enough_memory));
 			return nullptr;
 		}
 		p->set_void(nullptr);
 		if (!p->init()) {
 			delete p;
-			set_last_error(errc::failure);
+			set_last_error(make_error_code(errc::failure));
 			return nullptr;
 		}
-		set_last_error(errc::success);
+		set_last_error(make_error_code(errc::success));
 		return p;
 	}
 
@@ -514,7 +522,7 @@ public:
 	}
 	virtual any* cast(const uid& iid) noexcept override {
 		if (iid == UIDOF(any)) {
-			set_last_error(errc::success);
+			set_last_error(make_error_code(errc::success));
 			return this;
 		}
 		return _contained.internal_cast(iid);
@@ -529,13 +537,13 @@ struct creator {
 	static any* create_instance(void* pv, const uid& iid) noexcept {
 		auto p = new(std::nothrow) T(pv);
 		if (!p) {
-			set_last_error(std::make_error_code(std::errc::not_enough_memory));
+			set_last_error(make_error_code(std::errc::not_enough_memory));
 			return nullptr;
 		};
 		p->set_void(pv);
 		if (!p->init()) {
 			delete p;
-			set_last_error(errc::failure);
+			set_last_error(make_error_code(errc::failure));
 			return nullptr;
 		}
 		any* id = p->cast(iid);
@@ -550,13 +558,13 @@ struct internal_creator {
 	static any* create_instance(void* pv, const uid& iid) noexcept {
 		auto p = new(std::nothrow) T(pv);
 		if (!p) {
-			set_last_error(std::make_error_code(std::errc::not_enough_memory));
+			set_last_error(make_error_code(std::errc::not_enough_memory));
 			return nullptr;
 		};
 		p->set_void(pv);
 		if (!p->init()) {
 			delete p;
-			set_last_error(errc::failure);
+			set_last_error(make_error_code(errc::failure));
 			return nullptr;
 		}
 		any* id = p->internal_cast(iid);
@@ -570,10 +578,10 @@ template <typename T, const uid* clsid>
 struct aggregate_creator {
 	static any* create_instance(void* pv, const uid& iid) noexcept {
 		if (!pv) {
-			set_last_error(std::make_error_code(std::errc::invalid_argument));
+			set_last_error(make_error_code(std::errc::invalid_argument));
 			return nullptr;
 		}
-		set_last_error(errc::success);
+		set_last_error(make_error_code(errc::success));
 		T* p = static_cast<T*>(pv);
 		return create_instance(p->controlling_object(), *clsid, UIDOF(any));
 	}
@@ -589,27 +597,31 @@ struct creator2 {
 
 struct fail_creator {
 	static any* create_instance(void* pv, const uid& iid) noexcept {
-		set_last_error(errc::failure);
+		set_last_error(make_error_code(errc::failure));
 		return nullptr;
 	}
 };
 
-#define DECLARE_AGGREGATABLE(x) public: \
+#define DECLARE_AGGREGATABLE(x) \
+public: \
 	using creator_type = ::cobalt::com::creator2< \
 	                         ::cobalt::com::creator<::cobalt::com::object<x>>, \
 	                         ::cobalt::com::creator<::cobalt::com::aggregate<x>>>;
 	
-#define DECLARE_NOT_AGGREGATABLE(x) public: \
+#define DECLARE_NOT_AGGREGATABLE(x) \
+public: \
 	using creator_type = ::cobalt::com::creator2< \
 	                         ::cobalt::com::creator<::cobalt::com::object<x>>, \
 	                         ::cobalt::com::fail_creator>;
 	
-#define DECLARE_ONLY_AGGREGATABLE(x) public: \
+#define DECLARE_ONLY_AGGREGATABLE(x) \
+public: \
 	using creator_type = ::cobalt::com::creator2< \
 	                         ::cobalt::com::fail_creator, \
 	                         ::cobalt::com::creator<::cobalt::com::aggregate<x>>>;
 
-#define DECLARE_POLY_AGGREGATABLE(x) public: \
+#define DECLARE_POLY_AGGREGATABLE(x) \
+public: \
 	using creator_type = ::cobalt::com::creator<::cobalt::com::object_or_aggregate<x>>;
 
 class class_factory_impl : public object_base, public class_factory {
@@ -624,7 +636,7 @@ public:
 		BOOST_ASSERT(_creator);
 		BOOST_ASSERT(!outer || (outer && iid == UIDOF(any)));
 		if (outer && iid != UIDOF(any)) {
-			set_last_error(errc::aggregation_not_supported);
+			set_last_error(make_error_code(errc::aggregation_not_supported));
 			return nullptr;
 		}
 		return _creator(outer, iid);
@@ -645,7 +657,7 @@ public:
 	virtual any* create_instance(any* outer, const uid& iid) noexcept override {
 		BOOST_ASSERT(!outer);
 		if (outer) {
-			set_last_error(errc::aggregation_not_supported);
+			set_last_error(make_error_code(errc::aggregation_not_supported));
 			return nullptr;
 		}
 		if (!_object) {
@@ -752,12 +764,12 @@ protected:
 					entry->factory->retain();
 				}
 				BOOST_ASSERT(!!entry->factory);
-				set_last_error(errc::success);
+				set_last_error(make_error_code(errc::success));
 				return entry->factory;
 			}
 		}
 		
-		set_last_error(errc::no_such_class);
+		set_last_error(make_error_code(errc::no_such_class));
 		return nullptr;
 	}
 	
@@ -792,21 +804,21 @@ template <typename T>
 class module : public module_base {
 public:
 	module() noexcept {
-		s_init(static_cast<T*>(this)->entries());
+		s_init(derived().entries());
 	}
 	
 	~module() {
-		s_deinit(static_cast<T*>(this)->entries());
+		s_deinit(derived().entries());
 	}
 
 	virtual class_factory* get_class_object(const uid& clsid) noexcept override {
-		return s_get_class_object(static_cast<T*>(this)->entries(), clsid);
+		return s_get_class_object(derived().entries(), clsid);
 	}
 	
 	virtual any* create_instance(any* outer, const uid& clsid, const uid& iid) noexcept override {
 		if (auto cf = get_class_object(clsid))
 			return cf->create_instance(outer, iid);
-		set_last_error(errc::no_such_class);
+		set_last_error(make_error_code(errc::no_such_class));
 		return nullptr;
 	}
 	
@@ -819,6 +831,9 @@ public:
 	ref_ptr<Q> create_instance(const uid& clsid) noexcept {
 		return static_cast<Q*>(create_instance(nullptr, clsid, UIDOF(Q)));
 	}
+	
+private:
+	T& derived() noexcept { return static_cast<T&>(*this); }
 };
 
 } // namespace com

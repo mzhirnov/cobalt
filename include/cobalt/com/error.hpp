@@ -25,7 +25,7 @@ enum class errc {
 
 namespace detail {
 
-class com_category_impl : public std::error_category {
+class com_error_category : public std::error_category {
 public:
 	virtual const char* name() const noexcept override { return "com"; }
 	
@@ -47,46 +47,41 @@ public:
 			return "not implemented";
 		}
 		
-		char buffer[64];
-		std::snprintf(buffer, sizeof(buffer), "unknown error code: 0x%X", ev);
+		char buffer[32];
+		std::snprintf(buffer, sizeof(buffer), "unknown error: 0x%X", ev);
 		return buffer;
 	}
 };
 
-} // namespace detail
-
-inline const std::error_category& com_category() noexcept {
-	static detail::com_category_impl instance;
-	return instance;
-}
-
-inline std::error_code make_error_code(errc e) noexcept {
-	return std::error_code(static_cast<int>(e), com_category());
-}
-
-inline std::error_condition make_error_condition(errc e) noexcept {
-	return std::error_condition(static_cast<int>(e), com_category());
-}
-
-namespace detail {
-
-inline std::error_code& last_error() noexcept {
+inline std::error_code& last_error_code() noexcept {
 	thread_local static std::error_code ec;
 	return ec;
 }
 
 } // namespace detail
 
-inline const std::error_code& get_last_error() noexcept { return detail::last_error(); }
-inline void set_last_error(const std::error_code& ec) noexcept { detail::last_error() = ec; }
+inline const std::error_category& com_category() noexcept {
+	static detail::com_error_category instance;
+	return instance;
+}
+
+inline std::error_code make_error_code(errc e) noexcept {
+	return {static_cast<int>(e), com_category()};
+}
+
+inline std::error_condition make_error_condition(errc e) noexcept {
+	return {static_cast<int>(e), com_category()};
+}
+
+inline const std::error_code& get_last_error() noexcept { return detail::last_error_code(); }
+inline void set_last_error(const std::error_code& ec) noexcept { detail::last_error_code() = ec; }
 
 } // namespace com
 } // namespace cobalt
 
 namespace std {
 	template <>
-	struct is_error_code_enum<cobalt::com::errc>
-		: public true_type {};
+	struct is_error_condition_enum<::cobalt::com::errc> : true_type {};
 }
 
 #endif // COBALT_COM_ERROR_HPP_INCLUDED
