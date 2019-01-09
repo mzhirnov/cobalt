@@ -25,20 +25,34 @@
 namespace cobalt {
 namespace com {
 
-constexpr size_t kPackSize = 8;
+template <typename Base, typename Derived>
+constexpr size_t offset_from_class() noexcept {
+	constexpr Derived* const derived = nullptr;
+	return
+		static_cast<const char*>(static_cast<const void*>(derived)) -
+		static_cast<const char*>(static_cast<const void*>(static_cast<Base*>(derived)));
+}
 
-#define OFFSETOFCLASS(base, derived) \
-	(reinterpret_cast<size_t>(static_cast<base*>(reinterpret_cast<derived*>(kPackSize)))-kPackSize)
-	
-#define OFFSETOFCLASS2(base, base2, derived) \
-	(reinterpret_cast<size_t>(static_cast<base*>(static_cast<base2*>(reinterpret_cast<derived*>(kPackSize))))-kPackSize)
-	
-#define OFFSETOFMEMBER(type, member) (reinterpret_cast<size_t>(&reinterpret_cast<type*>(0)->member))
-	
-#define SIMPLE_CAST_ENTRY (::cobalt::com::cast_fn)1
+template <typename Base, typename Base2, typename Derived>
+constexpr size_t offset_from_class() noexcept {
+	constexpr Derived* const derived = nullptr;
+	return
+		static_cast<const char*>(static_cast<const void*>(derived)) -
+		static_cast<const char*>(static_cast<const void*>(static_cast<Base*>(static_cast<Base2*>(derived))));
+}
+
+template <typename Parent, typename Member>
+constexpr size_t offset_from_member_ptr(const Member Parent::*member) noexcept {
+	constexpr Parent* const parent = nullptr;
+	return
+		static_cast<const char*>(static_cast<const void*>(&(parent->*member))) -
+		static_cast<const char*>(static_cast<const void*>(parent));
+}
 
 using create_fn = any* (*)(void* pv, const uid& iid, std::error_code& ec);
 using cast_fn = any* (*)(void* pv, const uid& iid, size_t data, std::error_code& ec);
+
+const cast_fn kSimpleCastEntry = reinterpret_cast<cast_fn>(1);
 
 struct cast_entry {
 	const uid* iid;
@@ -72,7 +86,7 @@ struct chain_data {
 
 template <typename Base, typename Derived>
 struct chain_thunk {
-	inline static const chain_data data{OFFSETOFCLASS(Base, Derived), Base::cast_entries};
+	inline static const chain_data data{offset_from_class<Base, Derived>(), Base::cast_entries};
 };
 
 // Base for regular objects.
@@ -104,8 +118,8 @@ protected:
 			return nullptr;
 		}
 		
-		BOOST_ASSERT(entries[0].func == SIMPLE_CAST_ENTRY);
-		if (entries[0].func != SIMPLE_CAST_ENTRY) {
+		BOOST_ASSERT(entries[0].func == kSimpleCastEntry);
+		if (entries[0].func != kSimpleCastEntry) {
 			ec = make_error_code(errc::failure);
 			return nullptr;
 		}
@@ -118,7 +132,7 @@ protected:
 		for (auto entry = entries; entry->func; ++entry) {
 			bool blind = !entry->iid;
 			if (blind || entry->iid == &iid) {
-				if (entry->func == SIMPLE_CAST_ENTRY) {
+				if (entry->func == kSimpleCastEntry) {
 					BOOST_ASSERT(!blind);
 					ec = make_error_code(errc::success);
 					return reinterpret_cast<any*>(reinterpret_cast<size_t>(pv) + entry->data);
@@ -171,12 +185,10 @@ protected:
 	}
 	
 	static any* s_delegate(void* pv, const uid& iid, size_t data, std::error_code& ec) noexcept {
-		auto id = *reinterpret_cast<any**>(reinterpret_cast<size_t>(pv) + data);
-		if (!id) {
-			ec = make_error_code(std::errc::bad_address);
-			return nullptr;
-		}
-		return id->cast(iid, ec);
+		if (auto id = *reinterpret_cast<any**>(reinterpret_cast<size_t>(pv) + data))
+			return id->cast(iid, ec);
+		ec = make_error_code(errc::no_such_interface);
+		return nullptr;
 	}
 	
 	static any* s_chain(void* pv, const uid& iid, size_t data, std::error_code& ec) noexcept {
@@ -211,7 +223,7 @@ private:
 #define BEGIN_CAST_MAP(x) public: \
 	static const ::cobalt::com::cast_entry* cast_entries() noexcept { \
 		using namespace ::cobalt::com; \
-		using cast_map_class = x; \
+		using self = x; \
 		static const cast_entry entries[] = {
 
 #define CAST_ENTRY_BREAK(x) \
@@ -227,43 +239,43 @@ private:
 			{ nullptr, data, func }
 
 #define CAST_ENTRY(x) \
-			{ &UIDOF(x), OFFSETOFCLASS(x, cast_map_class), SIMPLE_CAST_ENTRY },
+			{ &UIDOF(x), offset_from_class<x, self>(), kSimpleCastEntry },
 	
 #define CAST_ENTRY_IID(iid, x) \
-			{ &iid, OFFSETOFCLASS(x, cast_map_class), SIMPLE_CAST_ENTRY },
+			{ &iid, offset_from_class<x, self>(), kSimpleCastEntry },
 
 #define CAST_ENTRY2(x, x2) \
-			{ &UIDOF(x), OFFSETOFCLASS2(x, x2, cast_map_class), SIMPLE_CAST_ENTRY },
+			{ &UIDOF(x), offset_from_class<x, x2, self>(), kSimpleCastEntry },
 
 #define CAST_ENTRY2_IID(iid, x, x2) \
-			{ &iid, OFFSETOFCLASS2(x, x2, cast_map_class), SIMPLE_CAST_ENTRY },
+			{ &iid, offset_from_class<x, x2, self>(), kSimpleCastEntry },
 	
 #define CAST_ENTRY_TEAR_OFF(iid, x) \
 			{ &iid, reinterpret_cast<size_t>(&creator_thunk<internal_creator<tear_off_object<x>>>::data), s_create },
 	
 #define CAST_ENTRY_CACHED_TEAR_OFF(iid, x, pid) \
-			{ &iid, reinterpret_cast<size_t>(&cache_thunk<creator<cached_tear_off_object<x>>, offsetof(cast_map_class, pid)>::data), s_cache },
+			{ &iid, reinterpret_cast<size_t>(&cache_thunk<creator<cached_tear_off_object<x>>, offsetof(self, pid)>::data), s_cache },
 	
 #define CAST_ENTRY_AGGREGATE(iid, pid) \
-			{ &iid, OFFSETOFMEMBER(cast_map_class, pid), s_delegate },
+			{ &iid, offset_from_member_ptr<self>(&self::pid), s_delegate },
 	
 #define CAST_ENTRY_AGGREGATE_BLIND(pid) \
-			{ nullptr, OFFSETOFMEMBER(cast_map_class, pid), s_delegate },
+			{ nullptr, offset_from_member_ptr<self>(&self::pid), s_delegate },
 	
 #define CAST_ENTRY_AUTOAGGREGATE(iid, pid, clsid) \
-			{ &iid, reinterpret_cast<size_t>(&cache_thunk<aggregate_creator<cast_map_class, &clsid>, offsetof(cast_map_class, pid)>::data), s_cache },
+			{ &iid, reinterpret_cast<size_t>(&cache_thunk<aggregate_creator<self, &clsid>, offsetof(self, pid)>::data), s_cache },
 	
 #define CAST_ENTRY_AUTOAGGREGATE_BLIND(pid, clsid) \
-			{ nullptr, reinterpret_cast<size_t>(&cache_thunk<aggregate_creator<cast_map_class, &clsid>, offsetof(cast_map_class, pid)>::data), s_cache },
+			{ nullptr, reinterpret_cast<size_t>(&cache_thunk<aggregate_creator<self, &clsid>, offsetof(self, pid)>::data), s_cache },
 	
 #define CAST_ENTRY_AUTOAGGREGATE_CLASS(iid, pid, x) \
-			{ &iid, reinterpret_cast<size_t>(&cache_thunk<creator<aggregate<x>>, offsetof(cast_map_class, pid)>::data), s_cache },
+			{ &iid, reinterpret_cast<size_t>(&cache_thunk<creator<aggregate<x>>, offsetof(self, pid)>::data), s_cache },
 	
 #define CAST_ENTRY_AUTOAGGREGATE_CLASS_BLIND(pid, x) \
-			{ nullptr, reinterpret_cast<size_t>(&cache_thunk<creator<aggregate<x>>, offsetof(cast_map_class, pid)>::data), s_cache },
+			{ nullptr, reinterpret_cast<size_t>(&cache_thunk<creator<aggregate<x>>, offsetof(self, pid)>::data), s_cache },
 	
 #define CAST_ENTRY_CHAIN(class) \
-			{ nullptr, reinterpret_cast<size_t>(&chain_thunk<class, cast_map_class>::data), s_chain },
+			{ nullptr, reinterpret_cast<size_t>(&chain_thunk<class, self>::data), s_chain },
 
 #define END_CAST_MAP() \
 			{ nullptr, 0, nullptr } \
@@ -274,7 +286,7 @@ private:
 		return s_internal_cast(this, cast_entries(), iid, ec); \
 	} \
 	::cobalt::com::any* identity() const noexcept { \
-		BOOST_ASSERT(cast_entries()->func == SIMPLE_CAST_ENTRY); \
+		BOOST_ASSERT(cast_entries()->func == ::cobalt::com::kSimpleCastEntry); \
 		return reinterpret_cast<::cobalt::com::any*>(reinterpret_cast<size_t>(this) + cast_entries()->data); \
 	} \
 	virtual ::cobalt::com::any* controlling_object() const noexcept { \
@@ -287,8 +299,7 @@ class stack_object : public Base {
 public:
 	using base_type = Base;
 	
-	explicit stack_object(any* outer = nullptr) noexcept {
-		BOOST_ASSERT(!outer);
+	stack_object() noexcept {
 		this->set_void(nullptr);
 		this->init(_ec);
 		BOOST_ASSERT(!_ec);
@@ -316,7 +327,8 @@ public:
 #endif
 	}
 	
-	virtual any* cast(const uid& iid, std::error_code& ec) noexcept override { return this->internal_cast(iid, ec); }
+	virtual any* cast(const uid& iid, std::error_code& ec) noexcept override
+		{ return this->internal_cast(iid, ec); }
 	
 private:
 	std::error_code _ec;
@@ -338,7 +350,8 @@ public:
 			delete this;
 		return ref_count;
 	}
-	virtual any* cast(const uid& iid, std::error_code& ec) noexcept override { return this->internal_cast(iid, ec); }
+	virtual any* cast(const uid& iid, std::error_code& ec) noexcept override
+		{ return this->internal_cast(iid, ec); }
 	
 	static object<Base>* create_instance(any* outer, std::error_code& ec) noexcept {
 		BOOST_ASSERT(!outer);
