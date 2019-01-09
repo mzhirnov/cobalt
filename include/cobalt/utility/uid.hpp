@@ -10,20 +10,23 @@
 
 #include <string_view>
 
+#define DECLARE_UID_WITH_NAME(Type, Name) \
+	inline constexpr const char* get_uid_name(const Type*) noexcept { return Name; }
+
+#define DECLARE_UID_WITH_NAME_NS(Namespace, Type, Name) \
+	DECLARE_UID_WITH_NAME(Type, #Namespace "." Name)
+
 #define DECLARE_UID(Type) \
 	DECLARE_UID_WITH_NAME(Type, #Type)
 
 #define DECLARE_UID_NS(Namespace, Type) \
 	DECLARE_UID_WITH_NAME_NS(Namespace, Type, #Type)
 
-#define DECLARE_UID_WITH_NAME_NS(Namespace, Type, Name) \
-	DECLARE_UID_WITH_NAME(Type, #Namespace "::" Name)
-
-#define DECLARE_UID_WITH_NAME(Type, Name) \
-	inline constexpr const char* get_uid_name(const Type*) noexcept { return Name; }
-
 #define UIDOF(x) \
 	::cobalt::uid::of<x>()
+
+#define UIDSTR(str) \
+	::cobalt::uid::from_string(str)
 
 namespace cobalt {
 	

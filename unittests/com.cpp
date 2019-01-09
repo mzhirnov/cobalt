@@ -90,8 +90,10 @@ public:
 } // namespace test
 
 TEST_CASE("uid", "[com]") {
-	REQUIRE(UIDOF(test::updatable).name() == std::string_view("test::updatable"));
-	REQUIRE(UIDOF(com::any).name() == std::string_view("com::any"));
+	REQUIRE(UIDOF(test::updatable) == UIDSTR("test.updatable"));
+	REQUIRE(UIDOF(com::any) == UIDSTR("com.any"));
+	REQUIRE(UIDOF(test::updatable).name() == std::string_view("test.updatable"));
+	REQUIRE(UIDOF(com::any).name() == std::string_view("com.any"));
 	REQUIRE_FALSE(UIDOF(test::updatable) == UIDOF(com::any));
 }
 
@@ -520,13 +522,13 @@ TEST_CASE("module", "[com]") {
 	}
 	
 	SECTION("create_instance") {
-		auto lft = com::create_instance<test::lifetime>(UIDOF(test::my_object));
+		auto lft = com::create_instance<test::lifetime>(UIDSTR("test.my_object"));
 		REQUIRE(lft);
 		
-		auto lft2 = com::create_instance<test::lifetime>(UIDOF(test::my_object2));
+		auto lft2 = com::create_instance<test::lifetime>(UIDSTR("test.my_object2"));
 		REQUIRE(lft2);
 		
-		auto lft3 = com::create_instance<test::lifetime>(UIDOF(test::my_object3));
+		auto lft3 = com::create_instance<test::lifetime>(UIDSTR("test.my_object3"));
 		REQUIRE_FALSE(lft3);
 		
 		REQUIRE_FALSE(com::identical(lft, lft2));
