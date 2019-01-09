@@ -102,14 +102,18 @@ TEST_CASE("stack_object/chain_cast", "[com]") {
 	
 	{
 		com::stack_object<test::my_object> object;
-		REQUIRE(object.init_result());
+		REQUIRE(!object.error());
 		
 		object.hello_world();
 		
-		auto upd = com::cast<test::updatable>(object.identity());
+		std::error_code ec;
+		
+		auto upd = com::cast<test::updatable>(object.identity(), ec);
+		REQUIRE(!ec);
 		REQUIRE(upd);
 		
-		auto lft = com::cast<test::lifetime>(upd);
+		auto lft = com::cast<test::lifetime>(upd, ec);
+		REQUIRE(!ec);
 		REQUIRE(lft);
 		
 		REQUIRE(com::identical(upd, lft));
@@ -125,14 +129,19 @@ TEST_CASE("object/chain_cast", "[com]") {
 	std::weak_ptr<void> guard;
 	
 	{
-		auto object = com::object<test::my_object>::create_instance();
+		std::error_code ec;
+		
+		auto object = com::object<test::my_object>::create_instance(nullptr, ec);
+		REQUIRE(!ec);
 		
 		object->hello_world();
 
-		auto upd = com::cast<test::updatable>(object->identity());
+		auto upd = com::cast<test::updatable>(object->identity(), ec);
+		REQUIRE(!ec);
 		REQUIRE(upd);
 		
-		auto lft = com::cast<test::lifetime>(upd);
+		auto lft = com::cast<test::lifetime>(upd, ec);
+		REQUIRE(!ec);
 		REQUIRE(lft);
 		
 		REQUIRE(com::identical(upd, lft));
@@ -148,10 +157,14 @@ TEST_CASE("coclass/chain_cast", "[com]") {
 	std::weak_ptr<void> guard;
 	
 	{
-		auto upd = test::my_object::s_create_instance<test::updatable>();
+		std::error_code ec;
+		
+		auto upd = test::my_object::s_create_instance<test::updatable>(nullptr, ec);
+		REQUIRE(!ec);
 		REQUIRE(upd);
 		
-		auto lft = com::cast<test::lifetime>(upd);
+		auto lft = com::cast<test::lifetime>(upd, ec);
+		REQUIRE(!ec);
 		REQUIRE(lft);
 		
 		REQUIRE(com::identical(upd, lft));
@@ -186,13 +199,18 @@ TEST_CASE("coclass/tear_off", "[com]") {
 	std::weak_ptr<void> guard;
 	
 	{
-		auto drw = test::my_object2::s_create_instance<test::drawable>();
+		std::error_code ec;
+		
+		auto drw = test::my_object2::s_create_instance<test::drawable>(nullptr, ec);
+		REQUIRE(!ec);
 		REQUIRE(drw);
 		
-		auto lft = com::cast<test::lifetime>(drw);
+		auto lft = com::cast<test::lifetime>(drw, ec);
+		REQUIRE(!ec);
 		REQUIRE(lft);
 		
-		auto upd = com::cast<test::updatable>(lft);
+		auto upd = com::cast<test::updatable>(lft, ec);
+		REQUIRE(!ec);
 		REQUIRE(upd);
 		
 		REQUIRE(com::identical(upd, lft));
@@ -238,13 +256,18 @@ TEST_CASE("coclass/cached_tear_off", "[com]") {
 	std::weak_ptr<void> guard;
 	
 	{
-		auto upd = test::my_object3::s_create_instance<test::updatable>();
+		std::error_code ec;
+		
+		auto upd = test::my_object3::s_create_instance<test::updatable>(nullptr, ec);
+		REQUIRE(!ec);
 		REQUIRE(upd);
 		
-		auto lft = com::cast<test::lifetime>(upd);
+		auto lft = com::cast<test::lifetime>(upd, ec);
+		REQUIRE(!ec);
 		REQUIRE(lft);
 		
-		auto drw = com::cast<test::drawable>(lft);
+		auto drw = com::cast<test::drawable>(lft, ec);
+		REQUIRE(!ec);
 		REQUIRE(drw);
 		
 		REQUIRE(com::identical(upd, lft));
@@ -288,13 +311,18 @@ TEST_CASE("coclass/auto_aggregate_class", "[com]") {
 	std::weak_ptr<void> guard;
 	
 	{
-		auto lft = test::my_object4::s_create_instance<test::lifetime>();
+		std::error_code ec;
+		
+		auto lft = test::my_object4::s_create_instance<test::lifetime>(nullptr, ec);
+		REQUIRE(!ec);
 		REQUIRE(lft);
 		
-		auto drw = com::cast<test::drawable>(lft);
+		auto drw = com::cast<test::drawable>(lft, ec);
+		REQUIRE(!ec);
 		REQUIRE(drw);
 		
-		auto upd = com::cast<test::updatable>(drw);
+		auto upd = com::cast<test::updatable>(drw, ec);
+		REQUIRE(ec);
 		REQUIRE_FALSE(upd);
 		
 		REQUIRE(com::identical(lft, drw));
@@ -335,13 +363,18 @@ TEST_CASE("coclass/auto_aggregate_class_blind", "[com]") {
 	std::weak_ptr<void> guard;
 	
 	{
-		auto lft = test::my_object5::s_create_instance<test::lifetime>();
+		std::error_code ec;
+		
+		auto lft = test::my_object5::s_create_instance<test::lifetime>(nullptr, ec);
+		REQUIRE(!ec);
 		REQUIRE(lft);
 		
-		auto drw = com::cast<test::drawable>(lft);
+		auto drw = com::cast<test::drawable>(lft, ec);
+		REQUIRE(!ec);
 		REQUIRE(drw);
 		
-		auto upd = com::cast<test::updatable>(drw);
+		auto upd = com::cast<test::updatable>(drw, ec);
+		REQUIRE(!ec);
 		REQUIRE(upd);
 		
 		REQUIRE(com::identical(upd, lft));
@@ -375,9 +408,8 @@ public:
 		CAST_ENTRY_AGGREGATE(UIDOF(drawable), _object3)
 	END_CAST_MAP()
 	
-	bool init() noexcept {
-		_object3 = my_object3::s_create_instance<any>(controlling_object());
-		return !!_object3;
+	void init(std::error_code& ec) noexcept {
+		_object3 = my_object3::s_create_instance<any>(controlling_object(), ec);
 	}
 
 private:
@@ -390,13 +422,17 @@ TEST_CASE("coclass/aggregate", "[com]") {
 	std::weak_ptr<void> guard;
 	
 	{
-		auto lft = test::my_object6::s_create_instance<test::lifetime>();
+		std::error_code ec;
+		auto lft = test::my_object6::s_create_instance<test::lifetime>(nullptr, ec);
+		REQUIRE(!ec);
 		REQUIRE(lft);
 		
-		auto drw = com::cast<test::drawable>(lft);
+		auto drw = com::cast<test::drawable>(lft, ec);
+		REQUIRE(!ec);
 		REQUIRE(drw);
 		
-		auto upd = com::cast<test::updatable>(drw);
+		auto upd = com::cast<test::updatable>(drw, ec);
+		REQUIRE(ec);
 		REQUIRE_FALSE(upd);
 		
 		REQUIRE(com::identical(lft, drw));
@@ -427,9 +463,8 @@ public:
 		CAST_ENTRY_AGGREGATE_BLIND(_object3)
 	END_CAST_MAP()
 	
-	bool init() noexcept {
-		_object3 = my_object3::s_create_instance<any>(controlling_object());
-		return !!_object3;
+	void init(std::error_code& ec) noexcept {
+		_object3 = my_object3::s_create_instance<any>(controlling_object(), ec);
 	}
 
 private:
@@ -442,13 +477,18 @@ TEST_CASE("coclass/aggregate_blind", "[com]") {
 	std::weak_ptr<void> guard;
 	
 	{
-		auto lft = test::my_object7::s_create_instance<test::lifetime>();
+		std::error_code ec;
+		
+		auto lft = test::my_object7::s_create_instance<test::lifetime>(nullptr, ec);
+		REQUIRE(!ec);
 		REQUIRE(lft);
 		
-		auto drw = com::cast<test::drawable>(lft);
+		auto drw = com::cast<test::drawable>(lft, ec);
+		REQUIRE(!ec);
 		REQUIRE(drw);
 		
-		auto upd = com::cast<test::updatable>(drw);
+		auto upd = com::cast<test::updatable>(drw, ec);
+		REQUIRE(!ec);
 		REQUIRE(upd);
 		
 		REQUIRE(com::identical(upd, lft));
@@ -479,12 +519,51 @@ class my_object8
 public:
 	BEGIN_CAST_MAP(my_object8)
 		CAST_ENTRY(lifetime)
-		//CAST_ENTRY_AUTOAGGREGATE_BLIND(_object2, UIDOF(my_object2))
+		CAST_ENTRY_AUTOAGGREGATE_BLIND(_object2, UIDOF(my_object2))
 	END_CAST_MAP()
 
 private:
 	ref_ptr<any> _object2;
 };
+
+} // namespace test
+
+TEST_CASE("coclass/autoaggregate_blind", "[com]") {
+	std::weak_ptr<void> guard;
+	
+	{
+		std::error_code ec;
+		
+		auto drw = test::my_object8::s_create_instance<test::drawable>(nullptr, ec);
+		REQUIRE(!ec);
+		REQUIRE(drw);
+		
+		auto lft = com::cast<test::lifetime>(drw, ec);
+		REQUIRE(!ec);
+		REQUIRE(lft);
+
+		auto upd = com::cast<test::updatable>(lft, ec);
+		REQUIRE(!ec);
+		REQUIRE(upd);
+
+		REQUIRE(com::identical(upd, lft));
+		REQUIRE(com::identical(lft, drw));
+		REQUIRE(com::identical(drw, upd));
+		
+		guard = lft->guard();
+		REQUIRE_FALSE(guard.expired());
+		
+		lft.reset();
+		upd.reset();
+		
+		REQUIRE_FALSE(guard.expired());
+		
+		drw.reset();
+		REQUIRE(guard.expired());
+	}
+}
+
+namespace test {
 
 class my_module : public com::module<my_module> {
 public:
@@ -508,10 +587,14 @@ TEST_CASE("module", "[com]") {
 	std::weak_ptr<void> guard;
 	
 	SECTION("get_class_object") {
-		auto cf = com::get_class_object(UIDOF(test::my_object7));
+		std::error_code ec;
+		
+		auto cf = com::get_class_object(UIDOF(test::my_object7), ec);
+		REQUIRE(!ec);
 		REQUIRE(cf);
 		
-		auto lft = com::cast<test::lifetime>(cf->create_instance(nullptr, UIDOF(test::lifetime)));
+		auto lft = com::cast<test::lifetime>(cf->create_instance(nullptr, UIDOF(test::lifetime), ec), ec);
+		REQUIRE(!ec);
 		REQUIRE(lft);
 		
 		guard = lft->guard();

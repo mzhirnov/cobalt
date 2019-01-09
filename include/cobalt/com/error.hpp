@@ -14,7 +14,7 @@ namespace cobalt {
 namespace com {
 
 enum class errc {
-	success,
+	success = 0,
 	failure,
 	no_such_interface,
 	no_such_class,
@@ -53,11 +53,6 @@ public:
 	}
 };
 
-inline std::error_code& last_error_code() noexcept {
-	thread_local static std::error_code ec;
-	return ec;
-}
-
 } // namespace detail
 
 inline const std::error_category& com_category() noexcept {
@@ -66,15 +61,12 @@ inline const std::error_category& com_category() noexcept {
 }
 
 inline std::error_code make_error_code(errc e) noexcept {
-	return {static_cast<int>(e), com_category()};
+	return std::error_code{static_cast<int>(e), com_category()};
 }
 
 inline std::error_condition make_error_condition(errc e) noexcept {
-	return {static_cast<int>(e), com_category()};
+	return std::error_condition{static_cast<int>(e), com_category()};
 }
-
-inline const std::error_code& get_last_error() noexcept { return detail::last_error_code(); }
-inline void set_last_error(const std::error_code& ec) noexcept { detail::last_error_code() = ec; }
 
 } // namespace com
 } // namespace cobalt
