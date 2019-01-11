@@ -94,7 +94,7 @@ class object_base {
 public:
 	object_base() noexcept = default;
 	
-	void set_void(void* pv) noexcept {}
+	void set_param(void* pv) noexcept {}
 	
 	void init(std::error_code& ec) noexcept { ec = make_error_code(errc::success); }
 	void deinit() noexcept {}
@@ -127,7 +127,7 @@ protected:
 		
 		for (auto entry = entries; entry->func; ++entry) {
 			bool blind = !entry->iid;
-			if (blind || entry->iid == &iid) {
+			if (blind || *entry->iid == iid) {
 				if (entry->func == kSimpleCastEntry) {
 					BOOST_ASSERT(!blind);
 					ec = make_error_code(errc::success);
@@ -259,10 +259,10 @@ private:
 			{ nullptr, offset_from_member_ptr<self>(&self::pid), s_delegate },
 	
 #define CAST_ENTRY_AUTOAGGREGATE(iid, pid, clsid) \
-			{ &iid, reinterpret_cast<size_t>(&cache_thunk<aggregate_creator<self, &clsid>, offsetof(self, pid)>::data), s_cache },
+			{ &iid, reinterpret_cast<size_t>(&cache_thunk<aggregate_creator<self, clsid>, offsetof(self, pid)>::data), s_cache },
 	
 #define CAST_ENTRY_AUTOAGGREGATE_BLIND(pid, clsid) \
-			{ nullptr, reinterpret_cast<size_t>(&cache_thunk<aggregate_creator<self, &clsid>, offsetof(self, pid)>::data), s_cache },
+			{ nullptr, reinterpret_cast<size_t>(&cache_thunk<aggregate_creator<self, clsid>, offsetof(self, pid)>::data), s_cache },
 	
 #define CAST_ENTRY_AUTOAGGREGATE_CLASS(iid, pid, x) \
 			{ &iid, reinterpret_cast<size_t>(&cache_thunk<creator<aggregate<x>>, offsetof(self, pid)>::data), s_cache },
@@ -296,7 +296,7 @@ public:
 	using base_type = Base;
 	
 	stack_object() noexcept {
-		this->set_void(nullptr);
+		this->set_param(nullptr);
 		this->init(_ec);
 		BOOST_ASSERT(!_ec);
 	}
@@ -336,7 +336,7 @@ class object : public Base {
 public:
 	using base_type = Base;
 	
-	explicit object(void* pv = nullptr) noexcept {}
+	explicit object(void* pv) noexcept {}
 	~object() { this->deinit(); }
 	
 	virtual size_t retain() noexcept override { return this->internal_retain(); }
@@ -360,7 +360,7 @@ public:
 			ec = make_error_code(std::errc::not_enough_memory);
 			return nullptr;
 		}
-		p->set_void(nullptr);
+		p->set_param(nullptr);
 		p->init(ec);
 		if (ec) {
 			delete p;
@@ -378,7 +378,7 @@ public:
 	using base_type = Base;
 	contained_object(void* pv) noexcept {
 		BOOST_ASSERT(!this->_outer);
-		BOOST_ASSERT(!!pv);
+		BOOST_ASSERT(pv);
 		this->_outer = reinterpret_cast<any*>(pv);
 	}
 	virtual size_t retain() noexcept override { return this->_outer->retain(); }
@@ -420,7 +420,7 @@ public:
 			ec = make_error_code(std::errc::not_enough_memory);
 			return nullptr;
 		}
-		p->set_void(nullptr);
+		p->set_param(nullptr);
 		if (!p->init()) {
 			delete p;
 			ec = make_error_code(errc::failure);
@@ -466,7 +466,7 @@ public:
 			ec = make_error_code(std::errc::not_enough_memory);
 			return nullptr;
 		}
-		p->set_void(nullptr);
+		p->set_param(nullptr);
 		if (!p->init()) {
 			delete p;
 			ec = make_error_code(errc::failure);
@@ -550,7 +550,7 @@ struct creator {
 			ec = make_error_code(std::errc::not_enough_memory);
 			return nullptr;
 		};
-		p->set_void(pv);
+		p->set_param(pv);
 		p->init(ec);
 		if (ec) {
 			delete p;
@@ -574,7 +574,7 @@ struct internal_creator {
 			ec = make_error_code(std::errc::not_enough_memory);
 			return nullptr;
 		};
-		p->set_void(pv);
+		p->set_param(pv);
 		p->init(ec);
 		if (ec) {
 			delete p;
@@ -590,14 +590,14 @@ struct internal_creator {
 	}
 };
 
-template <typename T, const uid* clsid>
+template <typename T, const uid& clsid>
 struct aggregate_creator {
 	static any* create_instance(void* pv, const uid& iid, std::error_code& ec) noexcept {
 		if (!pv) {
 			ec = make_error_code(std::errc::invalid_argument);
 			return nullptr;
 		}
-		return ::cobalt::com::create_instance(static_cast<T*>(pv)->controlling_object(), *clsid, UIDOF(any), ec);
+		return ::cobalt::com::create_instance(static_cast<T*>(pv)->controlling_object(), clsid, UIDOF(any), ec);
 	}
 };
 
@@ -644,12 +644,12 @@ public:
 		CAST_ENTRY(class_factory)
 	END_CAST_MAP()
 	
-	void set_void(void* pv) noexcept { _creator = reinterpret_cast<create_fn>(pv); }
+	void set_param(void* pv) noexcept { _creator = reinterpret_cast<create_fn>(pv); }
 	
 	virtual any* create_instance(any* outer, const uid& iid, std::error_code& ec) noexcept override {
 		BOOST_ASSERT(_creator);
-		BOOST_ASSERT(!outer || (outer && iid == UIDOF(any)));
 		if (outer && iid != UIDOF(any)) {
+			BOOST_ASSERT(false);
 			ec = make_error_code(errc::aggregation_not_supported);
 			return nullptr;
 		}
@@ -666,7 +666,7 @@ public:
 		CAST_ENTRY(class_factory)
 	END_CAST_MAP()
 	
-	void set_void(void* pv) noexcept { _creator = reinterpret_cast<create_fn>(pv); }
+	void set_param(void* pv) noexcept { _creator = reinterpret_cast<create_fn>(pv); }
 	
 	virtual any* create_instance(any* outer, const uid& iid, std::error_code& ec) noexcept override {
 		BOOST_ASSERT(!outer);
@@ -693,13 +693,18 @@ private:
 #define DECLARE_CLASSFACTORY_SINGLETON() \
 	using class_factory_creator_type = ::cobalt::com::creator<::cobalt::com::object<::cobalt::com::class_factory_singleton_impl>>;
 
-template <typename T>
+template <typename T, const uid& clsid = UIDOF(T)>
 class coclass {
 protected:
 	DECLARE_AGGREGATABLE(T)
 	DECLARE_CLASSFACTORY()
 	
-	static const uid& s_class_uid() noexcept { return UIDOF(T); }
+	static const uid& s_class_id() noexcept { return clsid; }
+	
+	template <typename Q>
+	static ref_ptr<Q> s_create_instance(std::error_code& ec) noexcept {
+		return static_cast<Q*>(T::creator_type::create_instance(nullptr, UIDOF(Q), ec));
+	}
 	
 	template <typename Q>
 	static ref_ptr<Q> s_create_instance(any* outer, std::error_code& ec) noexcept {
@@ -718,11 +723,10 @@ struct object_entry {
 
 #define BEGIN_OBJECT_MAP(x) public: \
 	static const ::cobalt::com::object_entry* entries() noexcept { \
-		using object_map_class = x; \
 		static const ::cobalt::com::object_entry entries[] = {
 	
 #define OBJECT_ENTRY(class) { \
-			&class::s_class_uid(), \
+			&class::s_class_id(), \
 			&class::class_factory_creator_type::create_instance, \
 			&class::creator_type::create_instance, \
 			nullptr, \
@@ -730,7 +734,7 @@ struct object_entry {
 			&class::s_class_deinit },
 	
 #define OBJECT_ENTRY_NON_CREATEABLE(class) { \
-			&class::s_class_uid(), \
+			&class::s_class_id(), \
 			nullptr, \
 			nullptr, \
 			nullptr, \
@@ -771,7 +775,7 @@ protected:
 	
 	static class_factory* s_get_class_object(const object_entry* entries, const uid& clsid, std::error_code& ec) noexcept {
 		for (auto entry = entries; entry->clsid; ++entry) {
-			if (entry->get_class_object && entry->clsid == &clsid) {
+			if (entry->get_class_object && *entry->clsid == clsid) {
 				if (!entry->factory && (entry->factory = static_cast<class_factory*>(
 					entry->get_class_object(reinterpret_cast<any*>(entry->create_instance), UIDOF(any), ec))))
 				{
