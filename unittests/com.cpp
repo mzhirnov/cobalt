@@ -408,7 +408,7 @@ public:
 		CAST_ENTRY_AGGREGATE(UIDOF(drawable), _object3)
 	END_CAST_MAP()
 	
-	void init(std::error_code& ec) noexcept {
+	void initialize(std::error_code& ec) noexcept {
 		_object3 = my_object3::s_create_instance<any>(controlling_object(), ec);
 	}
 
@@ -463,7 +463,7 @@ public:
 		CAST_ENTRY_AGGREGATE_BLIND(_object3)
 	END_CAST_MAP()
 	
-	void init(std::error_code& ec) noexcept {
+	void initialize(std::error_code& ec) noexcept {
 		_object3 = my_object3::s_create_instance<any>(controlling_object(), ec);
 	}
 

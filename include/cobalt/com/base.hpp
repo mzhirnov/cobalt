@@ -96,11 +96,11 @@ public:
 	
 	void set_param(void* pv) noexcept {}
 	
-	void init(std::error_code& ec) noexcept { ec = make_error_code(errc::success); }
-	void deinit() noexcept {}
+	void initialize(std::error_code& ec) noexcept { ec = make_error_code(errc::success); }
+	void shutdown() noexcept {}
 	
-	static void s_class_init() noexcept {}
-	static void s_class_deinit() noexcept {}
+	static void s_class_initialize() noexcept {}
+	static void s_class_shutdown() noexcept {}
 
 protected:
 	size_t internal_retain() noexcept { return ++_ref_count; }
@@ -297,12 +297,12 @@ public:
 	
 	stack_object() noexcept {
 		this->set_param(nullptr);
-		this->init(_ec);
+		this->initialize(_ec);
 		BOOST_ASSERT(!_ec);
 	}
 	
 	~stack_object() {
-		this->deinit();
+		this->shutdown();
 		BOOST_ASSERT(this->_ref_count == 0);
 	}
 	
@@ -337,7 +337,7 @@ public:
 	using base_type = Base;
 	
 	explicit object(void* pv) noexcept {}
-	~object() { this->deinit(); }
+	~object() { this->shutdown(); }
 	
 	virtual size_t retain() noexcept override { return this->internal_retain(); }
 	virtual size_t release() noexcept override {
@@ -361,7 +361,7 @@ public:
 			return nullptr;
 		}
 		p->set_param(nullptr);
-		p->init(ec);
+		p->initialize(ec);
 		if (ec) {
 			delete p;
 			return nullptr;
@@ -394,10 +394,10 @@ public:
 	using base_type = Contained;
 	
 	explicit aggregate(void* pv) noexcept : _contained(pv) {}
-	~aggregate() { this->deinit(); }
+	~aggregate() { this->shutdown(); }
 	
-	void init(std::error_code& ec) noexcept { object_base::init(ec); if (!ec) _contained.init(ec); }
-	void deinit() noexcept { object_base::deinit(); _contained.deinit(); }
+	void initialize(std::error_code& ec) noexcept { object_base::initialize(ec); if (!ec) _contained.initialize(ec); }
+	void shutdown() noexcept { object_base::shutdown(); _contained.shutdown(); }
 	
 	virtual size_t retain() noexcept override { return this->internal_retain(); }
 	virtual size_t release() noexcept override {
@@ -421,7 +421,8 @@ public:
 			return nullptr;
 		}
 		p->set_param(nullptr);
-		if (!p->init()) {
+		p->initialize(ec);
+		if (ec) {
 			delete p;
 			ec = make_error_code(errc::failure);
 			return nullptr;
@@ -440,10 +441,10 @@ public:
 	using base_type = Contained;
 	
 	explicit object_or_aggregate(void* pv) noexcept : _contained(pv ? pv : this) {}
-	~object_or_aggregate() { this->deinit(); }
+	~object_or_aggregate() { this->shutdown(); }
 	
-	void init(std::error_code& ec) noexcept { object_base::init(ec); if (!ec) _contained.init(ec); }
-	void deinit() noexcept { object_base::deinit(); _contained.deinit(); }
+	void initialize(std::error_code& ec) noexcept { object_base::initialize(ec); if (!ec) _contained.initialize(ec); }
+	void shutdown() noexcept { object_base::shutdown(); _contained.shutdown(); }
 	
 	virtual size_t retain() noexcept override { return this->internal_retain(); }
 	virtual size_t release() noexcept override {
@@ -467,7 +468,8 @@ public:
 			return nullptr;
 		}
 		p->set_param(nullptr);
-		if (!p->init()) {
+		p->initialize(ec);
+		if (ec) {
 			delete p;
 			ec = make_error_code(errc::failure);
 			return nullptr;
@@ -492,7 +494,7 @@ public:
 		this->owner()->retain();
 	}
 	~tear_off_object() {
-		this->deinit();
+		this->shutdown();
 		this->owner()->release();
 	}
 	
@@ -518,10 +520,10 @@ public:
 		BOOST_ASSERT(!!pv);
 		_contained.owner(static_cast<typename Contained::owner_type*>(pv));
 	}
-	~cached_tear_off_object() { this->deinit(); }
+	~cached_tear_off_object() { this->shutdown(); }
 	
-	void init(std::error_code& ec) noexcept { object_base::init(ec); if (!ec) _contained.init(ec); }
-	void deinit() noexcept { object_base::deinit(); _contained.deinit(); }
+	void initialize(std::error_code& ec) noexcept { object_base::initialize(ec); if (!ec) _contained.initialize(ec); }
+	void shutdown() noexcept { object_base::shutdown(); _contained.shutdown(); }
 	
 	virtual size_t retain() noexcept override { return this->internal_retain(); }
 	virtual size_t release() noexcept override {
@@ -551,7 +553,7 @@ struct creator {
 			return nullptr;
 		};
 		p->set_param(pv);
-		p->init(ec);
+		p->initialize(ec);
 		if (ec) {
 			delete p;
 			ec = make_error_code(errc::failure);
@@ -575,7 +577,7 @@ struct internal_creator {
 			return nullptr;
 		};
 		p->set_param(pv);
-		p->init(ec);
+		p->initialize(ec);
 		if (ec) {
 			delete p;
 			ec = make_error_code(errc::failure);
@@ -730,16 +732,16 @@ struct object_entry {
 			&class::class_factory_creator_type::create_instance, \
 			&class::creator_type::create_instance, \
 			nullptr, \
-			&class::s_class_init, \
-			&class::s_class_deinit },
+			&class::s_class_initialize, \
+			&class::s_class_shutdown },
 	
 #define OBJECT_ENTRY_NON_CREATEABLE(class) { \
 			&class::s_class_id(), \
 			nullptr, \
 			nullptr, \
 			nullptr, \
-			&class::s_class_init, \
-			&class::s_class_deinit },
+			&class::s_class_initialize, \
+			&class::s_class_shutdown },
 
 #define END_OBJECT_MAP() \
 			{ nullptr, nullptr, nullptr, nullptr, nullptr, nullptr } \
