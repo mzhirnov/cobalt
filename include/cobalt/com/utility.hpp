@@ -29,7 +29,6 @@ inline void intrusive_ptr_release(any* p) noexcept {
 
 template <typename Q>
 inline ref_ptr<Q> cast(any* p, std::error_code& ec) noexcept {
-	BOOST_ASSERT(p);
 	if (!p) {
 		ec = make_error_code(std::errc::invalid_argument);
 		return nullptr;

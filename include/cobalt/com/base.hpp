@@ -22,6 +22,8 @@
 
 #include <boost/assert.hpp>
 
+#include <mutex>
+
 namespace cobalt {
 namespace com {
 namespace detail {
@@ -97,6 +99,16 @@ class object_base {
 public:
 	object_base() noexcept = default;
 	
+	static void class_initialize() noexcept {}
+	static void class_shutdown() noexcept {}
+	
+protected:
+	template <typename T> friend struct creator;
+	template <typename T> friend struct internal_creator;
+	template <typename T> friend class aggregated_object;
+	template <typename T> friend class maybe_aggregated_object;
+	template <typename T> friend class cached_tear_off_object;
+	
 	void set_param(void* pv) noexcept {}
 	
 	void internal_initialize_retain() noexcept {}
@@ -104,9 +116,6 @@ public:
 	
 	void initialize(std::error_code& ec) noexcept { ec = make_error_code(errc::success); }
 	void shutdown() noexcept {}
-	
-	static void s_class_initialize() noexcept {}
-	static void s_class_shutdown() noexcept {}
 
 protected:
 	size_t internal_retain() noexcept { BOOST_ASSERT(_ref_count != -1); return ++_ref_count; }
@@ -311,14 +320,10 @@ public: \
 template <typename Base>
 class stack_object : public Base {
 public:
-	using base_type = Base;
-	
 	stack_object() noexcept {
-		this->set_param(nullptr);
 		this->initialize(_ec);
 		BOOST_ASSERT(!_ec);
 	}
-	
 	~stack_object() {
 		this->shutdown();
 		BOOST_ASSERT(this->_ref_count == 0);
@@ -352,8 +357,6 @@ private:
 template <typename Base>
 class object : public Base {
 public:
-	using base_type = Base;
-	
 	explicit object(void* pv) noexcept {}
 	~object() { this->shutdown(); }
 	
@@ -367,18 +370,17 @@ public:
 	virtual any* cast(const uid& iid, std::error_code& ec) noexcept override
 		{ return this->internal_cast(iid, ec); }
 	
-	static object<Base>* create_instance(any* outer, std::error_code& ec) noexcept {
+	static object* create_instance(any* outer, std::error_code& ec) noexcept {
 		BOOST_ASSERT(!outer);
 		if (outer) {
 			ec = make_error_code(errc::aggregation_not_supported);
 			return nullptr;
 		}
-		auto p = new(std::nothrow) object<Base>(nullptr);
+		auto p = new(std::nothrow) object(nullptr);
 		if (!p) {
 			ec = make_error_code(std::errc::not_enough_memory);
 			return nullptr;
 		}
-		p->set_param(nullptr);
 		p->internal_initialize_retain();
 		p->initialize(ec);
 		p->internal_initialize_release();
@@ -395,8 +397,7 @@ public:
 template <typename Base>
 class contained_object : public Base {
 public:
-	using base_type = Base;
-	contained_object(void* pv) noexcept {
+	explicit contained_object(void* pv) noexcept {
 		BOOST_ASSERT(!this->_outer);
 		BOOST_ASSERT(pv);
 		this->_outer = reinterpret_cast<any*>(pv);
@@ -411,8 +412,6 @@ public:
 template <typename Contained>
 class aggregated_object : public any, public object_base {
 public:
-	using base_type = Contained;
-	
 	explicit aggregated_object(void* pv) noexcept : _contained(pv) {}
 	aggregated_object() { this->shutdown(); }
 	
@@ -434,13 +433,17 @@ public:
 		return _contained.internal_cast(iid, ec);
 	}
 	
-	static aggregated_object<Contained>* create_instance(any* outer, std::error_code& ec) noexcept {
-		auto p = new(std::nothrow) aggregated_object<Contained>(outer);
+	static aggregated_object* create_instance(any* outer, std::error_code& ec) noexcept {
+		BOOST_ASSERT(outer);
+		if (!outer) {
+			ec = make_error_code(errc::failure);
+			return nullptr;
+		}
+		auto p = new(std::nothrow) aggregated_object(outer);
 		if (!p) {
 			ec = make_error_code(std::errc::not_enough_memory);
 			return nullptr;
 		}
-		p->set_param(nullptr);
 		p->internal_initialize_retain();
 		p->initialize(ec);
 		p->internal_initialize_release();
@@ -460,8 +463,6 @@ private:
 template <typename Contained>
 class maybe_aggregated_object : public any, public object_base {
 public:
-	using base_type = Contained;
-	
 	explicit maybe_aggregated_object(void* pv) noexcept : _contained(pv ? pv : this) {}
 	maybe_aggregated_object() { this->shutdown(); }
 	
@@ -483,13 +484,12 @@ public:
 		return _contained.internal_cast(iid, ec);
 	}
 	
-	static maybe_aggregated_object<Contained>* create_instance(any* outer, std::error_code& ec) noexcept {
-		auto p = new(std::nothrow) maybe_aggregated_object<Contained>(outer);
+	static maybe_aggregated_object* create_instance(any* outer, std::error_code& ec) noexcept {
+		auto p = new(std::nothrow) maybe_aggregated_object(outer);
 		if (!p) {
 			ec = make_error_code(std::errc::not_enough_memory);
 			return nullptr;
 		}
-		p->set_param(nullptr);
 		p->internal_initialize_retain();
 		p->initialize(ec);
 		p->internal_initialize_release();
@@ -509,8 +509,6 @@ private:
 template <typename Base>
 class tear_off_object : public Base {
 public:
-	using base_type = Base;
-	
 	explicit tear_off_object(void* pv) noexcept {
 		BOOST_ASSERT(!this->owner());
 		BOOST_ASSERT(pv);
@@ -535,8 +533,6 @@ public:
 template <typename Contained>
 class cached_tear_off_object : public any, public object_base {
 public:
-	using base_type = Contained;
-	
 	explicit cached_tear_off_object(void* pv) noexcept
 		: _contained(static_cast<typename Contained::owner_type*>(pv)->get_outer_object())
 	{
@@ -634,7 +630,7 @@ struct aggregate_creator {
 template <typename T1, typename T2>
 struct creator2 {
 	static any* create_instance(void* pv, const uid& iid, std::error_code& ec) noexcept {
-		return !pv ? T1::create_instance(nullptr, iid, ec) :
+		return !pv ? T1::create_instance(pv, iid, ec) :
 		             T2::create_instance(pv, iid, ec);
 	}
 };
@@ -664,7 +660,7 @@ public: \
 	                         ::cobalt::com::fail_creator, \
 	                         ::cobalt::com::creator<::cobalt::com::aggregated_object<x>>>;
 
-#define DECLARE_POLY_AGGREGATABLE(x) \
+#define DECLARE_MAYBE_AGGREGATABLE(x) \
 public: \
 	using creator_type = ::cobalt::com::creator<::cobalt::com::maybe_aggregated_object<x>>;
 
@@ -677,10 +673,14 @@ public:
 	void set_param(void* pv) noexcept { _creator = reinterpret_cast<create_fn>(pv); }
 	
 	virtual any* create_instance(any* outer, const uid& iid, std::error_code& ec) noexcept override {
-		BOOST_ASSERT(_creator);
+		BOOST_ASSERT(!outer || iid == UIDOF(any));
 		if (outer && iid != UIDOF(any)) {
-			BOOST_ASSERT(false);
 			ec = make_error_code(errc::aggregation_not_supported);
+			return nullptr;
+		}
+		BOOST_ASSERT(_creator);
+		if (!_creator) {
+			ec = make_error_code(errc::failure);
 			return nullptr;
 		}
 		return _creator(outer, iid, ec);
@@ -704,8 +704,11 @@ public:
 			return nullptr;
 		}
 		if (!_object && !_ec) {
-			if (auto p = object<T>::create_instance(_ec)) {
-				_object = p->identity();
+			std::lock_guard<std::mutex> lock(_mutex);
+			if (!_object) {
+				if (auto p = object<T>::create_instance(_ec)) {
+					_object = p->identity();
+				}
 			}
 		}
 		if (_ec) {
@@ -716,34 +719,35 @@ public:
 	}
 	
 private:
+	std::mutex _mutex;
 	ref_ptr<any> _object;
 	std::error_code _ec;
 };
 
-#define DECLARE_CLASSFACTORY_EX(cf) \
+#define DECLARE_CLASSFACTORY(cf) \
 	using class_factory_creator_type = ::cobalt::com::creator<::cobalt::com::object<cf>>;
 
-#define DECLARE_CLASSFACTORY() \
-	DECLARE_CLASSFACTORY_EX(::cobalt::com::class_factory_impl)
+#define DECLARE_DEFAULT_CLASSFACTORY() \
+	DECLARE_CLASSFACTORY(::cobalt::com::class_factory_impl)
 	
-#define DECLARE_CLASSFACTORY_SINGLETON(x) \
-	DECLARE_CLASSFACTORY_EX(::cobalt::com::class_factory_singleton_impl<x>>>)
+#define DECLARE_SINGLETON_CLASSFACTORY(x) \
+	DECLARE_CLASSFACTORY(::cobalt::com::class_factory_singleton_impl<x>>>)
 
 template <typename T, const uid& clsid = UIDOF(T)>
 class coclass {
 protected:
 	DECLARE_AGGREGATABLE(T)
-	DECLARE_CLASSFACTORY()
+	DECLARE_DEFAULT_CLASSFACTORY()
 	
 	static const uid& s_class_id() noexcept { return clsid; }
 	
 	template <typename Q>
-	static ref_ptr<Q> s_create_instance(std::error_code& ec) noexcept {
+	static ref_ptr<Q> create_instance(std::error_code& ec) noexcept {
 		return static_cast<Q*>(T::creator_type::create_instance(nullptr, UIDOF(Q), ec));
 	}
 	
 	template <typename Q>
-	static ref_ptr<Q> s_create_instance(any* outer, std::error_code& ec) noexcept {
+	static ref_ptr<Q> create_instance(any* outer, std::error_code& ec) noexcept {
 		return static_cast<Q*>(T::creator_type::create_instance(outer, UIDOF(Q), ec));
 	}
 };
@@ -767,16 +771,16 @@ public: \
 			&class::class_factory_creator_type::create_instance, \
 			&class::creator_type::create_instance, \
 			nullptr, \
-			&class::s_class_initialize, \
-			&class::s_class_shutdown },
+			&class::class_initialize, \
+			&class::class_shutdown },
 	
 #define OBJECT_ENTRY_NON_CREATEABLE(class) { \
 			&class::s_class_id(), \
 			nullptr, \
 			nullptr, \
 			nullptr, \
-			&class::s_class_initialize, \
-			&class::s_class_shutdown },
+			&class::class_initialize, \
+			&class::class_shutdown },
 
 #define END_OBJECT_MAP() \
 			{ nullptr, nullptr, nullptr, nullptr, nullptr, nullptr } \
@@ -787,7 +791,7 @@ public: \
 class module_base {
 public:
 	module_base() noexcept { _next = head(); head() = this; }
-	virtual ~module_base() = default;
+	virtual ~module_base() { head() = nullptr; }
 	
 	virtual class_factory* get_class_object(const uid& clsid, std::error_code& ec) noexcept = 0;
 	virtual any* create_instance(any* outer, const uid& clsid, const uid& iid, std::error_code& ec) noexcept = 0;
@@ -810,16 +814,20 @@ protected:
 		}
 	}
 	
-	static class_factory* s_get_class_object(const object_entry* entries, const uid& clsid, std::error_code& ec) noexcept {
+	static class_factory* s_get_class_object(std::mutex& mutex, const object_entry* entries, const uid& clsid, std::error_code& ec) noexcept {
 		for (auto entry = entries; entry->clsid; ++entry) {
 			if (entry->get_class_object && *entry->clsid == clsid) {
-				if (!entry->factory && (entry->factory = static_cast<class_factory*>(
-					entry->get_class_object(reinterpret_cast<any*>(entry->create_instance), UIDOF(any), ec))))
-				{
-					entry->factory->retain();
+				if (!entry->factory) {
+					std::lock_guard<std::mutex> lock(mutex);
+				 	if (!entry->factory) {
+				 		auto pv = reinterpret_cast<any*>(entry->create_instance);
+				 		if ((entry->factory = static_cast<class_factory*>(entry->get_class_object(pv, UIDOF(any), ec)))) {
+							entry->factory->retain();
+						}
+					}
 				}
 				BOOST_ASSERT(entry->factory);
-				ec = make_error_code(errc::success);
+				ec = make_error_code(entry->factory ? errc::success : errc::failure);
 				return entry->factory;
 			}
 		}
@@ -869,7 +877,7 @@ public:
 	}
 
 	virtual class_factory* get_class_object(const uid& clsid, std::error_code& ec) noexcept override {
-		return s_get_class_object(derived().get_entries(), clsid, ec);
+		return s_get_class_object(_mutex, derived().get_entries(), clsid, ec);
 	}
 	
 	virtual any* create_instance(any* outer, const uid& clsid, const uid& iid, std::error_code& ec) noexcept override {
@@ -891,6 +899,9 @@ public:
 	
 private:
 	T& derived() noexcept { return static_cast<T&>(*this); }
+	
+private:
+	std::mutex _mutex;
 };
 
 } // namespace com

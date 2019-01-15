@@ -163,7 +163,7 @@ TEST_CASE("coclass/chain_cast", "[com]") {
 	{
 		std::error_code ec;
 		
-		auto upd = test::my_object::s_create_instance<test::updatable>(ec);
+		auto upd = test::my_object::create_instance<test::updatable>(ec);
 		REQUIRE(!ec);
 		REQUIRE(upd);
 		
@@ -207,7 +207,7 @@ TEST_CASE("coclass/tear_off", "[com]") {
 	{
 		std::error_code ec;
 		
-		auto drw = test::my_object2::s_create_instance<test::drawable>(ec);
+		auto drw = test::my_object2::create_instance<test::drawable>(ec);
 		REQUIRE(!ec);
 		REQUIRE(drw);
 		
@@ -266,7 +266,7 @@ TEST_CASE("coclass/cached_tear_off", "[com]") {
 	{
 		std::error_code ec;
 		
-		auto upd = test::my_object3::s_create_instance<test::updatable>(ec);
+		auto upd = test::my_object3::create_instance<test::updatable>(ec);
 		REQUIRE(!ec);
 		REQUIRE(upd);
 		
@@ -323,7 +323,7 @@ TEST_CASE("coclass/auto_aggregate_class", "[com]") {
 	{
 		std::error_code ec;
 		
-		auto lft = test::my_object4::s_create_instance<test::lifetime>(ec);
+		auto lft = test::my_object4::create_instance<test::lifetime>(ec);
 		REQUIRE(!ec);
 		REQUIRE(lft);
 		
@@ -377,7 +377,7 @@ TEST_CASE("coclass/auto_aggregate_class_blind", "[com]") {
 	{
 		std::error_code ec;
 		
-		auto lft = test::my_object5::s_create_instance<test::lifetime>(ec);
+		auto lft = test::my_object5::create_instance<test::lifetime>(ec);
 		REQUIRE(!ec);
 		REQUIRE(lft);
 		
@@ -424,7 +424,7 @@ public:
 	DECLARE_PROTECT_INITIALIZE()
 	
 	void initialize(std::error_code& ec) noexcept {
-		_object3 = my_object3::s_create_instance<any>(get_outer_object(), ec);
+		_object3 = my_object3::create_instance<any>(get_outer_object(), ec);
 	}
 
 private:
@@ -438,7 +438,7 @@ TEST_CASE("coclass/aggregate", "[com]") {
 	
 	{
 		std::error_code ec;
-		auto lft = test::my_object6::s_create_instance<test::lifetime>(ec);
+		auto lft = test::my_object6::create_instance<test::lifetime>(ec);
 		REQUIRE(!ec);
 		REQUIRE(lft);
 		
@@ -482,7 +482,7 @@ public:
 	DECLARE_PROTECT_INITIALIZE()
 	
 	void initialize(std::error_code& ec) noexcept {
-		_object3 = my_object3::s_create_instance<any>(get_outer_object(), ec);
+		_object3 = my_object3::create_instance<any>(get_outer_object(), ec);
 	}
 
 private:
@@ -497,7 +497,7 @@ TEST_CASE("coclass/aggregate_blind", "[com]") {
 	{
 		std::error_code ec;
 		
-		auto lft = test::my_object7::s_create_instance<test::lifetime>(ec);
+		auto lft = test::my_object7::create_instance<test::lifetime>(ec);
 		REQUIRE(!ec);
 		REQUIRE(lft);
 		
@@ -554,7 +554,7 @@ TEST_CASE("coclass/autoaggregate_blind", "[com]") {
 	{
 		std::error_code ec;
 		
-		auto drw = test::my_object8::s_create_instance<test::drawable>(ec);
+		auto drw = test::my_object8::create_instance<test::drawable>(ec);
 		REQUIRE(!ec);
 		REQUIRE(drw);
 		
