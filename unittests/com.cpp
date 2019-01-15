@@ -49,6 +49,8 @@ public:
 		CAST_ENTRY(drawable)
 	END_CAST_MAP()
 	
+	DECLARE_GET_OUTER_OBJECT()
+	
 	virtual void draw() noexcept override { puts(__PRETTY_FUNCTION__); }
 };
 
@@ -83,6 +85,8 @@ public:
 		CAST_ENTRY(updatable)
 		CAST_ENTRY_CHAIN(my_object_base)
 	END_CAST_MAP()
+	
+	DECLARE_GET_OUTER_OBJECT()
 	
 	void hello_world() noexcept {}
 };
@@ -191,6 +195,8 @@ public:
 		CAST_ENTRY_TEAR_OFF(UIDOF(drawable), drawable_tear_off_impl)
 		CAST_ENTRY(updatable)
 	END_CAST_MAP()
+	
+	DECLARE_GET_OUTER_OBJECT()
 };
 
 } // namespace test
@@ -246,6 +252,8 @@ public:
 		CAST_ENTRY_CACHED_TEAR_OFF(UIDOF(drawable), drawable_tear_off_impl, _drawable)
 	END_CAST_MAP()
 	
+	DECLARE_GET_OUTER_OBJECT()
+	
 private:
 	ref_ptr<drawable> _drawable;
 };
@@ -300,6 +308,8 @@ public:
 		CAST_ENTRY(lifetime)
 		CAST_ENTRY_AUTOAGGREGATE_CLASS(UIDOF(drawable), _object3, my_object3)
 	END_CAST_MAP()
+	
+	DECLARE_GET_OUTER_OBJECT()
 
 private:
 	ref_ptr<any> _object3;
@@ -352,6 +362,8 @@ public:
 		CAST_ENTRY(lifetime)
 		CAST_ENTRY_AUTOAGGREGATE_CLASS_BLIND(_object3, my_object3)
 	END_CAST_MAP()
+	
+	DECLARE_GET_OUTER_OBJECT()
 
 private:
 	ref_ptr<any> _object3;
@@ -408,8 +420,11 @@ public:
 		CAST_ENTRY_AGGREGATE(UIDOF(drawable), _object3)
 	END_CAST_MAP()
 	
+	DECLARE_GET_OUTER_OBJECT()
+	DECLARE_PROTECT_INITIALIZE()
+	
 	void initialize(std::error_code& ec) noexcept {
-		_object3 = my_object3::s_create_instance<any>(controlling_object(), ec);
+		_object3 = my_object3::s_create_instance<any>(get_outer_object(), ec);
 	}
 
 private:
@@ -463,8 +478,11 @@ public:
 		CAST_ENTRY_AGGREGATE_BLIND(_object3)
 	END_CAST_MAP()
 	
+	DECLARE_GET_OUTER_OBJECT()
+	DECLARE_PROTECT_INITIALIZE()
+	
 	void initialize(std::error_code& ec) noexcept {
-		_object3 = my_object3::s_create_instance<any>(controlling_object(), ec);
+		_object3 = my_object3::s_create_instance<any>(get_outer_object(), ec);
 	}
 
 private:
@@ -521,6 +539,8 @@ public:
 		CAST_ENTRY(lifetime)
 		CAST_ENTRY_AUTOAGGREGATE_BLIND(_object2, UIDOF(my_object2))
 	END_CAST_MAP()
+	
+	DECLARE_GET_OUTER_OBJECT()
 
 private:
 	ref_ptr<any> _object2;
