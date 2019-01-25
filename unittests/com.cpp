@@ -78,7 +78,7 @@ DECLARE_CLASS(test, my_object)
 class my_object
 	: public my_object_base
 	, public updatable_impl
-	, public com::coclass<my_object>
+	, public com::coclass<my_object, UIDOF(my_object)>
 {
 public:
 	BEGIN_CAST_MAP(my_object)
@@ -187,7 +187,7 @@ class my_object2
 	: public com::object_base
 	, public lifetime_impl
 	, public updatable_impl
-	, public com::coclass<my_object2>
+	, public com::coclass<my_object2, UIDOF(my_object2)>
 {
 public:
 	BEGIN_CAST_MAP(my_object2)
@@ -255,7 +255,7 @@ public:
 	DECLARE_GET_OUTER_OBJECT()
 	
 private:
-	ref_ptr<drawable> _drawable;
+	com::ref<drawable> _drawable;
 };
 
 } // namespace test
@@ -312,7 +312,7 @@ public:
 	DECLARE_GET_OUTER_OBJECT()
 
 private:
-	ref_ptr<any> _object3;
+	com::ref<any> _object3;
 };
 
 } // namespace test
@@ -366,7 +366,7 @@ public:
 	DECLARE_GET_OUTER_OBJECT()
 
 private:
-	ref_ptr<any> _object3;
+	com::ref<any> _object3;
 };
 
 } // namespace test
@@ -428,7 +428,7 @@ public:
 	}
 
 private:
-	ref_ptr<any> _object3;
+	com::ref<any> _object3;
 };
 
 } // namespace test
@@ -470,7 +470,7 @@ DECLARE_CLASS(test, my_object7)
 class my_object7
 	: public com::object_base
 	, public lifetime_impl
-	, public com::coclass<my_object7>
+	, public com::coclass<my_object7, UIDOF(my_object7)>
 {
 public:
 	BEGIN_CAST_MAP(my_object7)
@@ -486,7 +486,7 @@ public:
 	}
 
 private:
-	ref_ptr<any> _object3;
+	com::ref<any> _object3;
 };
 
 } // namespace test
@@ -543,7 +543,7 @@ public:
 	DECLARE_GET_OUTER_OBJECT()
 
 private:
-	ref_ptr<any> _object2;
+	com::ref<any> _object2;
 };
 
 } // namespace test
