@@ -801,13 +801,13 @@ public:
 	virtual ref<any> create_instance(any* outer, const uid& clsid, const uid& iid, std::error_code& ec) noexcept = 0;
 
 protected:
-	static void s_init(const object_entry* entries) noexcept {
+	static void s_initialize(const object_entry* entries) noexcept {
 		for (auto entry = entries; entry->clsid; ++entry) {
 			entry->class_initialize();
 		}
 	}
 	
-	static void s_deinit(const object_entry* entries) noexcept {
+	static void s_shutdown(const object_entry* entries) noexcept {
 		for (auto entry = entries; entry->clsid; ++entry) {
 			entry->class_shutdown();
 			// Release factory
@@ -873,11 +873,11 @@ template <typename T>
 class module : public module_base {
 public:
 	module() noexcept {
-		s_init(derived().get_entries());
+		s_initialize(derived().get_entries());
 	}
 	
 	~module() {
-		s_deinit(derived().get_entries());
+		s_shutdown(derived().get_entries());
 	}
 
 	virtual ref<class_factory> get_class_object(const uid& clsid, std::error_code& ec) noexcept override {
