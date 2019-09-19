@@ -316,7 +316,7 @@ public: \
 
 /// Object instance on stack.
 template <typename Base>
-class stack_object : public Base {
+class stack_object final : public Base {
 public:
 	stack_object() noexcept {
 		this->initialize(_ec);
@@ -353,7 +353,7 @@ private:
 
 /// Object instance on heap.
 template <typename Base>
-class object : public Base {
+class object final : public Base {
 public:
 	explicit object(void* pv) noexcept {}
 	~object() { this->shutdown(); }
@@ -393,7 +393,7 @@ public:
 
 /// Object instance as part of aggregated object.
 template <typename Base>
-class contained_object : public Base {
+class contained_object final : public Base {
 public:
 	explicit contained_object(void* pv) noexcept {
 		BOOST_ASSERT(!this->_outer);
@@ -415,7 +415,7 @@ private:
 
 /// Object instance on heap aggregated inside another object.
 template <typename Contained>
-class aggregated_object : public any, public object_base {
+class aggregated_object final : public any, public object_base {
 public:
 	explicit aggregated_object(void* pv) noexcept : _contained(pv) {}
 	aggregated_object() { this->shutdown(); }
@@ -467,7 +467,7 @@ private:
 
 /// Object instance on heap, either aggregated or not.
 template <typename Contained>
-class maybe_aggregated_object : public any, public object_base {
+class maybe_aggregated_object final : public any, public object_base {
 public:
 	explicit maybe_aggregated_object(void* pv) noexcept : _contained(pv ? pv : this) {}
 	maybe_aggregated_object() { this->shutdown(); }
@@ -514,7 +514,7 @@ private:
 
 /// Object instance on heap as of tear-off implementation.
 template <typename Base>
-class tear_off_object : public Base {
+class tear_off_object final : public Base {
 public:
 	explicit tear_off_object(void* pv) noexcept {
 		BOOST_ASSERT(!this->owner());
@@ -539,7 +539,7 @@ public:
 
 /// Object instance on heap  as of cached tear-off implementation.
 template <typename Contained>
-class cached_tear_off_object : public any, public object_base {
+class cached_tear_off_object final : public any, public object_base {
 public:
 	explicit cached_tear_off_object(void* pv) noexcept
 		: _contained(static_cast<typename Contained::owner_type*>(pv)->get_outer_object())
