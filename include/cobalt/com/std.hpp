@@ -8,21 +8,22 @@
 //     comparable
 //     hashable
 //     copyable
-//     coder
+//     clonable
+//     decoder
+//     encoder
 //     decodable
 //     encodable
-//     codable
 
-#include <cobalt/com/error.hpp>
-#include <cobalt/utility/intrusive.hpp>
-#include <cobalt/utility/uid.hpp>
+#include <cobalt/com/core.hpp>
+
+#include <system_error>
 
 namespace cobalt {
 namespace com {
 
 DECLARE_INTERFACE(com, equatable)
 struct equatable : any {
-	virtual bool equal(any*) const noexcept = 0;
+	virtual bool equals(any*) const noexcept = 0;
 };
 
 DECLARE_INTERFACE(com, comparable)
@@ -37,38 +38,42 @@ struct hashable : equatable {
 
 DECLARE_INTERFACE(com, copyable)
 struct copyable : any {
-	virtual any* copy() const noexcept = 0;
+	virtual ref<any> copy() const noexcept = 0;
 };
 
-enum class coding_mode {
-	encoding,
-	decoding
+DECLARE_INTERFACE(com, clonable)
+struct clonable : copyable {
+	virtual ref<any> clone() const noexcept = 0;
 };
 
-DECLARE_INTERFACE(com, coder)
-struct coder : any {
-	virtual coding_mode mode() const noexcept = 0;
+DECLARE_INTERFACE(com, decoder)
+struct decoder : any {
+	virtual void decode(const char* key, bool& value) noexcept = 0;
+	virtual void decode(const char* key, int& value) noexcept = 0;
+	virtual void decode(const char* key, int& value, int min, int max) noexcept = 0;
+	virtual void decode(const char* key, float& value) noexcept = 0;
+	virtual void decode(const char* key, float& value, float min, float max, float resolution) noexcept = 0;
+	virtual void decode(const char* key, void* data, size_t size) noexcept = 0;
+};
 
-	virtual bool encode_bool(const char* name, bool& value) noexcept = 0;
-	virtual bool encode_int(const char* name, int& value) noexcept = 0;
-	virtual bool encode_int_range(const char* name, int& value, int min, int max) noexcept = 0;
-	virtual bool encode_float(const char* name, float& value) noexcept = 0;
-	virtual bool encode_float_range(const char* name, float& value, float min, float max, float resolution) noexcept = 0;
-	virtual bool encode_bytes(const char* name, void* data, size_t size_in_bytes) noexcept = 0;
+DECLARE_INTERFACE(com, encoder)
+struct encoder : any {
+	virtual void encode(const char* key, bool& value) noexcept = 0;
+	virtual void encode(const char* key, int& value) noexcept = 0;
+	virtual void encode(const char* key, int& value, int min, int max) noexcept = 0;
+	virtual void encode(const char* key, float& value) noexcept = 0;
+	virtual void encode(const char* key, float& value, float min, float max, float resolution) noexcept = 0;
+	virtual void encode(const char* key, void* data, size_t size) noexcept = 0;
 };
 
 DECLARE_INTERFACE(com, decodable)
 struct decodable : any {
-	virtual void init(coder*) noexcept = 0;
+	virtual void init(decoder*, std::error_code& ec) noexcept = 0;
 };
 
 DECLARE_INTERFACE(com, encodable)
 struct encodable : any {
-	virtual void encode(coder*) const noexcept = 0;
-};
-
-DECLARE_INTERFACE(com, codable)
-struct codable : decodable, encodable {
+	virtual void encode(encoder*, std::error_code& ec) const noexcept = 0;
 };
 
 } // namespace com
