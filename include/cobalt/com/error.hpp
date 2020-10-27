@@ -6,10 +6,6 @@
 #include <system_error>
 #include <cstdio>
 
-// Functions in this file:
-//     get_last_error
-//     set_last_error
-
 namespace cobalt {
 namespace com {
 
@@ -53,11 +49,14 @@ public:
 	}
 };
 
+struct com_error_category_helper {
+	inline static com_error_category instance;
+};
+
 } // namespace detail
 
 inline const std::error_category& com_category() noexcept {
-	static detail::com_error_category instance;
-	return instance;
+	return detail::com_error_category_helper::instance;
 }
 
 inline std::error_code make_error_code(errc e) noexcept {
